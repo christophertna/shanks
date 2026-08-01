@@ -14,6 +14,9 @@ You are an autonomous coding agent working on a software project.
 8. If checks pass, commit ALL changes with message: `feat: [Story ID] - [Story Title]`
 9. Update the PRD to set `passes: true` for the completed story
 10. Append your progress to `progress.txt`
+11. Before your final response, print exactly one `RALPH_ERROR: ...` line. Use `RALPH_ERROR: none` when the story and checks completed successfully; otherwise summarize the latest failure in one line.
+
+The Ralph runner automatically updates `metadata.txt` after this iteration. Do not edit that file directly.
 
 ## Progress Report Format
 
