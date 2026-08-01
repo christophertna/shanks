@@ -1,0 +1,11 @@
+# Ralph working files (generated during runs)
+scripts/ralph/prd.json
+scripts/ralph/progress.txt
+scripts/ralph/.last-branch
+scripts/ralph/archive/
+
+# OS files
+.DS_Store
+
+# Claude Code local state
+.claude/
