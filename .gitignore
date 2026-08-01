@@ -10,3 +10,8 @@ scripts/ralph/archive/
 
 # Claude Code local state
 .claude/
+
+# Python virtual environment and caches
+.venv/
+__pycache__/
+*.py[cod]
