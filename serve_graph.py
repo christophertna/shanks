@@ -18,6 +18,11 @@ PROJECT_DIR = Path(__file__).parent
 def style_mermaid(content: str, decision_node_ids: set[str]) -> str:
     """Apply the viewer's white-node theme and diamond decision shapes."""
 
+    # LangGraph includes node metadata in labels; keep it for styling, not display.
+    content = content.replace(
+        "<hr/><small><em>kind = decision</em></small>",
+        "",
+    )
     content = content.replace(
         "classDef default fill:#f2f0ff,line-height:1.2",
         "classDef default fill:#ffffff,stroke:#334155,stroke-width:1.5px,color:#111827,line-height:1.2",
