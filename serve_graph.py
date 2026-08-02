@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import sys
 import time
 import types
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -12,18 +13,44 @@ from urllib.parse import urlparse
 
 PROJECT_DIR = Path(__file__).parent
 GRAPH_FILE = PROJECT_DIR / "graph.py"
+WORKFLOW_DIR = PROJECT_DIR / "workflow"
 GRAPH_CHECK_INTERVAL_SECONDS = 0.5
 
 
-def graph_revision() -> tuple[int, int]:
-    """Return a lightweight revision signature for graph.py."""
+def graph_source_files() -> tuple[Path, ...]:
+    """Return graph.py and the Python modules that define its nodes."""
 
-    stat = GRAPH_FILE.stat()
-    return stat.st_mtime_ns, stat.st_size
+    workflow_files = (
+        tuple(sorted(WORKFLOW_DIR.glob("*.py")))
+        if WORKFLOW_DIR.is_dir()
+        else ()
+    )
+    return (GRAPH_FILE, *workflow_files)
+
+
+def graph_revision() -> tuple[tuple[str, int, int], ...]:
+    """Return a revision signature for all graph source files."""
+
+    revisions = []
+    for path in graph_source_files():
+        try:
+            stat = path.stat()
+        except FileNotFoundError:
+            continue
+        revisions.append(
+            (path.relative_to(PROJECT_DIR).as_posix(), stat.st_mtime_ns, stat.st_size)
+        )
+    return tuple(revisions)
 
 
 def load_graph_module() -> types.ModuleType:
-    """Load graph.py directly from source, bypassing Python bytecode caches."""
+    """Load graph.py and workflow modules fresh from source."""
+
+    # The viewer process stays alive, so normal imports would keep old node
+    # functions cached after workflow/*.py changes.
+    for module_name in list(sys.modules):
+        if module_name == "workflow" or module_name.startswith("workflow."):
+            del sys.modules[module_name]
 
     source = GRAPH_FILE.read_text(encoding="utf-8")
     module = types.ModuleType("graph_live")
@@ -117,7 +144,7 @@ class GraphRequestHandler(BaseHTTPRequestHandler):
 
                 self.wfile.write(
                     b"event: graph-changed\n"
-                    b"data: graph.py changed\n\n"
+                    b"data: graph source changed\n\n"
                 )
                 self.wfile.flush()
                 revision = current_revision
@@ -162,7 +189,7 @@ def main() -> None:
     server = ThreadingHTTPServer(("127.0.0.1", args.port), GraphRequestHandler)
     server.daemon_threads = True
     print(f"Open http://127.0.0.1:{args.port}/graph.html")
-    print("The viewer updates only when graph.py changes.")
+    print("The viewer updates when graph.py or workflow/*.py changes.")
 
     try:
         server.serve_forever()

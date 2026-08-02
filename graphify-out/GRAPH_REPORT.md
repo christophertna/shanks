@@ -1,16 +1,16 @@
 # Graph Report - shanks  (2026-08-02)
 
 ## Corpus Check
-- 17 files · ~6,848 words
+- 17 files · ~6,956 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 176 nodes · 376 edges · 12 communities (9 shown, 3 thin omitted)
+- 178 nodes · 380 edges · 12 communities (9 shown, 3 thin omitted)
 - Extraction: 88% EXTRACTED · 12% INFERRED · 0% AMBIGUOUS · INFERRED: 44 edges (avg confidence: 0.52)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `e35e3b5f`
+- Built from commit: `753c83d7`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -47,9 +47,9 @@
   graph.py → workflow/nodes.py
 - `build_graph()` --indirect_call--> `route_after_validation()`  [INFERRED]
   graph.py → workflow/nodes.py
+- `SequenceAdapter` --uses--> `StubAgentAdapter`  [INFERRED]
+  tests/test_graph.py → workflow/adapters.py
 - `SequenceAdapter` --uses--> `AgentRequest`  [INFERRED]
-  tests/test_graph.py → workflow/contracts.py
-- `SequenceAdapter` --uses--> `AgentResult`  [INFERRED]
   tests/test_graph.py → workflow/contracts.py
 
 ## Import Cycles
@@ -58,16 +58,16 @@
 ## Communities (12 total, 3 thin omitted)
 
 ### Community 0 - "NodeDependencies"
-Cohesion: 0.27
-Nodes (11): build_graph(), Build the workflow with optional provider adapters., GraphRoutingTests, _initial_state(), SequenceAdapter, Deterministic adapter used for local graph development and tests., StubAgentAdapter, default_dependencies() (+3 more)
+Cohesion: 0.32
+Nodes (7): build_graph(), Build the workflow with optional provider adapters., GraphRoutingTests, _initial_state(), SequenceAdapter, NodeDependencies, Backends injected into the standardized graph nodes.
 
 ### Community 1 - "GraphRequestHandler"
-Cohesion: 0.14
-Nodes (12): BaseHTTPRequestHandler, ModuleType, graph_revision(), GraphRequestHandler, load_graph_module(), Path, Serve graph.html and regenerate its Mermaid definition from graph.py., Return a lightweight revision signature for graph.py. (+4 more)
+Cohesion: 0.13
+Nodes (14): BaseHTTPRequestHandler, ModuleType, graph_revision(), graph_source_files(), GraphRequestHandler, load_graph_module(), Path, Serve graph.html and regenerate its Mermaid definition from graph.py. (+6 more)
 
 ### Community 2 - "nodes.py"
-Cohesion: 0.12
-Nodes (36): LangGraph workflow assembled from standardized agent nodes., NodeFunction, TypedDict, Translate common agent output into shared workflow state fields., state_update_from_result(), building(), create_nodes(), critic_auditor() (+28 more)
+Cohesion: 0.11
+Nodes (39): LangGraph workflow assembled from standardized agent nodes., NodeFunction, TypedDict, Translate common agent output into shared workflow state fields., state_update_from_result(), Reusable workflow state, agent contracts, adapters, and nodes., building(), create_nodes() (+31 more)
 
 ### Community 3 - "Important files"
 Cohesion: 0.12
@@ -78,8 +78,8 @@ Cohesion: 0.28
 Nodes (3): initialize_metadata_file(), ralph.sh script, upsert_metadata()
 
 ### Community 5 - "AgentRequest"
-Cohesion: 0.13
-Nodes (24): Protocol, NodeContractTests, CheapCriticAdapter, ClaudeAdapter, CodexAdapter, _format_request(), RalphAdapter, Agent adapter implementations.  The graph defaults to deterministic stubs. CLI a (+16 more)
+Cohesion: 0.14
+Nodes (25): Protocol, NodeContractTests, CheapCriticAdapter, ClaudeAdapter, CodexAdapter, _format_request(), RalphAdapter, Agent adapter implementations.  The graph defaults to deterministic stubs. CLI a (+17 more)
 
 ### Community 6 - "Ralph Agent Instructions"
 Cohesion: 0.18
@@ -102,11 +102,11 @@ Nodes (7): Files, Graphify First, Progress Report Format, Quality Requirements, 
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `AgentRequest` connect `AgentRequest` to `NodeDependencies`, `nodes.py`?**
-  _High betweenness centrality (0.056) - this node is a cross-community bridge._
+  _High betweenness centrality (0.055) - this node is a cross-community bridge._
 - **Why does `AgentResult` connect `AgentRequest` to `NodeDependencies`, `nodes.py`?**
-  _High betweenness centrality (0.047) - this node is a cross-community bridge._
+  _High betweenness centrality (0.046) - this node is a cross-community bridge._
 - **Why does `NodeDependencies` connect `NodeDependencies` to `nodes.py`, `AgentRequest`?**
-  _High betweenness centrality (0.040) - this node is a cross-community bridge._
+  _High betweenness centrality (0.039) - this node is a cross-community bridge._
 - **Are the 11 inferred relationships involving `AgentRequest` (e.g. with `GraphRoutingTests` and `SequenceAdapter`) actually correct?**
   _`AgentRequest` has 11 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 11 inferred relationships involving `AgentResult` (e.g. with `GraphRoutingTests` and `SequenceAdapter`) actually correct?**
