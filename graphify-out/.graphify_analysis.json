@@ -1,0 +1,287 @@
+{
+  "communities": {
+    "0": [
+      "graph",
+      "graph_build_graph",
+      "graph_rationale_1",
+      "graph_rationale_21",
+      "tests_test_graph",
+      "tests_test_graph_graphroutingtests",
+      "tests_test_graph_graphroutingtests_test_attempt_limit_stops_repeated_critic_rejection",
+      "tests_test_graph_graphroutingtests_test_completed_items_end_without_rebuilding",
+      "tests_test_graph_graphroutingtests_test_critic_rejection_rebuilds_the_same_item",
+      "tests_test_graph_graphroutingtests_test_default_graph_completes_an_item",
+      "tests_test_graph_graphroutingtests_test_graph_advances_through_all_incomplete_items",
+      "tests_test_graph_graphroutingtests_test_item_selector_skips_completed_items",
+      "tests_test_graph_graphroutingtests_test_validation_failure_debugs_and_retries_same_item",
+      "tests_test_graph_initial_state",
+      "tests_test_graph_sequenceadapter",
+      "workflow_adapters_rationale_18",
+      "workflow_adapters_stubagentadapter",
+      "workflow_nodes_default_dependencies",
+      "workflow_nodes_nodedependencies",
+      "workflow_nodes_rationale_21",
+      "workflow_nodes_rationale_241",
+      "workflow_nodes_rationale_31",
+      "workflow_nodes_route_after_building"
+    ],
+    "1": [
+      "basehttprequesthandler",
+      "moduletype",
+      "serve_graph",
+      "serve_graph_graph_revision",
+      "serve_graph_graphrequesthandler",
+      "serve_graph_graphrequesthandler_do_get",
+      "serve_graph_graphrequesthandler_log_message",
+      "serve_graph_graphrequesthandler_send_file",
+      "serve_graph_graphrequesthandler_send_graph_events",
+      "serve_graph_graphrequesthandler_send_mermaid",
+      "serve_graph_load_graph_module",
+      "serve_graph_main",
+      "serve_graph_py_path",
+      "serve_graph_rationale_1",
+      "serve_graph_rationale_19",
+      "serve_graph_rationale_26",
+      "serve_graph_rationale_36",
+      "serve_graph_rationale_72",
+      "serve_graph_style_mermaid"
+    ],
+    "2": [
+      "workflow_contracts_rationale_56",
+      "workflow_contracts_state_update_from_result",
+      "workflow_nodes_building",
+      "workflow_nodes_critic_auditor",
+      "workflow_nodes_current_item",
+      "workflow_nodes_debugger",
+      "workflow_nodes_merge_files",
+      "workflow_nodes_rationale_108",
+      "workflow_nodes_rationale_151",
+      "workflow_nodes_rationale_212",
+      "workflow_nodes_request_for",
+      "workflow_state_rationale_19",
+      "workflow_state_workflowstate"
+    ],
+    "3": [
+      "workflow_nodes",
+      "workflow_nodes_default_plan",
+      "workflow_nodes_planning",
+      "workflow_nodes_rationale_1",
+      "workflow_nodes_rationale_256",
+      "workflow_nodes_rationale_266",
+      "workflow_nodes_rationale_43",
+      "workflow_nodes_rationale_71",
+      "workflow_nodes_route_after_planning",
+      "workflow_nodes_route_after_validation",
+      "workflow_nodes_select_next_item"
+    ],
+    "4": [
+      "scripts_ralph_ralph",
+      "scripts_ralph_ralph_collect_status_files",
+      "scripts_ralph_ralph_collect_touched_files",
+      "scripts_ralph_ralph_initialize_metadata_file",
+      "scripts_ralph_ralph_merge_touched_files",
+      "scripts_ralph_ralph_metadata_field",
+      "scripts_ralph_ralph_sanitize_metadata_field",
+      "scripts_ralph_ralph_sh__entry",
+      "scripts_ralph_ralph_upsert_metadata"
+    ],
+    "5": [
+      "tests_test_node_contracts_nodecontracttests",
+      "tests_test_node_contracts_nodecontracttests_test_cheap_critic_is_an_adapter_with_a_model_name",
+      "tests_test_node_contracts_nodecontracttests_test_stub_roles_return_common_result_shape",
+      "tests_test_node_contracts_nodecontracttests_test_subprocess_adapter_returns_the_same_result_shape",
+      "workflow_adapters_cheapcriticadapter",
+      "workflow_adapters_rationale_165",
+      "workflow_contracts_agentrequest",
+      "workflow_contracts_rationale_14"
+    ],
+    "6": [
+      "protocol",
+      "workflow_adapters_codexadapter",
+      "workflow_adapters_rationale_136",
+      "workflow_contracts_agentadapter",
+      "workflow_contracts_agentadapter_run",
+      "workflow_contracts_rationale_42",
+      "workflow_contracts_rationale_47"
+    ],
+    "7": [
+      "typeddict",
+      "workflow_init",
+      "workflow_init_rationale_1",
+      "workflow_state",
+      "workflow_state_prditem",
+      "workflow_state_rationale_1",
+      "workflow_state_rationale_9"
+    ],
+    "8": [
+      "nodefunction",
+      "workflow_nodes_create_nodes",
+      "workflow_nodes_mark_current_item_passed",
+      "workflow_nodes_rationale_178",
+      "workflow_nodes_rationale_57",
+      "workflow_nodes_validation"
+    ],
+    "9": [
+      "workflow_adapters_claudeadapter",
+      "workflow_adapters_ralphadapter",
+      "workflow_adapters_rationale_118",
+      "workflow_adapters_rationale_154",
+      "workflow_adapters_rationale_71",
+      "workflow_adapters_subprocessagentadapter"
+    ],
+    "10": [
+      "tests_test_node_contracts",
+      "workflow_adapters",
+      "workflow_adapters_rationale_1",
+      "workflow_contracts",
+      "workflow_contracts_rationale_1"
+    ],
+    "11": [
+      "workflow_adapters_cheapcriticadapter_init",
+      "workflow_adapters_claudeadapter_init",
+      "workflow_adapters_codexadapter_init",
+      "workflow_adapters_py_path",
+      "workflow_adapters_ralphadapter_init"
+    ],
+    "12": [
+      "tests_test_graph_sequenceadapter_run",
+      "workflow_adapters_stubagentadapter_run",
+      "workflow_contracts_agentresult",
+      "workflow_contracts_rationale_26"
+    ],
+    "13": [
+      "workflow_adapters_format_request",
+      "workflow_adapters_rationale_172",
+      "workflow_adapters_subprocessagentadapter_run"
+    ]
+  },
+  "cohesion": {
+    "0": 0.2134387351778656,
+    "1": 0.14035087719298245,
+    "2": 0.28205128205128205,
+    "3": 0.2545454545454545,
+    "4": 0.2777777777777778,
+    "5": 0.42857142857142855,
+    "6": 0.2857142857142857,
+    "7": 0.3333333333333333,
+    "8": 0.3333333333333333,
+    "9": 0.3333333333333333,
+    "10": 0.5,
+    "11": 0.6,
+    "12": 0.5,
+    "13": 0.6666666666666666
+  },
+  "gods": [
+    {
+      "id": "workflow_contracts_agentrequest",
+      "label": "AgentRequest",
+      "degree": 27
+    },
+    {
+      "id": "workflow_contracts_agentresult",
+      "label": "AgentResult",
+      "degree": 27
+    },
+    {
+      "id": "workflow_nodes_nodedependencies",
+      "label": "NodeDependencies",
+      "degree": 26
+    },
+    {
+      "id": "workflow_state_workflowstate",
+      "label": "WorkflowState",
+      "degree": 25
+    },
+    {
+      "id": "workflow_adapters_stubagentadapter",
+      "label": "StubAgentAdapter",
+      "degree": 19
+    },
+    {
+      "id": "graph_build_graph",
+      "label": "build_graph()",
+      "degree": 15
+    },
+    {
+      "id": "workflow_contracts_agentadapter",
+      "label": "AgentAdapter",
+      "degree": 15
+    },
+    {
+      "id": "workflow_adapters_cheapcriticadapter",
+      "label": "CheapCriticAdapter",
+      "degree": 13
+    },
+    {
+      "id": "workflow_nodes_create_nodes",
+      "label": "create_nodes()",
+      "degree": 13
+    },
+    {
+      "id": "tests_test_graph_graphroutingtests",
+      "label": "GraphRoutingTests",
+      "degree": 12
+    }
+  ],
+  "surprises": [
+    {
+      "source": "build_graph()",
+      "target": "route_after_planning()",
+      "source_files": [
+        "graph.py",
+        "workflow/nodes.py"
+      ],
+      "confidence": "INFERRED",
+      "relation": "indirect_call",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities"
+    },
+    {
+      "source": "build_graph()",
+      "target": "route_after_validation()",
+      "source_files": [
+        "graph.py",
+        "workflow/nodes.py"
+      ],
+      "confidence": "INFERRED",
+      "relation": "indirect_call",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities"
+    },
+    {
+      "source": "SequenceAdapter",
+      "target": "AgentRequest",
+      "source_files": [
+        "tests/test_graph.py",
+        "workflow/contracts.py"
+      ],
+      "confidence": "INFERRED",
+      "relation": "uses",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities"
+    },
+    {
+      "source": "SequenceAdapter",
+      "target": "AgentResult",
+      "source_files": [
+        "tests/test_graph.py",
+        "workflow/contracts.py"
+      ],
+      "confidence": "INFERRED",
+      "relation": "uses",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities"
+    },
+    {
+      "source": "GraphRoutingTests",
+      "target": "AgentRequest",
+      "source_files": [
+        "tests/test_graph.py",
+        "workflow/contracts.py"
+      ],
+      "confidence": "INFERRED",
+      "relation": "uses",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities"
+    }
+  ],
+  "tokens": {
+    "input": 0,
+    "output": 0
+  }
+}

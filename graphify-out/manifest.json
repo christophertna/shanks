@@ -1,0 +1,97 @@
+{
+  "graph.py": {
+    "mtime": 1785643063.2607903,
+    "ast_hash": "d25609c7fbdc617e017a362a4cb5492a",
+    "semantic_hash": "d25609c7fbdc617e017a362a4cb5492a"
+  },
+  "scripts/ralph/ralph.sh": {
+    "mtime": 1785628061.8351843,
+    "ast_hash": "55c5aba5b22783a8cfe12e900f695e20",
+    "semantic_hash": "55c5aba5b22783a8cfe12e900f695e20"
+  },
+  "serve_graph.py": {
+    "mtime": 1785636656.6591108,
+    "ast_hash": "dafffaef0509aaec363fa23220b3a517",
+    "semantic_hash": "dafffaef0509aaec363fa23220b3a517"
+  },
+  "tests/test_graph.py": {
+    "mtime": 1785643119.52697,
+    "ast_hash": "1b2ed2093139c9d42ef63c01038c74c7",
+    "semantic_hash": "1b2ed2093139c9d42ef63c01038c74c7"
+  },
+  "tests/test_node_contracts.py": {
+    "mtime": 1785643126.5001633,
+    "ast_hash": "1463160e909538454aac9430a0d36dda",
+    "semantic_hash": "1463160e909538454aac9430a0d36dda"
+  },
+  "workflow/__init__.py": {
+    "mtime": 1785643119.341637,
+    "ast_hash": "bcb7e71a88ca2b19deb1c73912c8fca2",
+    "semantic_hash": "bcb7e71a88ca2b19deb1c73912c8fca2"
+  },
+  "workflow/adapters.py": {
+    "mtime": 1785642957.2747884,
+    "ast_hash": "5a695d59f4dc7969f4966aff8a69648f",
+    "semantic_hash": "5a695d59f4dc7969f4966aff8a69648f"
+  },
+  "workflow/contracts.py": {
+    "mtime": 1785642957.0979536,
+    "ast_hash": "f71d687c6bd418dac4efbd51abf1f97b",
+    "semantic_hash": "f71d687c6bd418dac4efbd51abf1f97b"
+  },
+  "workflow/nodes.py": {
+    "mtime": 1785643060.3013446,
+    "ast_hash": "d0a04b56e9c7bced03078d7519e652bf",
+    "semantic_hash": "d0a04b56e9c7bced03078d7519e652bf"
+  },
+  "workflow/state.py": {
+    "mtime": 1785643060.1231642,
+    "ast_hash": "d491bda8e588425a0447bc7265b79979",
+    "semantic_hash": "d491bda8e588425a0447bc7265b79979"
+  },
+  ".codex/hooks.json": {
+    "mtime": 1785643810.859003,
+    "ast_hash": "f6ca3e6dfd1177bf87d9c187e4ec6272",
+    "semantic_hash": ""
+  },
+  "AGENTS.md": {
+    "mtime": 1785643797.5247257,
+    "ast_hash": "6a47d64fcc136324ca395065a707ef76",
+    "semantic_hash": ""
+  },
+  "CLAUDE.md": {
+    "mtime": 1785643815.4312918,
+    "ast_hash": "82efb97a359f5c7290bf2513d14686be",
+    "semantic_hash": ""
+  },
+  "explained.md": {
+    "mtime": 1785643904.7558305,
+    "ast_hash": "e94970797c6ed577c4e91e95031f57db",
+    "semantic_hash": ""
+  },
+  "graph.html": {
+    "mtime": 1785634276.2094274,
+    "ast_hash": "45fcad909ff60f8675933021a0184c47",
+    "semantic_hash": ""
+  },
+  "requirements.txt": {
+    "mtime": 1785628291.6537538,
+    "ast_hash": "c135a65ef716bd7e9af0c586b5626736",
+    "semantic_hash": ""
+  },
+  "scripts/ralph/CLAUDE.md": {
+    "mtime": 1785643904.5742638,
+    "ast_hash": "6d38117e98a962ec76d218bbaa6a157d",
+    "semantic_hash": ""
+  },
+  "scripts/ralph/CODEX.md": {
+    "mtime": 1785643904.3891535,
+    "ast_hash": "bc0a546cc43db4634bb45fdc1be59e09",
+    "semantic_hash": ""
+  },
+  "scripts/ralph/prompt.md": {
+    "mtime": 1785643904.2006118,
+    "ast_hash": "9867370c0ff9d6606f53190d2911b744",
+    "semantic_hash": ""
+  }
+}

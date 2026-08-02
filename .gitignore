@@ -11,6 +11,10 @@ scripts/ralph/archive/
 # Claude Code local state
 .claude/
 
+# Graphify generated local cache
+graphify-out/cache/
+graphify-out/cost.json
+
 # Python virtual environment and caches
 .venv/
 __pycache__/

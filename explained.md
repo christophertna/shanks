@@ -109,6 +109,30 @@ Checks that the graph works.
 
 The tests cover retries, validation failures, item progress, attempt limits, and agent adapters.
 
+### `graphify-out/`
+
+This is the local map of the codebase.
+
+Graphify is installed as a separate command-line tool. On another machine, install it with:
+
+```bash
+uv tool install graphifyy
+```
+
+Agents should query it before reading lots of source files:
+
+```bash
+graphify query "What connects graph.py to the workflow nodes?"
+graphify explain "critic_auditor"
+graphify path "graph.py" "workflow/nodes.py"
+```
+
+After code changes, update the map:
+
+```bash
+graphify update .
+```
+
 ## Ralph
 
 Ralph is the long-running coding loop in `scripts/ralph/`.

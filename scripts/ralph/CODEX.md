@@ -2,6 +2,19 @@
 
 You are an autonomous coding agent working on a software project. Complete exactly one PRD story during this iteration.
 
+## Graphify First
+
+Before searching source files, reading many files, or dispatching another agent,
+query the local Graphify code map first:
+
+1. Run `graphify query "<your codebase question>"`.
+2. Use `graphify explain "<name>"` or `graphify path "<A>" "<B>"` when useful.
+3. Use the results to choose the smallest set of files to read.
+
+Do not dispatch helper agents before using Graphify. If the graph is missing or
+the query is not enough, use `graphify extract . --code-only --out .` or fall
+back to normal file inspection. After changing code, run `graphify update .`.
+
 ## Files
 
 - PRD: `scripts/ralph/prd.json`
