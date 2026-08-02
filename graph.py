@@ -51,6 +51,14 @@ def critic_auditor(state: WorkflowState) -> WorkflowState:
     }
 
 
+def route_after_critic(
+    state: WorkflowState,
+) -> Literal["validation", "building"]:
+    """Approve code for validation or send it back to Ralph for rework."""
+
+    return "validation" if state["critic_passed"] else "building"
+
+
 def validation(state: WorkflowState) -> WorkflowState:
     """Placeholder for the future test/validation node."""
 
@@ -82,7 +90,12 @@ def build_graph():
     builder = StateGraph(WorkflowState)
     builder.add_node("planning", planning)
     builder.add_node("building", building)
-    builder.add_node("critic_auditor", critic_auditor)
+    # The viewer renders the critic/auditor approval gate as a diamond.
+    builder.add_node(
+        "critic_auditor",
+        critic_auditor,
+        metadata={"kind": "decision"},
+    )
     builder.add_node("debugger", debugger)
     # The viewer renders the validation decision node as a diamond.
     builder.add_node("validation", validation, metadata={"kind": "decision"})
@@ -90,7 +103,11 @@ def build_graph():
     builder.add_edge(START, "planning")
     builder.add_edge("planning", "building")
     builder.add_edge("building", "critic_auditor")
-    builder.add_edge("critic_auditor", "validation")
+    builder.add_conditional_edges(
+        "critic_auditor",
+        route_after_critic,
+        ["validation", "building"],
+    )
     builder.add_conditional_edges(
         "validation",
         route_after_validation,
