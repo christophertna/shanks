@@ -47,7 +47,19 @@
       const diagram = document.getElementById("diagram");
       let lastDefinition = "";
 
-      mermaid.initialize({ startOnLoad: false, securityLevel: "loose" });
+      mermaid.initialize({
+        startOnLoad: false,
+        securityLevel: "loose",
+        theme: "base",
+        themeVariables: {
+          background: "#ffffff",
+          primaryColor: "#ffffff",
+          primaryTextColor: "#111827",
+          primaryBorderColor: "#334155",
+          lineColor: "#64748b",
+          edgeLabelBackground: "#ffffff",
+        },
+      });
 
       async function refreshGraph() {
         try {

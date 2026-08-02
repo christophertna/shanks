@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import importlib
+import re
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
@@ -12,6 +13,35 @@ import graph
 
 
 PROJECT_DIR = Path(__file__).parent
+
+
+def style_mermaid(content: str, decision_node_ids: set[str]) -> str:
+    """Apply the viewer's white-node theme and diamond decision shapes."""
+
+    content = content.replace(
+        "classDef default fill:#f2f0ff,line-height:1.2",
+        "classDef default fill:#ffffff,stroke:#334155,stroke-width:1.5px,color:#111827,line-height:1.2",
+    )
+    content = content.replace(
+        "classDef first fill-opacity:0",
+        "classDef first fill:#ffffff,stroke:#334155,stroke-width:1.5px,color:#111827",
+    )
+    content = content.replace(
+        "classDef last fill:#bfb6fc",
+        "classDef last fill:#ffffff,stroke:#334155,stroke-width:1.5px,color:#111827",
+    )
+
+    for node_id in decision_node_ids:
+        node_pattern = re.compile(
+            rf"^(\s*{re.escape(node_id)})\((.*)\)$",
+            re.MULTILINE,
+        )
+        content = node_pattern.sub(
+            lambda match: f"{match.group(1)}{{{match.group(2)}}}",
+            content,
+        )
+
+    return content
 
 
 class GraphRequestHandler(BaseHTTPRequestHandler):
@@ -41,7 +71,16 @@ class GraphRequestHandler(BaseHTTPRequestHandler):
     def _send_mermaid(self) -> None:
         try:
             current_graph = importlib.reload(graph).build_graph()
-            content = current_graph.get_graph().draw_mermaid()
+            drawable_graph = current_graph.get_graph()
+            decision_node_ids = {
+                node.id
+                for node in drawable_graph.nodes.values()
+                if (node.metadata or {}).get("kind") == "decision"
+            }
+            content = style_mermaid(
+                drawable_graph.draw_mermaid(),
+                decision_node_ids,
+            )
             payload = content.encode("utf-8")
             self.send_response(200)
         except Exception as error:  # pragma: no cover - viewer error response
