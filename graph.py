@@ -46,12 +46,20 @@ def validation(state: WorkflowState) -> WorkflowState:
     }
 
 
+def debugger(state: WorkflowState) -> WorkflowState:
+    """Inspect a failed validation and prepare the workflow for replanning."""
+
+    return {
+        "status": "debugged",
+    }
+
+
 def route_after_validation(
     state: WorkflowState,
-) -> Literal["planning", "__end__"]:
-    """Route successful work to the end and failed work back to planning."""
+) -> Literal["debugger", "__end__"]:
+    """Route successful work to the end and failures through debugging."""
 
-    return "__end__" if state["validation_passed"] else "planning"
+    return "__end__" if state["validation_passed"] else "debugger"
 
 
 def build_graph():
@@ -60,6 +68,7 @@ def build_graph():
     builder = StateGraph(WorkflowState)
     builder.add_node("planning", planning)
     builder.add_node("building", building)
+    builder.add_node("debugger", debugger)
     # The viewer renders the validation decision node as a diamond.
     builder.add_node("validation", validation, metadata={"kind": "decision"})
 
@@ -69,8 +78,9 @@ def build_graph():
     builder.add_conditional_edges(
         "validation",
         route_after_validation,
-        ["planning", END],
+        ["debugger", END],
     )
+    builder.add_edge("debugger", "planning")
 
     return builder.compile()
 
