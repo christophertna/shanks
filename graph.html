@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LangGraph Viewer</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: system-ui, sans-serif;
+      }
+
+      body {
+        margin: 0;
+        padding: 2rem;
+        background: Canvas;
+        color: CanvasText;
+      }
+
+      main {
+        max-width: 1000px;
+        margin: 0 auto;
+      }
+
+      #status {
+        color: GrayText;
+        font-size: 0.9rem;
+      }
+
+      #diagram {
+        margin-top: 2rem;
+        overflow-x: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>LangGraph</h1>
+      <div id="status">Loading graph…</div>
+      <div id="diagram" aria-live="polite"></div>
+    </main>
+
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+
+      const status = document.getElementById("status");
+      const diagram = document.getElementById("diagram");
+      let lastDefinition = "";
+
+      mermaid.initialize({ startOnLoad: false, securityLevel: "loose" });
+
+      async function refreshGraph() {
+        try {
+          const response = await fetch(`/graph.mmd?ts=${Date.now()}`);
+          const definition = await response.text();
+
+          if (!response.ok) {
+            throw new Error(definition);
+          }
+
+          if (definition !== lastDefinition) {
+            const renderId = `langgraph-${Date.now()}`;
+            const rendered = await mermaid.render(renderId, definition);
+            diagram.innerHTML = rendered.svg;
+            lastDefinition = definition;
+          }
+
+          status.textContent = `Watching graph.py · refreshed ${new Date().toLocaleTimeString()}`;
+        } catch (error) {
+          status.textContent = `Could not load graph.py: ${error.message}`;
+        }
+      }
+
+      refreshGraph();
+      setInterval(refreshGraph, 1500);
+    </script>
+  </body>
+</html>
