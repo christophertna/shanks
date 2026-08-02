@@ -11,6 +11,9 @@ class WorkflowState(TypedDict, total=False):
     task: str
     plan: list[str]
     files_touched: list[str]
+    critic_model: str
+    critic_passed: bool
+    critic_feedback: str
     validation_passed: bool
     status: str
 
@@ -34,6 +37,17 @@ def building(state: WorkflowState) -> WorkflowState:
     return {
         "files_touched": ["example.py"],
         "status": "built",
+    }
+
+
+def critic_auditor(state: WorkflowState) -> WorkflowState:
+    """Use a low-cost model to review the code before full validation."""
+
+    return {
+        "critic_model": "cheap-critic-model",
+        "critic_passed": True,
+        "critic_feedback": "Placeholder audit completed.",
+        "status": "critic_audited",
     }
 
 
@@ -68,13 +82,15 @@ def build_graph():
     builder = StateGraph(WorkflowState)
     builder.add_node("planning", planning)
     builder.add_node("building", building)
+    builder.add_node("critic_auditor", critic_auditor)
     builder.add_node("debugger", debugger)
     # The viewer renders the validation decision node as a diamond.
     builder.add_node("validation", validation, metadata={"kind": "decision"})
 
     builder.add_edge(START, "planning")
     builder.add_edge("planning", "building")
-    builder.add_edge("building", "validation")
+    builder.add_edge("building", "critic_auditor")
+    builder.add_edge("critic_auditor", "validation")
     builder.add_conditional_edges(
         "validation",
         route_after_validation,
