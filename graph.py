@@ -27,6 +27,7 @@ def planning(state: WorkflowState) -> WorkflowState:
             "Implement the change",
             "Run validation",
         ],
+        "critic_passed": False,
         "status": "planned",
     }
 
@@ -51,12 +52,12 @@ def critic_auditor(state: WorkflowState) -> WorkflowState:
     }
 
 
-def route_after_critic(
+def route_after_building(
     state: WorkflowState,
-) -> Literal["validation", "building"]:
-    """Approve code for validation or send it back to Ralph for rework."""
+) -> Literal["critic_auditor", "validation"]:
+    """Send unaudited code to the critic or approved code to validation."""
 
-    return "validation" if state["critic_passed"] else "building"
+    return "validation" if state.get("critic_passed") else "critic_auditor"
 
 
 def validation(state: WorkflowState) -> WorkflowState:
@@ -102,12 +103,12 @@ def build_graph():
 
     builder.add_edge(START, "planning")
     builder.add_edge("planning", "building")
-    builder.add_edge("building", "critic_auditor")
     builder.add_conditional_edges(
-        "critic_auditor",
-        route_after_critic,
-        ["validation", "building"],
+        "building",
+        route_after_building,
+        ["critic_auditor", "validation"],
     )
+    builder.add_edge("critic_auditor", "building")
     builder.add_conditional_edges(
         "validation",
         route_after_validation,

@@ -35,6 +35,8 @@ def load_graph_module() -> types.ModuleType:
 def style_mermaid(content: str, decision_node_ids: set[str]) -> str:
     """Apply the viewer's white-node theme and diamond decision shapes."""
 
+    content = content.replace("graph TD;", "graph LR;")
+
     # LangGraph includes node metadata in labels; keep it for styling, not display.
     content = content.replace(
         "<hr/><small><em>kind = decision</em></small>",
