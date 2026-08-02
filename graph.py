@@ -1,113 +1,50 @@
-"""Starter LangGraph workflow for graph engineering experiments."""
+"""LangGraph workflow assembled from standardized agent nodes."""
 
-from typing import Literal, TypedDict
+from __future__ import annotations
 
 from langgraph.graph import END, START, StateGraph
 
-
-class WorkflowState(TypedDict, total=False):
-    """Shared state passed between workflow nodes."""
-
-    task: str
-    plan: list[str]
-    files_touched: list[str]
-    critic_model: str
-    critic_passed: bool
-    critic_feedback: str
-    validation_passed: bool
-    status: str
+from workflow.nodes import (
+    NodeDependencies,
+    create_nodes,
+    default_dependencies,
+    route_after_building,
+    route_after_planning,
+    route_after_validation,
+)
+from workflow.state import WorkflowState
 
 
-def planning(state: WorkflowState) -> WorkflowState:
-    """Create a plan for the requested task."""
+def build_graph(
+    dependencies: NodeDependencies | None = None,
+):
+    """Build the workflow with optional provider adapters."""
 
-    return {
-        "plan": [
-            "Understand the task",
-            "Implement the change",
-            "Run validation",
-        ],
-        "critic_passed": False,
-        "status": "planned",
-    }
-
-
-def building(state: WorkflowState) -> WorkflowState:
-    """Placeholder for the future coding/build node."""
-
-    return {
-        "files_touched": ["example.py"],
-        "status": "built",
-    }
-
-
-def critic_auditor(state: WorkflowState) -> WorkflowState:
-    """Use a low-cost model to review the code before full validation."""
-
-    return {
-        "critic_model": "cheap-critic-model",
-        "critic_passed": True,
-        "critic_feedback": "Placeholder audit completed.",
-        "status": "critic_audited",
-    }
-
-
-def route_after_building(
-    state: WorkflowState,
-) -> Literal["critic_auditor", "validation"]:
-    """Send unaudited code to the critic or approved code to validation."""
-
-    return "validation" if state.get("critic_passed") else "critic_auditor"
-
-
-def validation(state: WorkflowState) -> WorkflowState:
-    """Placeholder for the future test/validation node."""
-
-    return {
-        "validation_passed": True,
-        "status": "validated",
-    }
-
-
-def debugger(state: WorkflowState) -> WorkflowState:
-    """Inspect a failed validation and prepare the workflow for replanning."""
-
-    return {
-        "status": "debugged",
-    }
-
-
-def route_after_validation(
-    state: WorkflowState,
-) -> Literal["debugger", "__end__"]:
-    """Route successful work to the end and failures through debugging."""
-
-    return "__end__" if state["validation_passed"] else "debugger"
-
-
-def build_graph():
-    """Build and compile the starter workflow."""
-
+    nodes = create_nodes(dependencies or default_dependencies())
     builder = StateGraph(WorkflowState)
-    builder.add_node("planning", planning)
-    builder.add_node("building", building)
-    builder.add_node("critic_auditor", critic_auditor)
-    builder.add_node("debugger", debugger)
+    builder.add_node("planning", nodes["planning"])
+    builder.add_node("building", nodes["building"])
+    builder.add_node("critic_auditor", nodes["critic_auditor"])
+    builder.add_node("debugger", nodes["debugger"])
     # The viewer renders the validation decision node as a diamond.
-    builder.add_node("validation", validation, metadata={"kind": "decision"})
+    builder.add_node("validation", nodes["validation"], metadata={"kind": "decision"})
 
     builder.add_edge(START, "planning")
-    builder.add_edge("planning", "building")
+    builder.add_conditional_edges(
+        "planning",
+        route_after_planning,
+        ["building", END],
+    )
     builder.add_conditional_edges(
         "building",
         route_after_building,
-        ["critic_auditor", "validation"],
+        ["critic_auditor", "validation", END],
     )
     builder.add_edge("critic_auditor", "building")
     builder.add_conditional_edges(
         "validation",
         route_after_validation,
-        ["debugger", END],
+        ["debugger", "planning", END],
     )
     builder.add_edge("debugger", "planning")
 
