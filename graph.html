@@ -93,14 +93,22 @@
             lastDefinition = definition;
           }
 
-          status.textContent = `Watching graph.py · refreshed ${new Date().toLocaleTimeString()}`;
+          status.textContent = `Watching graph.py · last updated ${new Date().toLocaleTimeString()}`;
         } catch (error) {
           status.textContent = `Could not load graph.py: ${error.message}`;
         }
       }
 
+      const graphEvents = new EventSource("/graph-events");
+      graphEvents.addEventListener("graph-changed", () => {
+        status.textContent = "graph.py changed · updating graph…";
+        refreshGraph();
+      });
+      graphEvents.onerror = () => {
+        status.textContent = "Waiting for the graph.py watcher to reconnect…";
+      };
+
       refreshGraph();
-      setInterval(refreshGraph, 1500);
     </script>
   </body>
 </html>
