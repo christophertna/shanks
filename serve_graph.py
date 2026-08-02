@@ -15,6 +15,17 @@ PROJECT_DIR = Path(__file__).parent
 GRAPH_FILE = PROJECT_DIR / "graph.py"
 WORKFLOW_DIR = PROJECT_DIR / "workflow"
 GRAPH_CHECK_INTERVAL_SECONDS = 0.5
+GRAPH_NODE_ORDER = {
+    "__start__": 0,
+    "planning": 1,
+    "critic_auditor": 2,
+    "building": 3,
+    "validation": 4,
+    "debugger": 5,
+    "item_router": 6,
+    "attempt_limit": 7,
+    "__end__": 8,
+}
 
 
 def graph_source_files() -> tuple[Path, ...]:
@@ -63,6 +74,7 @@ def style_mermaid(content: str, decision_node_ids: set[str]) -> str:
     """Apply the viewer's white-node theme and diamond decision shapes."""
 
     content = content.replace("graph TD;", "graph LR;")
+    content = style_edge_directions(content)
 
     # LangGraph includes node metadata in labels; keep it for styling, not display.
     content = content.replace(
@@ -93,6 +105,28 @@ def style_mermaid(content: str, decision_node_ids: set[str]) -> str:
         )
 
     return content
+
+
+def style_edge_directions(content: str) -> str:
+    """Make forward edges solid and edges moving back through the flow dashed."""
+
+    edge_pattern = re.compile(
+        r"^(\s*)([A-Za-z0-9_]+)\s+(-\.->|-->)\s+([A-Za-z0-9_]+)(.*)$",
+        re.MULTILINE,
+    )
+
+    def replace_edge(match: re.Match[str]) -> str:
+        source = match.group(2)
+        target = match.group(4)
+        source_order = GRAPH_NODE_ORDER.get(source)
+        target_order = GRAPH_NODE_ORDER.get(target)
+        if source_order is None or target_order is None:
+            return match.group(0)
+
+        arrow = "-.->" if source_order > target_order else "-->"
+        return f"{match.group(1)}{source} {arrow} {target}{match.group(5)}"
+
+    return edge_pattern.sub(replace_edge, content)
 
 
 class GraphRequestHandler(BaseHTTPRequestHandler):

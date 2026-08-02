@@ -64,6 +64,8 @@ def create_nodes(
         "critic_auditor": lambda state: critic_auditor(state, deps),
         "validation": lambda state: validation(state, deps),
         "debugger": lambda state: debugger(state, deps),
+        "item_router": item_router,
+        "attempt_limit": attempt_limit,
     }
 
 
@@ -235,10 +237,32 @@ def debugger(
     return update
 
 
+def item_router(state: WorkflowState) -> WorkflowState:
+    """Prepare the decision to start another item or finish the workflow."""
+
+    return {
+        "status": "next_item_ready"
+        if select_next_item(state) is not None
+        else "complete"
+    }
+
+
+def attempt_limit(state: WorkflowState) -> WorkflowState:
+    """Stop safely when an item needs more build attempts than allowed."""
+
+    return {
+        "status": "attempt_limit_reached",
+        "last_error": state.get(
+            "last_error",
+            f"Maximum build attempts reached ({state.get('max_attempts', 3)}).",
+        ),
+    }
+
+
 def route_after_building(
     state: WorkflowState,
-) -> Literal["critic_auditor", "validation", "__end__"]:
-    """Route unaudited code to the critic and approved code to validation."""
+) -> Literal["critic_auditor", "validation", "attempt_limit"]:
+    """Route code to the critic, validation, or a safe attempt-limit stop."""
 
     if state.get("critic_passed"):
         return "validation"
@@ -246,30 +270,36 @@ def route_after_building(
         not state.get("build_completed")
         and state.get("attempts_count", 0) >= state.get("max_attempts", 3)
     ):
-        return "__end__"
+        return "attempt_limit"
     return "critic_auditor"
 
 
 def route_after_planning(
     state: WorkflowState,
-) -> Literal["building", "__end__"]:
-    """Start the next incomplete item or end an already completed run."""
+) -> Literal["building", "item_router"]:
+    """Start the next item or send an already-complete run to the router."""
 
-    if state.get("prd_items") and select_next_item(state) is None:
-        return "__end__"
+    if select_next_item(state) is None:
+        return "item_router"
     return "building"
 
 
 def route_after_validation(
     state: WorkflowState,
-) -> Literal["debugger", "planning", "__end__"]:
-    """Retry the item, advance to the next item, or finish the run."""
+) -> Literal["debugger", "item_router"]:
+    """Send failures to debugging and successes to the item router."""
 
     if not state.get("validation_passed"):
         return "debugger"
-    if state.get("prd_items") and select_next_item(state) is not None:
-        return "planning"
-    return "__end__"
+    return "item_router"
+
+
+def route_after_item_router(
+    state: WorkflowState,
+) -> Literal["planning", "__end__"]:
+    """Start the next incomplete item or finish the workflow."""
+
+    return "planning" if select_next_item(state) is not None else "__end__"
 
 
 def _request_for(
@@ -336,8 +366,11 @@ __all__ = [
     "create_nodes",
     "debugger",
     "default_dependencies",
+    "item_router",
+    "attempt_limit",
     "planning",
     "route_after_building",
+    "route_after_item_router",
     "route_after_validation",
     "select_next_item",
     "validation",
