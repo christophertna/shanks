@@ -6,15 +6,15 @@
     <title>LangGraph Viewer</title>
     <style>
       :root {
-        color-scheme: light dark;
+        color-scheme: light;
         font-family: system-ui, sans-serif;
       }
 
       body {
         margin: 0;
         padding: 2rem;
-        background: Canvas;
-        color: CanvasText;
+        background: #ffffff;
+        color: #111827;
       }
 
       main {
@@ -23,13 +23,27 @@
       }
 
       #status {
-        color: GrayText;
+        color: #64748b;
         font-size: 0.9rem;
       }
 
       #diagram {
         margin-top: 2rem;
         overflow-x: auto;
+      }
+
+      #diagram svg .node rect,
+      #diagram svg .node circle,
+      #diagram svg .node polygon,
+      #diagram svg .node path {
+        fill: #ffffff !important;
+        stroke: #334155 !important;
+        stroke-width: 1.5px !important;
+      }
+
+      #diagram svg .node .nodeLabel {
+        color: #111827 !important;
+        fill: #111827 !important;
       }
     </style>
   </head>
@@ -55,9 +69,11 @@
           background: "#ffffff",
           primaryColor: "#ffffff",
           primaryTextColor: "#111827",
-          primaryBorderColor: "#334155",
+          primaryBorderColor: "#1e293b",
           lineColor: "#64748b",
           edgeLabelBackground: "#ffffff",
+          nodeBorder: "#1e293b",
+          textColor: "#111827",
         },
       });
 
