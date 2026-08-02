@@ -91,12 +91,7 @@ def build_graph():
     builder = StateGraph(WorkflowState)
     builder.add_node("planning", planning)
     builder.add_node("building", building)
-    # The viewer renders the critic/auditor approval gate as a diamond.
-    builder.add_node(
-        "critic_auditor",
-        critic_auditor,
-        metadata={"kind": "decision"},
-    )
+    builder.add_node("critic_auditor", critic_auditor)
     builder.add_node("debugger", debugger)
     # The viewer renders the validation decision node as a diamond.
     builder.add_node("validation", validation, metadata={"kind": "decision"})
