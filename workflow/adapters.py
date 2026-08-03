@@ -129,15 +129,19 @@ class RalphAdapter(SubprocessAgentAdapter):
         self,
         project_directory: Path,
         *,
+        base_directory: Path | None = None,
         tool: str = "codex",
         skill_name: str = "ponytail",
         max_iterations: int = 1,
     ) -> None:
-        script = project_directory / "scripts" / "ralph" / "ralph.sh"
+        base_directory = base_directory or project_directory
+        script = base_directory / "scripts" / "ralph" / "ralph.sh"
         super().__init__(
             command=(
                 "bash",
                 str(script),
+                "--project-dir",
+                str(project_directory),
                 "--tool",
                 tool,
                 "--skill",
@@ -145,7 +149,7 @@ class RalphAdapter(SubprocessAgentAdapter):
                 str(max_iterations),
             ),
             model_name=f"ralph:{tool}",
-            working_directory=project_directory,
+            working_directory=base_directory,
         )
 
 

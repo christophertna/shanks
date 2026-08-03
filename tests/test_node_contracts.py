@@ -122,11 +122,17 @@ class NodeContractTests(unittest.TestCase):
 
     def test_ralph_adapter_selects_a_project_skill(self) -> None:
         adapter = RalphAdapter(
-            Path("/tmp/shanks"),
+            Path("/tmp/target-project"),
+            base_directory=Path("/tmp/agent-engine"),
             tool="codex",
             skill_name="ponytail",
             max_iterations=3,
         )
 
         self.assertEqual(adapter.model_name, "ralph:codex")
+        self.assertEqual(adapter.working_directory, Path("/tmp/agent-engine"))
+        self.assertEqual(
+            adapter.command[2:4],
+            ("--project-dir", "/tmp/target-project"),
+        )
         self.assertEqual(adapter.command[-3:], ("--skill", "ponytail", "3"))

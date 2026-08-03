@@ -15,15 +15,25 @@ Do not dispatch helper agents before using Graphify. If the graph is missing or
 the query is not enough, use `graphify extract . --code-only --out .` or fall
 back to normal file inspection. After changing code, run `graphify update .`.
 
+## Directories
+
+- Base engine directory: `$RALPH_BASE_DIR`.
+- Target project directory: `$RALPH_PROJECT_DIR`.
+- Edit files under the target project directory. Ralph's prompts, PRD, progress
+  log, and metadata remain in the base engine directory.
+- Graphify commands run from the target project directory and should describe
+  the target project's code. The Ralph runner and graph engine remain in the
+  base engine directory.
+
 ## Files
 
-- PRD: `scripts/ralph/prd.json`
-- Progress log: `scripts/ralph/progress.txt`
-- Metadata: `scripts/ralph/metadata.txt` (managed by the Ralph runner; do not edit it)
+- PRD: `$RALPH_BASE_DIR/scripts/ralph/prd.json`
+- Progress log: `$RALPH_BASE_DIR/scripts/ralph/progress.txt`
+- Metadata: `$RALPH_BASE_DIR/scripts/ralph/metadata.txt` (managed by the Ralph runner; do not edit it)
 
 ## Your Task
 
-1. Read `scripts/ralph/prd.json` and `scripts/ralph/progress.txt`. Check the Codebase Patterns section in the progress log first.
+1. Read `$RALPH_BASE_DIR/scripts/ralph/prd.json` and `$RALPH_BASE_DIR/scripts/ralph/progress.txt`. Check the Codebase Patterns section in the progress log first.
 2. Check that you are on the branch from the PRD `branchName`. If necessary, create or check out that branch from `main`.
 3. Pick the highest-priority user story where `passes` is `false`.
 4. Implement that single user story.
@@ -32,11 +42,11 @@ back to normal file inspection. After changing code, run `graphify update .`.
 7. Update nearby `AGENTS.md` files only with genuinely reusable project knowledge discovered during the work.
 8. If all checks pass, commit all story changes with message: `feat: [Story ID] - [Story Title]`.
 9. Update the PRD to set that story’s `passes` value to `true`.
-10. Append the iteration’s work and learnings to `scripts/ralph/progress.txt`.
+10. Append the iteration’s work and learnings to `$RALPH_BASE_DIR/scripts/ralph/progress.txt`.
 
 ## Progress Report Format
 
-Append this structure to `scripts/ralph/progress.txt`; never replace existing entries:
+Append this structure to `$RALPH_BASE_DIR/scripts/ralph/progress.txt`; never replace existing entries:
 
 ```text
 ## [Date/Time] - [Story ID]
@@ -56,7 +66,7 @@ Keep the `## Codebase Patterns` section at the top of the progress log consolida
 - Work on one story only.
 - Do not commit broken code.
 - Keep changes focused and consistent with the existing project.
-- Do not edit `scripts/ralph/metadata.txt`; the runner records attempts, errors, assigned backend, and touched files after you finish.
+- Do not edit `$RALPH_BASE_DIR/scripts/ralph/metadata.txt`; the runner records attempts, errors, assigned backend, and touched files after you finish.
 
 ## Stop Condition
 

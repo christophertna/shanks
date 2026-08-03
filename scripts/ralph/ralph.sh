@@ -1,6 +1,6 @@
 #!/bin/bash
 # Ralph Wiggum - Long-running AI agent loop
-# Usage: ./ralph.sh [--tool claude|codex] [--skill skill-name|--no-skill] [max_iterations]
+# Usage: ./ralph.sh [--project-dir path] [--tool claude|codex] [--skill skill-name|--no-skill] [max_iterations]
 
 set -e
 set -o pipefail
@@ -8,6 +8,7 @@ set -o pipefail
 # Parse arguments
 TOOL="codex"
 SKILL_NAME="ponytail"
+TARGET_DIR_ARG=""
 MAX_ITERATIONS=10
 
 while [[ $# -gt 0 ]]; do
@@ -18,6 +19,18 @@ while [[ $# -gt 0 ]]; do
       ;;
     --tool=*)
       TOOL="${1#*=}"
+      shift
+      ;;
+    --project-dir)
+      if [[ $# -lt 2 ]]; then
+        echo "Error: --project-dir requires a path."
+        exit 1
+      fi
+      TARGET_DIR_ARG="$2"
+      shift 2
+      ;;
+    --project-dir=*)
+      TARGET_DIR_ARG="${1#*=}"
       shift
       ;;
     --skill)
@@ -52,8 +65,21 @@ if [[ "$TOOL" != "claude" && "$TOOL" != "codex" ]]; then
   exit 1
 fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-cd "$PROJECT_DIR"
+BASE_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+if [ -z "$TARGET_DIR_ARG" ]; then
+  TARGET_DIR="$BASE_DIR"
+elif [[ "$TARGET_DIR_ARG" = /* ]]; then
+  TARGET_DIR="$TARGET_DIR_ARG"
+else
+  TARGET_DIR="$BASE_DIR/$TARGET_DIR_ARG"
+fi
+if ! TARGET_DIR="$(cd "$TARGET_DIR" 2>/dev/null && pwd)"; then
+  echo "Error: Project directory does not exist: $TARGET_DIR_ARG"
+  exit 1
+fi
+cd "$TARGET_DIR"
+export RALPH_BASE_DIR="$BASE_DIR"
+export RALPH_PROJECT_DIR="$TARGET_DIR"
 PRD_FILE="$SCRIPT_DIR/prd.json"
 PROGRESS_FILE="$SCRIPT_DIR/progress.txt"
 METADATA_FILE="$SCRIPT_DIR/metadata.txt"
@@ -65,9 +91,12 @@ resolve_skill_file() {
   local candidate
 
   for candidate in \
-    "$PROJECT_DIR/.agents/skills/$skill_name/SKILL.md" \
-    "$PROJECT_DIR/.claude/skills/$skill_name/SKILL.md" \
-    "$PROJECT_DIR/skills/$skill_name/SKILL.md"; do
+    "$TARGET_DIR/.agents/skills/$skill_name/SKILL.md" \
+    "$TARGET_DIR/.claude/skills/$skill_name/SKILL.md" \
+    "$TARGET_DIR/skills/$skill_name/SKILL.md" \
+    "$BASE_DIR/.agents/skills/$skill_name/SKILL.md" \
+    "$BASE_DIR/.claude/skills/$skill_name/SKILL.md" \
+    "$BASE_DIR/skills/$skill_name/SKILL.md"; do
     if [ -f "$candidate" ]; then
       printf '%s\n' "$candidate"
       return 0
@@ -85,7 +114,7 @@ if [ -n "$SKILL_NAME" ]; then
   SKILL_FILE="$(resolve_skill_file "$SKILL_NAME" || true)"
   if [ -z "$SKILL_FILE" ]; then
     echo "Error: Missing project-local skill '$SKILL_NAME'."
-    echo "Expected .agents/skills/$SKILL_NAME/SKILL.md or .claude/skills/$SKILL_NAME/SKILL.md."
+    echo "Expected it under the target or base directory's .agents/skills/, .claude/skills/, or skills/."
     exit 1
   fi
 fi
@@ -94,17 +123,20 @@ run_agent() {
   local prompt_file="$1"
   shift
 
-  if [ -n "$SKILL_FILE" ]; then
-    {
+  {
+    printf '# Ralph workspace\n\n'
+    printf 'Base engine directory: %s\n' "$BASE_DIR"
+    printf 'Target project directory: %s\n' "$TARGET_DIR"
+    printf 'Edit files under the target project directory. Ralph prompts, PRD, progress, and metadata remain in the base engine directory.\n\n'
+    if [ -n "$SKILL_FILE" ]; then
       printf '# Project skill: %s\n\n' "$SKILL_NAME"
       printf 'Apply this skill during the Ralph iteration. Read it before making changes.\n\n'
       cat "$SKILL_FILE"
-      printf '\n\n# Ralph iteration instructions\n\n'
-      cat "$prompt_file"
-    } | "$@" 2>&1
-  else
-    "$@" < "$prompt_file" 2>&1
-  fi
+      printf '\n\n'
+    fi
+    printf '# Ralph iteration instructions\n\n'
+    cat "$prompt_file"
+  } | "$@" 2>&1
 }
 
 sanitize_metadata_field() {
@@ -253,7 +285,7 @@ if [ ! -f "$PROGRESS_FILE" ]; then
   echo "---" >> "$PROGRESS_FILE"
 fi
 
-echo "Starting Ralph - Tool: $TOOL - Skill: ${SKILL_NAME:-none} - Max iterations: $MAX_ITERATIONS"
+echo "Starting Ralph - Base: $BASE_DIR - Target: $TARGET_DIR - Tool: $TOOL - Skill: ${SKILL_NAME:-none} - Max iterations: $MAX_ITERATIONS"
 
 for i in $(seq 1 $MAX_ITERATIONS); do
   STORY_RECORD=$(jq -r '
@@ -297,7 +329,7 @@ for i in $(seq 1 $MAX_ITERATIONS); do
     fi
   else
     # Codex CLI: use the project-local prompt with workspace write access.
-    if OUTPUT=$(run_agent "$SCRIPT_DIR/CODEX.md" codex exec --sandbox workspace-write --cd "$PROJECT_DIR"); then
+    if OUTPUT=$(run_agent "$SCRIPT_DIR/CODEX.md" codex exec --sandbox workspace-write --cd "$TARGET_DIR"); then
       TOOL_EXIT=0
     else
       TOOL_EXIT=$?

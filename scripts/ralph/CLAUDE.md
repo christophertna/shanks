@@ -15,10 +15,20 @@ Do not dispatch helper agents before using Graphify. If the graph is missing or
 the query is not enough, use `graphify extract . --code-only --out .` or fall
 back to normal file inspection. After changing code, run `graphify update .`.
 
+## Directories
+
+- Base engine directory: `$RALPH_BASE_DIR`.
+- Target project directory: `$RALPH_PROJECT_DIR`.
+- Edit files under the target project directory. Ralph's prompts, PRD, progress
+  log, and metadata remain in the base engine directory.
+- Graphify commands run from the target project directory and should describe
+  the target project's code. The Ralph runner and graph engine remain in the
+  base engine directory.
+
 ## Your Task
 
-1. Read the PRD at `prd.json` (in the same directory as this file)
-2. Read the progress log at `progress.txt` (check Codebase Patterns section first)
+1. Read the PRD at `$RALPH_BASE_DIR/scripts/ralph/prd.json`
+2. Read the progress log at `$RALPH_BASE_DIR/scripts/ralph/progress.txt` (check Codebase Patterns section first)
 3. Check you're on the correct branch from PRD `branchName`. If not, check it out or create from main.
 4. Pick the **highest priority** user story where `passes: false`
 5. Implement that single user story
@@ -26,14 +36,14 @@ back to normal file inspection. After changing code, run `graphify update .`.
 7. Update CLAUDE.md files if you discover reusable patterns (see below)
 8. If checks pass, commit ALL changes with message: `feat: [Story ID] - [Story Title]`
 9. Update the PRD to set `passes: true` for the completed story
-10. Append your progress to `progress.txt`
+10. Append your progress to `$RALPH_BASE_DIR/scripts/ralph/progress.txt`
 11. Before your final response, print exactly one `RALPH_ERROR: ...` line. Use `RALPH_ERROR: none` when the story and checks completed successfully; otherwise summarize the latest failure in one line.
 
-The Ralph runner automatically updates `metadata.txt` after this iteration. Do not edit that file directly.
+The Ralph runner automatically updates `$RALPH_BASE_DIR/scripts/ralph/metadata.txt` after this iteration. Do not edit that file directly.
 
 ## Progress Report Format
 
-APPEND to progress.txt (never replace, always append):
+APPEND to `$RALPH_BASE_DIR/scripts/ralph/progress.txt` (never replace, always append):
 ```
 ## [Date/Time] - [Story ID]
 - What was implemented
@@ -49,7 +59,7 @@ The learnings section is critical - it helps future iterations avoid repeating m
 
 ## Consolidate Patterns
 
-If you discover a **reusable pattern** that future iterations should know, add it to the `## Codebase Patterns` section at the TOP of progress.txt (create it if it doesn't exist). This section should consolidate the most important learnings:
+If you discover a **reusable pattern** that future iterations should know, add it to the `## Codebase Patterns` section at the TOP of `$RALPH_BASE_DIR/scripts/ralph/progress.txt` (create it if it doesn't exist). This section should consolidate the most important learnings:
 
 ```
 ## Codebase Patterns
@@ -82,7 +92,7 @@ Before committing, check if any edited files have learnings worth preserving in 
 **Do NOT add:**
 - Story-specific implementation details
 - Temporary debugging notes
-- Information already in progress.txt
+- Information already in `$RALPH_BASE_DIR/scripts/ralph/progress.txt`
 
 Only update CLAUDE.md if you have **genuinely reusable knowledge** that would help future work in that directory.
 
@@ -117,4 +127,4 @@ If there are still stories with `passes: false`, end your response normally (ano
 - Work on ONE story per iteration
 - Commit frequently
 - Keep CI green
-- Read the Codebase Patterns section in progress.txt before starting
+- Read the Codebase Patterns section in `$RALPH_BASE_DIR/scripts/ralph/progress.txt` before starting

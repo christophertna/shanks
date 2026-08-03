@@ -197,13 +197,25 @@ Then run one of these:
 ```bash
 bash scripts/ralph/ralph.sh --tool codex 10
 bash scripts/ralph/ralph.sh --tool claude 10
+bash scripts/ralph/ralph.sh --project-dir ./target-project --tool codex 10
 ```
 
-The number is the maximum number of loops. Ralph now loads the project-local
-`ponytail` skill by default and prepends its instructions to every iteration:
+The number is the maximum number of loops. Use `--project-dir` to point Ralph
+at the project whose files should be edited. The base directory still owns the
+Ralph runner, prompts, PRD, progress log, metadata, skills, and graph engine;
+the target directory becomes the agent's working directory for edits, Git, and
+Graphify. If `--project-dir` is omitted, the target defaults to the base
+directory for backward compatibility.
 
-- Codex skill: `.agents/skills/ponytail/SKILL.md`
-- Claude Code skill: `.claude/skills/ponytail/SKILL.md`
+Ralph now loads the project-local `ponytail` skill by default and prepends its
+instructions to every iteration:
+
+- Target-project overrides: `$RALPH_PROJECT_DIR/.agents/skills/ponytail/SKILL.md`,
+  `$RALPH_PROJECT_DIR/.claude/skills/ponytail/SKILL.md`, or
+  `$RALPH_PROJECT_DIR/skills/ponytail/SKILL.md`
+- Base-engine fallback: `$RALPH_BASE_DIR/.agents/skills/ponytail/SKILL.md`,
+  `$RALPH_BASE_DIR/.claude/skills/ponytail/SKILL.md`, or
+  `$RALPH_BASE_DIR/skills/ponytail/SKILL.md`
 
 The behavior is implemented in `scripts/ralph/ralph.sh`: `SKILL_NAME` defaults
 to `ponytail`, `resolve_skill_file()` finds the project-local `SKILL.md`, and
@@ -214,8 +226,9 @@ bash scripts/ralph/ralph.sh --tool codex --skill ponytail 10
 ```
 
 Use `--skill <name>` for another project-local skill, or `--no-skill` to disable
-skill loading for a run. Ralph searches `.agents/skills/`, `.claude/skills/`,
-then `skills/` in the project root.
+skill loading for a run. Ralph searches the target project's `.agents/skills/`,
+`.claude/skills/`, and `skills/` directories first, then the same directories
+under the base engine directory.
 
 ## Useful commands
 
