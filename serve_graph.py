@@ -26,11 +26,12 @@ GRAPH_NODE_ORDER = {
     "building": 4,
     "critic_auditor": 5,
     "validation": 6,
-    "debugger": 7,
-    "item_router": 8,
-    "github_node": 9,
-    "attempt_limit": 10,
-    "__end__": 11,
+    "commit_item": 7,
+    "debugger": 8,
+    "item_router": 9,
+    "github_node": 10,
+    "attempt_limit": 11,
+    "__end__": 12,
 }
 
 VIEW_NODE_LABELS = {
@@ -41,6 +42,7 @@ VIEW_NODE_LABELS = {
     "building": "Build",
     "critic_auditor": "critic_auditor",
     "validation": "Validate",
+    "commit_item": "commit item",
     "debugger": "Debug failure",
     "item_router": "more items",
     "github_node": "github node",
@@ -53,6 +55,7 @@ VIEW_MAIN_FLOW = (
     "planning",
     "building",
     "validation",
+    "commit_item",
     "item_router",
     "github_node",
     "__end__",
@@ -65,6 +68,7 @@ VIEW_MAIN_NODES = (
     "building",
     "critic_auditor",
     "validation",
+    "commit_item",
     "item_router",
     "github_node",
     "__end__",
@@ -81,7 +85,6 @@ VIEW_MAIN_RECOVERY_EDGES = (("item_router", "planning"),)
 VIEW_RECOVERY_NODES = ("debugger", "attempt_limit")
 VIEW_RECOVERY_EDGES = (
     ("validation", "debugger"),
-    ("github_node", "debugger"),
     ("debugger", "planning"),
     ("building", "attempt_limit"),
     ("attempt_limit", "__end__"),

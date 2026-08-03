@@ -35,13 +35,14 @@ back to normal file inspection. After changing code, run `graphify update .`.
 
 1. Read `$RALPH_BASE_DIR/scripts/ralph/prd.json` and `$RALPH_BASE_DIR/scripts/ralph/progress.txt`. Check the Codebase Patterns section in the progress log first.
 2. Check that you are on the branch from the PRD `branchName`. If necessary, create or check out that branch from `main`.
-3. Pick the highest-priority user story where `passes` is `false`.
+3. Pick the highest-priority user story where `passes` or `validation` is `false`.
 4. Implement that single user story.
-5. Run the project’s relevant quality checks, such as typecheck, lint, and tests.
+5. Run the target project’s documented validation command and all other relevant quality checks. For this repository, validation is `.venv/bin/python -m unittest discover -s tests`.
+   The graph’s validation node is the final gate; do not commit from Ralph.
 6. For UI stories, verify the result in a browser when browser tooling is available.
 7. Update nearby `AGENTS.md` files only with genuinely reusable project knowledge discovered during the work.
-8. If all checks pass, commit all story changes with message: `feat: [Story ID] - [Story Title]`.
-9. Update the PRD to set that story’s `passes` value to `true`.
+8. Leave only files created or changed by this story in the working tree. Leave files that were already dirty at iteration start, unrelated files, and unrelated generated files untouched. Do not commit or push; the graph commits this item only after `validation` passes.
+9. Do not edit the PRD’s `passes` or `validation` flags; the runner and graph own those values.
 10. Append the iteration’s work and learnings to `$RALPH_BASE_DIR/scripts/ralph/progress.txt`.
 
 ## Progress Report Format
@@ -64,19 +65,19 @@ Keep the `## Codebase Patterns` section at the top of the progress log consolida
 ## Quality Requirements
 
 - Work on one story only.
-- Do not commit broken code.
+- Do not leave broken code or pre-existing/unrelated changes staged for the graph’s commit checkpoint.
 - Keep changes focused and consistent with the existing project.
 - Do not edit `$RALPH_BASE_DIR/scripts/ralph/metadata.txt`; the runner records attempts, errors, assigned backend, and touched files after you finish.
 
 ## Stop Condition
 
-After completing the story, check whether every PRD story has `passes: true`.
+After implementing and checking the current story, print:
 
-If all stories pass, include:
-
-```text
-<promise>COMPLETE</promise>
 ```
+<promise>ITEM_BUILT</promise>
+```
+
+Do not wait for validation, commits, or the remaining stories. The graph handles those after this iteration.
 
 Before your final response, print exactly one line in this format:
 

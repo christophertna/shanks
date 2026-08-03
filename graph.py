@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 
@@ -9,9 +11,10 @@ from workflow.nodes import (
     NodeDependencies,
     create_nodes,
     default_dependencies,
-    route_after_intake,
     route_after_building,
+    route_after_commit,
     route_after_github,
+    route_after_intake,
     route_after_item_router,
     route_after_planning,
     route_after_validation,
@@ -23,10 +26,13 @@ def build_graph(
     dependencies: NodeDependencies | None = None,
     *,
     checkpointer=None,
+    tool: Literal["claude", "codex"] = "codex",
 ):
-    """Build the workflow with optional provider adapters."""
+    """Build the workflow with optional adapters or a Claude/Codex choice."""
 
-    nodes = create_nodes(dependencies or default_dependencies())
+    nodes = create_nodes(
+        dependencies or default_dependencies(tool=tool)
+    )
     builder = StateGraph(WorkflowState)
     builder.add_node("intake", nodes["intake"])
     builder.add_node("learning", nodes["learning"])
@@ -35,6 +41,7 @@ def build_graph(
     builder.add_node("building", nodes["building"])
     # The viewer renders the validation decision node as a diamond.
     builder.add_node("validation", nodes["validation"], metadata={"kind": "decision"})
+    builder.add_node("commit_item", nodes["commit_item"])
     builder.add_node("debugger", nodes["debugger"])
     builder.add_node("item_router", nodes["item_router"])
     builder.add_node("github_node", nodes["github_node"])
@@ -61,7 +68,12 @@ def build_graph(
     builder.add_conditional_edges(
         "validation",
         route_after_validation,
-        ["debugger", "item_router"],
+        ["debugger", "commit_item"],
+    )
+    builder.add_conditional_edges(
+        "commit_item",
+        route_after_commit,
+        ["item_router", END],
     )
     builder.add_edge("debugger", "planning")
     builder.add_conditional_edges(
@@ -72,7 +84,7 @@ def build_graph(
     builder.add_conditional_edges(
         "github_node",
         route_after_github,
-        ["debugger", END],
+        [END],
     )
     builder.add_edge("attempt_limit", END)
 

@@ -9,16 +9,21 @@ from typing import Literal
 from langgraph.types import interrupt
 
 from .adapters import (
-    CheapCriticAdapter,
+    ClaudeAdapter,
     ClaudeOpus48CriticAdapter,
+    CodexAdapter,
+    DebuggerAdapter,
     GPT56LunaCriticAdapter,
-    StubAgentAdapter,
+    GitHubAdapter,
+    LocalTestAdapter,
+    RalphAdapter,
 )
 from .contracts import (
     AgentAdapter,
     AgentRequest,
     AgentResult,
     NodeFunction,
+    RepositoryAdapter,
     state_update_from_result,
 )
 from .state import PRDItem, WorkflowState
@@ -33,6 +38,7 @@ class NodeDependencies:
     critic: AgentAdapter
     validator: AgentAdapter
     debugger: AgentAdapter
+    repository: RepositoryAdapter | None = None
 
 
 LEARN_PROMPT = """
@@ -48,15 +54,30 @@ produce an actionable implementation plan for the builder.
 """.strip()
 
 
-def default_dependencies(*, critic: AgentAdapter | None = None) -> NodeDependencies:
-    """Return side-effect-free adapters, with an optional critic override."""
+def default_dependencies(
+    *,
+    critic: AgentAdapter | None = None,
+    project_directory: Path | None = None,
+    tool: Literal["claude", "codex"] = "codex",
+) -> NodeDependencies:
+    """Return a complete Claude- or Codex-backed workflow configuration."""
 
+    if tool not in {"claude", "codex"}:
+        raise ValueError("tool must be 'claude' or 'codex'")
+    project_directory = project_directory or Path.cwd()
+    if tool == "claude":
+        planner = ClaudeAdapter(project_directory)
+        default_critic = ClaudeOpus48CriticAdapter(project_directory)
+    else:
+        planner = CodexAdapter(project_directory)
+        default_critic = GPT56LunaCriticAdapter(project_directory)
     return NodeDependencies(
-        planner=StubAgentAdapter("planner", "planner-stub"),
-        builder=StubAgentAdapter("builder", "builder-stub"),
-        critic=critic or CheapCriticAdapter(),
-        validator=StubAgentAdapter("validator", "validator-stub"),
-        debugger=StubAgentAdapter("debugger", "debugger-stub"),
+        planner=planner,
+        builder=RalphAdapter(project_directory, tool=tool),
+        critic=critic or default_critic,
+        validator=LocalTestAdapter(project_directory),
+        debugger=DebuggerAdapter(project_directory, tool=tool),
+        repository=GitHubAdapter(project_directory),
     )
 
 
@@ -65,6 +86,8 @@ def gpt_5_6_luna_dependencies(project_directory: Path) -> NodeDependencies:
 
     return default_dependencies(
         critic=GPT56LunaCriticAdapter(project_directory),
+        project_directory=project_directory,
+        tool="codex",
     )
 
 
@@ -73,19 +96,29 @@ def claude_opus_4_8_dependencies(project_directory: Path) -> NodeDependencies:
 
     return default_dependencies(
         critic=ClaudeOpus48CriticAdapter(project_directory),
+        project_directory=project_directory,
+        tool="claude",
     )
 
 
 def select_next_item(state: WorkflowState) -> tuple[int, PRDItem] | None:
-    """Select the first incomplete item at or after the current index."""
+    """Select the first item that is not both built and validated."""
 
     items = state.get("prd_items", [])
     start_index = state.get("current_item_index", 0)
     for index in range(start_index, len(items)):
         item = items[index]
-        if not item.get("passes", False):
+        if not _item_complete(item):
             return index, item
     return None
+
+
+def _item_complete(item: PRDItem) -> bool:
+    """Treat legacy passes-only items as complete while honoring validation."""
+
+    if not item.get("passes", False):
+        return False
+    return item.get("validation", True)
 
 
 def create_nodes(
@@ -102,9 +135,10 @@ def create_nodes(
         "building": lambda state: building(state, deps),
         "critic_auditor": lambda state: critic_auditor(state, deps),
         "validation": lambda state: validation(state, deps),
+        "commit_item": lambda state: commit_item(state, deps),
         "debugger": lambda state: debugger(state, deps),
         "item_router": item_router,
-        "github_node": github_node,
+        "github_node": lambda state: github_node(state, deps),
         "attempt_limit": attempt_limit,
     }
 
@@ -141,6 +175,7 @@ def intake(state: WorkflowState) -> WorkflowState:
                         "title": task,
                         "description": task,
                         "passes": False,
+                        "validation": False,
                     }
                 ]
             return update
@@ -183,6 +218,19 @@ def planning(state: WorkflowState, dependencies: NodeDependencies) -> WorkflowSt
     item_index, item = selected
     item_id = item.get("id", f"item-{item_index + 1}")
     previous_item_id = state.get("current_item_id")
+    item = dict(item)
+    prd_items_update: list[PRDItem] | None = None
+    debugger_details = _debugger_details(state, item_id, previous_item_id)
+    if debugger_details:
+        description = item.get("description", "").strip()
+        if debugger_details not in description:
+            item["description"] = "\n\n".join(
+                part for part in (description, debugger_details) if part
+            )
+            prd_items_update = [
+                dict(existing_item) for existing_item in state.get("prd_items", [])
+            ]
+            prd_items_update[item_index] = item
     learned_context = state.get("learning_notes", "")
     instructions = "\n\n".join(
         part
@@ -208,12 +256,15 @@ def planning(state: WorkflowState, dependencies: NodeDependencies) -> WorkflowSt
             "current_item_title": item.get("title", ""),
             "plan": result.plan or _default_plan(),
             "builder_instructions": result.builder_instructions
+            or result.feedback
             or state.get("builder_instructions", ""),
             "critic_passed": False,
             "validation_passed": False,
             "max_attempts": state.get("max_attempts", 3),
         }
     )
+    if prd_items_update is not None:
+        update["prd_items"] = prd_items_update
     if previous_item_id != item_id:
         update.update(
             {
@@ -253,6 +304,16 @@ def building(state: WorkflowState, dependencies: NodeDependencies) -> WorkflowSt
     attempts_by_item = dict(state.get("attempts_by_item", {}))
     if item_id:
         attempts_by_item[item_id] = attempts_count
+    files_touched_by_item = dict(state.get("files_touched_by_item", {}))
+    if item_id:
+        files_touched_by_item[item_id] = list(
+            dict.fromkeys(
+                [
+                    *files_touched_by_item.get(item_id, []),
+                    *result.files_touched,
+                ]
+            )
+        )
     update.update(
         {
             "attempts_count": attempts_count,
@@ -260,8 +321,11 @@ def building(state: WorkflowState, dependencies: NodeDependencies) -> WorkflowSt
             "critic_passed": False,
             "build_completed": True,
             "status": result.status or "built",
+            "files_touched_by_item": files_touched_by_item,
         }
     )
+    if result.item_built is not False and result.status != "failed":
+        update["prd_items"] = _mark_current_item_built(state)
     return update
 
 
@@ -314,10 +378,10 @@ def validation(
             "validation_passed": passed,
             "validation_errors": list(result.validation_errors),
             "status": result.status or "validated",
+            "prd_items": _mark_current_item_validated(state, passed),
         }
     )
     if passed:
-        update["prd_items"] = _mark_current_item_passed(state)
         completed = list(state.get("completed_items", []))
         item_id = state.get("current_item_id", "")
         if item_id and item_id not in completed:
@@ -333,12 +397,17 @@ def debugger(
     """Analyze validation failure and prepare same-item rework instructions."""
 
     item = _current_item(state)
+    failure_message = "\n".join(state.get("validation_errors", [])).strip()
+    if not failure_message:
+        failure_message = state.get("last_error", "").strip()
+    if not failure_message:
+        failure_message = "Validation failed without a reported message."
     result = dependencies.debugger.run(
         _request_for(
             state,
             item,
             state.get("current_item_id", ""),
-            instructions="\n".join(state.get("validation_errors", [])),
+            instructions=f"Validation failure:\n{failure_message}",
         )
     )
     update = state_update_from_result(result)
@@ -366,10 +435,36 @@ def item_router(state: WorkflowState) -> WorkflowState:
     }
 
 
-def github_node(state: WorkflowState) -> WorkflowState:
-    """Provide a pass-through handoff before workflow completion."""
+def commit_item(
+    state: WorkflowState,
+    dependencies: NodeDependencies,
+) -> WorkflowState:
+    """Commit the validated current item before selecting the next one."""
 
-    return {}
+    repository = dependencies.repository
+    if repository is None:
+        return {"status": "commit_skipped"}
+
+    item_id = state.get("current_item_id", "")
+    result = repository.commit_item(
+        item_id,
+        state.get("current_item_title", ""),
+        list(state.get("files_touched_by_item", {}).get(item_id, [])),
+    )
+    return state_update_from_result(result)
+
+
+def github_node(
+    state: WorkflowState,
+    dependencies: NodeDependencies,
+) -> WorkflowState:
+    """Push the completed branch and create its pull request."""
+
+    repository = dependencies.repository
+    if repository is None:
+        return {"status": "complete"}
+
+    return state_update_from_result(repository.publish_pr(state.get("task", "")))
 
 
 def attempt_limit(state: WorkflowState) -> WorkflowState:
@@ -419,12 +514,20 @@ def route_after_intake(
 
 def route_after_validation(
     state: WorkflowState,
-) -> Literal["debugger", "item_router"]:
-    """Send failures to debugging and successes to the item router."""
+) -> Literal["debugger", "commit_item"]:
+    """Send failures to debugging and successes to the commit checkpoint."""
 
     if not state.get("validation_passed"):
         return "debugger"
-    return "item_router"
+    return "commit_item"
+
+
+def route_after_commit(
+    state: WorkflowState,
+) -> Literal["item_router", "__end__"]:
+    """Continue only when the validated item was committed or had no changes."""
+
+    return "__end__" if state.get("status") == "failed" else "item_router"
 
 
 def route_after_item_router(
@@ -437,10 +540,36 @@ def route_after_item_router(
 
 def route_after_github(
     state: WorkflowState,
-) -> Literal["debugger", "__end__"]:
-    """Retry a failed GitHub handoff through the debugger."""
+) -> Literal["__end__"]:
+    """Stop after the handoff; debugger is reserved for validation failures."""
 
-    return "debugger" if state.get("status") == "failed" else "__end__"
+    return "__end__"
+
+
+def _debugger_details(
+    state: WorkflowState,
+    item_id: str,
+    previous_item_id: str | None,
+) -> str:
+    """Format new debugger findings for the current PRD requirement."""
+
+    if previous_item_id != item_id:
+        return ""
+
+    root_cause = state.get("root_cause", "").strip()
+    builder_instructions = state.get("builder_instructions", "").strip()
+    failure_message = "\n".join(state.get("validation_errors", [])).strip()
+    if not root_cause and not builder_instructions:
+        return ""
+
+    details = ["Debugger findings:"]
+    if failure_message:
+        details.append(f"Validation failure: {failure_message}")
+    if root_cause:
+        details.append(f"Root cause: {root_cause}")
+    if builder_instructions:
+        details.append(f"Repair instructions: {builder_instructions}")
+    return "\n".join(details)
 
 
 def _request_for(
@@ -454,6 +583,8 @@ def _request_for(
         task=state.get("task", ""),
         item_id=item_id,
         item_title=item.get("title", ""),
+        item_description=item.get("description", ""),
+        prd_items=[dict(prd_item) for prd_item in state.get("prd_items", [])],
         instructions=(
             instructions
             if instructions is not None
@@ -484,11 +615,25 @@ def _merge_files(
     return update
 
 
-def _mark_current_item_passed(state: WorkflowState) -> list[PRDItem]:
+def _mark_current_item_built(state: WorkflowState) -> list[PRDItem]:
     items = [dict(item) for item in state.get("prd_items", [])]
     index = state.get("current_item_index", 0)
     if 0 <= index < len(items):
         items[index]["passes"] = True
+        items[index]["validation"] = False
+    return items
+
+
+def _mark_current_item_validated(
+    state: WorkflowState,
+    passed: bool,
+) -> list[PRDItem]:
+    items = [dict(item) for item in state.get("prd_items", [])]
+    index = state.get("current_item_index", 0)
+    if 0 <= index < len(items):
+        items[index]["validation"] = passed
+        if passed:
+            items[index]["passes"] = True
     return items
 
 
@@ -504,6 +649,7 @@ __all__ = [
     "NodeDependencies",
     "building",
     "critic_auditor",
+    "commit_item",
     "create_nodes",
     "debugger",
     "default_dependencies",
@@ -517,6 +663,7 @@ __all__ = [
     "planning",
     "route_after_intake",
     "route_after_building",
+    "route_after_commit",
     "route_after_github",
     "route_after_item_router",
     "route_after_validation",
