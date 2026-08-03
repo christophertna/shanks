@@ -23,9 +23,51 @@ class SequenceAdapter:
         return result
 
 
+@dataclass
+class RecordingRepository:
+    commits: list[str] = field(default_factory=list)
+    pull_requests: list[str] = field(default_factory=list)
+    fail_commit: bool = False
+    fail_publish: bool = False
+
+    def commit_item(
+        self,
+        item_id: str,
+        item_title: str,
+        files_touched: list[str],
+    ) -> AgentResult:
+        self.commits.append(item_id)
+        if self.fail_commit:
+            return AgentResult(
+                status="failed",
+                assigned_model="test-github",
+                error="commit failed",
+            )
+        return AgentResult(
+            status="committed",
+            assigned_model="test-github",
+            files_touched=files_touched,
+            commit_sha=f"sha-{item_id}",
+        )
+
+    def publish_pr(self, task: str) -> AgentResult:
+        self.pull_requests.append(task)
+        if self.fail_publish:
+            return AgentResult(
+                status="failed",
+                assigned_model="test-github",
+                error="publish failed",
+            )
+        return AgentResult(
+            status="pr_created",
+            assigned_model="test-github",
+            pr_url="https://github.com/example/shanks/pull/1",
+        )
+
+
 class GraphRoutingTests(unittest.TestCase):
     def test_default_graph_completes_an_item(self) -> None:
-        result = build_graph().invoke(
+        result = build_graph(_stub_dependencies()).invoke(
             {
                 "task": "Build a simple workflow",
                 "workflow_mode": "implement",
@@ -42,7 +84,8 @@ class GraphRoutingTests(unittest.TestCase):
         self.assertEqual(result["current_item_id"], "item-1")
 
     def test_graph_advances_through_all_incomplete_items(self) -> None:
-        result = build_graph().invoke(
+        repository = RecordingRepository()
+        result = build_graph(_stub_dependencies(repository)).invoke(
             {
                 "task": "Build the workflow",
                 "workflow_mode": "implement",
@@ -55,8 +98,12 @@ class GraphRoutingTests(unittest.TestCase):
         )
 
         self.assertTrue(all(item["passes"] for item in result["prd_items"]))
+        self.assertTrue(all(item["validation"] for item in result["prd_items"]))
         self.assertEqual(result["completed_items"], ["item-1", "item-2"])
         self.assertEqual(result["attempts_by_item"], {"item-1": 1, "item-2": 1})
+        self.assertEqual(repository.commits, ["item-1", "item-2"])
+        self.assertEqual(repository.pull_requests, ["Build the workflow"])
+        self.assertEqual(result["pr_url"], "https://github.com/example/shanks/pull/1")
 
     def test_completed_items_end_without_rebuilding(self) -> None:
         builder = SequenceAdapter(
@@ -162,6 +209,7 @@ class GraphRoutingTests(unittest.TestCase):
         self.assertTrue(result["validation_passed"])
 
     def test_validation_failure_debugs_and_retries_same_item(self) -> None:
+        repository = RecordingRepository()
         planner = SequenceAdapter(
             "planner",
             [
@@ -229,6 +277,7 @@ class GraphRoutingTests(unittest.TestCase):
             critic=critic,
             validator=validator,
             debugger=debugger,
+            repository=repository,
         )
 
         result = build_graph(dependencies).invoke(
@@ -241,11 +290,71 @@ class GraphRoutingTests(unittest.TestCase):
         self.assertEqual(validator.calls, 2)
         self.assertEqual(result["current_item_id"], "item-1")
         self.assertEqual(result["root_cause"], "Missing setup.")
+        self.assertEqual(
+            debugger.requests[0].instructions,
+            "Validation failure:\ntest failed",
+        )
+        self.assertIn("Add the missing setup.", planner.requests[1].instructions)
+        self.assertEqual(planner.requests[1].context, "Missing setup.")
+        self.assertIn(
+            "Root cause: Missing setup.",
+            result["prd_items"][0]["description"],
+        )
+        self.assertIn(
+            "Repair instructions: Add the missing setup.",
+            result["prd_items"][0]["description"],
+        )
+        self.assertEqual(
+            planner.requests[1].item_description,
+            result["prd_items"][0]["description"],
+        )
+        self.assertIn(
+            "Apply the debugger instructions.",
+            builder.requests[1].instructions,
+        )
+        self.assertEqual(
+            builder.requests[1].item_description,
+            result["prd_items"][0]["description"],
+        )
         self.assertTrue(result["prd_items"][0]["passes"])
+        self.assertTrue(result["prd_items"][0]["validation"])
+        self.assertEqual(repository.commits, ["item-1"])
+        self.assertEqual(repository.pull_requests, ["Build the workflow"])
         self.assertIn("/grill-with-docs", planner.requests[0].instructions)
 
+    def test_failed_item_commit_stops_before_the_pull_request(self) -> None:
+        repository = RecordingRepository(fail_commit=True)
+
+        result = build_graph(_stub_dependencies(repository)).invoke(
+            _initial_state(),
+            {"configurable": {"thread_id": "commit-failure"}},
+        )
+
+        self.assertEqual(result["status"], "failed")
+        self.assertEqual(repository.commits, ["item-1"])
+        self.assertEqual(repository.pull_requests, [])
+
+    def test_failed_github_handoff_stops_without_debugging_code(self) -> None:
+        repository = RecordingRepository(fail_publish=True)
+        debugger = SequenceAdapter(
+            "debugger",
+            [AgentResult(status="debugged", assigned_model="debugger")],
+        )
+
+        result = build_graph(
+            _stub_dependencies(repository, debugger=debugger)
+        ).invoke(
+            _initial_state(),
+            {"configurable": {"thread_id": "github-failure"}},
+        )
+
+        self.assertEqual(result["status"], "failed")
+        self.assertEqual(repository.commits, ["item-1"])
+        self.assertEqual(repository.pull_requests, ["Build the workflow"])
+        self.assertEqual(debugger.calls, 0)
+
     def test_intake_learn_returns_to_the_same_question(self) -> None:
-        graph = build_graph()
+        graph = build_graph(_stub_dependencies())
         config = {"configurable": {"thread_id": "learn-then-choose"}}
 
         paused = graph.invoke({"task": "Understand this codebase"}, config)
@@ -258,7 +367,7 @@ class GraphRoutingTests(unittest.TestCase):
         self.assertEqual(learned["__interrupt__"][0].value["type"], "intake")
 
     def test_intake_implement_enters_the_existing_workflow(self) -> None:
-        graph = build_graph()
+        graph = build_graph(_stub_dependencies())
         config = {"configurable": {"thread_id": "implement-feature"}}
 
         graph.invoke({"task": "Add a feature"}, config)
@@ -319,8 +428,22 @@ class GraphRoutingTests(unittest.TestCase):
         self.assertEqual(selected[0], 1)
         self.assertEqual(selected[1]["id"], "next")
 
-    def test_github_failure_routes_to_debugger(self) -> None:
-        self.assertEqual(route_after_github({"status": "failed"}), "debugger")
+    def test_item_selector_retries_a_built_but_unvalidated_item(self) -> None:
+        selected = select_next_item(
+            {
+                "prd_items": [
+                    {"id": "built", "passes": True, "validation": False},
+                    {"id": "next", "passes": False, "validation": False},
+                ]
+            }
+        )
+
+        self.assertIsNotNone(selected)
+        self.assertEqual(selected[0], 0)
+        self.assertEqual(selected[1]["id"], "built")
+
+    def test_github_failure_stops_without_routing_to_debugger(self) -> None:
+        self.assertEqual(route_after_github({"status": "failed"}), "__end__")
         self.assertEqual(route_after_github({"status": "complete"}), "__end__")
 
 
@@ -329,9 +452,28 @@ def _initial_state() -> dict[str, object]:
         "task": "Build the workflow",
         "workflow_mode": "implement",
         "prd_items": [
-            {"id": "item-1", "title": "First item", "passes": False}
+            {
+                "id": "item-1",
+                "title": "First item",
+                "passes": False,
+                "validation": False,
+            }
         ],
     }
+
+
+def _stub_dependencies(
+    repository: RecordingRepository | None = None,
+    debugger: SequenceAdapter | None = None,
+) -> NodeDependencies:
+    return NodeDependencies(
+        planner=StubAgentAdapter("planner", "planner"),
+        builder=StubAgentAdapter("builder", "builder"),
+        critic=StubAgentAdapter("critic", "critic"),
+        validator=StubAgentAdapter("validator", "validator"),
+        debugger=debugger or StubAgentAdapter("debugger", "debugger"),
+        repository=repository,
+    )
 
 
 if __name__ == "__main__":

@@ -13,6 +13,7 @@ class PRDItem(TypedDict, total=False):
     description: str
     priority: int
     passes: bool
+    validation: bool
 
 
 class WorkflowState(TypedDict, total=False):
@@ -27,6 +28,7 @@ class WorkflowState(TypedDict, total=False):
     current_item_title: str
     builder_instructions: str
     files_touched: list[str]
+    files_touched_by_item: dict[str, list[str]]
     attempts_count: int
     attempts_by_item: dict[str, int]
     max_attempts: int
@@ -40,6 +42,9 @@ class WorkflowState(TypedDict, total=False):
     validation_errors: list[str]
     debugger_model: str
     root_cause: str
+    item_built: bool
     completed_items: list[str]
     learning_notes: str
     status: str
+    commit_sha: str
+    pr_url: str

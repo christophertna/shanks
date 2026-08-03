@@ -30,12 +30,13 @@ back to normal file inspection. After changing code, run `graphify update .`.
 1. Read the PRD at `$RALPH_BASE_DIR/scripts/ralph/prd.json`
 2. Read the progress log at `$RALPH_BASE_DIR/scripts/ralph/progress.txt` (check Codebase Patterns section first)
 3. Check you're on the correct branch from PRD `branchName`. If not, check it out or create from main.
-4. Pick the **highest priority** user story where `passes: false`
+4. Pick the **highest priority** user story where `passes: false` or `validation: false`
 5. Implement that single user story
-6. Run quality checks (e.g., typecheck, lint, test - use whatever your project requires)
+6. Run the target project’s documented validation command and all other quality checks (e.g., typecheck and lint). For this repository, validation is `.venv/bin/python -m unittest discover -s tests`.
+   The graph’s validation node is the final gate; do not commit from Ralph.
 7. Update CLAUDE.md files if you discover reusable patterns (see below)
-8. If checks pass, commit ALL changes with message: `feat: [Story ID] - [Story Title]`
-9. Update the PRD to set `passes: true` for the completed story
+8. Leave only files created or changed by this story in the working tree. Leave files that were already dirty at iteration start, unrelated files, and unrelated generated files untouched. Do not commit or push; the graph commits this item only after `validation` passes.
+9. Do not edit the PRD’s `passes` or `validation` flags; the runner and graph own those values.
 10. Append your progress to `$RALPH_BASE_DIR/scripts/ralph/progress.txt`
 11. Before your final response, print exactly one `RALPH_ERROR: ...` line. Use `RALPH_ERROR: none` when the story and checks completed successfully; otherwise summarize the latest failure in one line.
 
@@ -115,16 +116,17 @@ If no browser tools are available, note in your progress report that manual brow
 
 ## Stop Condition
 
-After completing a user story, check if ALL stories have `passes: true`.
+After implementing and checking the current story, print:
 
-If ALL stories are complete and passing, reply with:
-<promise>COMPLETE</promise>
+```
+<promise>ITEM_BUILT</promise>
+```
 
-If there are still stories with `passes: false`, end your response normally (another iteration will pick up the next story).
+Do not wait for validation, commits, or the remaining stories. The graph handles those after this iteration.
 
 ## Important
 
 - Work on ONE story per iteration
-- Commit frequently
+- Leave commits to the graph’s post-validation checkpoint; never push from Ralph
 - Keep CI green
 - Read the Codebase Patterns section in `$RALPH_BASE_DIR/scripts/ralph/progress.txt` before starting

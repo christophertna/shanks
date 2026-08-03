@@ -9,6 +9,8 @@ set -o pipefail
 TOOL="codex"
 SKILL_NAME="ponytail"
 TARGET_DIR_ARG=""
+GRAPH_ITEM_ID=""
+GRAPH_INSTRUCTIONS=""
 MAX_ITERATIONS=10
 
 while [[ $# -gt 0 ]]; do
@@ -47,6 +49,30 @@ while [[ $# -gt 0 ]]; do
       ;;
     --no-skill)
       SKILL_NAME=""
+      shift
+      ;;
+    --graph-instructions)
+      if [[ $# -lt 2 ]]; then
+        echo "Error: --graph-instructions requires text."
+        exit 1
+      fi
+      GRAPH_INSTRUCTIONS="$2"
+      shift 2
+      ;;
+    --graph-item-id)
+      if [[ $# -lt 2 ]]; then
+        echo "Error: --graph-item-id requires an item id."
+        exit 1
+      fi
+      GRAPH_ITEM_ID="$2"
+      shift 2
+      ;;
+    --graph-item-id=*)
+      GRAPH_ITEM_ID="${1#*=}"
+      shift
+      ;;
+    --graph-instructions=*)
+      GRAPH_INSTRUCTIONS="${1#*=}"
       shift
       ;;
     *)
@@ -128,6 +154,16 @@ run_agent() {
     printf 'Base engine directory: %s\n' "$BASE_DIR"
     printf 'Target project directory: %s\n' "$TARGET_DIR"
     printf 'Edit files under the target project directory. Ralph prompts, PRD, progress, and metadata remain in the base engine directory.\n\n'
+    printf '# Pre-existing local changes\n\n'
+    if [ -n "${BEFORE_FILES:-}" ]; then
+      printf '%s\n' "$BEFORE_FILES"
+    else
+      printf '(none)\n'
+    fi
+    printf '\nLeave these files unstaged and uncommitted unless only the current story hunks can be staged safely.\n\n'
+    if [ -n "$GRAPH_INSTRUCTIONS" ]; then
+      printf '# Graph workflow context\n\n%s\n\n' "$GRAPH_INSTRUCTIONS"
+    fi
     if [ -n "$SKILL_FILE" ]; then
       printf '# Project skill: %s\n\n' "$SKILL_NAME"
       printf 'Apply this skill during the Ralph iteration. Read it before making changes.\n\n'
@@ -235,6 +271,16 @@ collect_status_files() {
   } | sort -u | sed '/^$/d'
 }
 
+mark_item_built() {
+  local story_id="$1"
+  local prd_tmp="$PRD_FILE.tmp"
+
+  jq --arg story_id "$story_id" \
+    '(.userStories[] | select(.id == $story_id)) |= (.passes = true | .validation = false)' \
+    "$PRD_FILE" > "$prd_tmp"
+  mv "$prd_tmp" "$PRD_FILE"
+}
+
 if [ ! -f "$PRD_FILE" ]; then
   echo "Error: Missing $PRD_FILE. Copy prd.json.example to prd.json and define your user stories."
   exit 1
@@ -288,13 +334,22 @@ fi
 echo "Starting Ralph - Base: $BASE_DIR - Target: $TARGET_DIR - Tool: $TOOL - Skill: ${SKILL_NAME:-none} - Max iterations: $MAX_ITERATIONS"
 
 for i in $(seq 1 $MAX_ITERATIONS); do
-  STORY_RECORD=$(jq -r '
-    [.userStories[] | select(.passes == false)]
-    | sort_by(.priority // 999999)
-    | .[0] // empty
-    | [(.id // ""), (.title // "")]
-    | @tsv
-  ' "$PRD_FILE" 2>/dev/null || true)
+  if [ -n "$GRAPH_ITEM_ID" ]; then
+    STORY_RECORD=$(jq -r --arg story_id "$GRAPH_ITEM_ID" '
+      [.userStories[] | select(.id == $story_id)]
+      | .[0] // empty
+      | [(.id // ""), (.title // "")]
+      | @tsv
+    ' "$PRD_FILE" 2>/dev/null || true)
+  else
+    STORY_RECORD=$(jq -r '
+      [.userStories[] | select((.passes // false) == false or (.validation // false) == false)]
+      | sort_by(.priority // 999999)
+      | .[0] // empty
+      | [(.id // ""), (.title // "")]
+      | @tsv
+    ' "$PRD_FILE" 2>/dev/null || true)
+  fi
   STORY_ID=$(printf '%s\n' "$STORY_RECORD" | cut -f1)
   STORY_TITLE=$(printf '%s\n' "$STORY_RECORD" | cut -f2-)
 
@@ -350,15 +405,20 @@ for i in $(seq 1 $MAX_ITERATIONS); do
     LAST_ERROR="none"
   fi
 
+  ITEM_BUILT=false
+  if [ "$TOOL_EXIT" -eq 0 ] && echo "$OUTPUT" | grep -q "<promise>ITEM_BUILT</promise>"; then
+    mark_item_built "$STORY_ID"
+    ITEM_BUILT=true
+  fi
+
   CURRENT_FILES=$(collect_touched_files)
   FILES_TOUCHED=$(merge_touched_files "$PREVIOUS_FILES" "$CURRENT_FILES")
   upsert_metadata "$STORY_ID" "$STORY_TITLE" "$ATTEMPTS_COUNT" "$LAST_ERROR" "$ASSIGNED_MODEL" "$FILES_TOUCHED"
 
-  # Check for completion signal
-  if echo "$OUTPUT" | grep -q "<promise>COMPLETE</promise>"; then
+  # Stop after one item; the graph owns validation, commits, and item routing.
+  if [ "$ITEM_BUILT" = true ]; then
     echo ""
-    echo "Ralph completed all tasks!"
-    echo "Completed at iteration $i of $MAX_ITERATIONS"
+    echo "Ralph built $STORY_ID; returning to the graph for validation."
     exit 0
   fi
   

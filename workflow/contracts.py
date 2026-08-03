@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Protocol
 
-from .state import WorkflowState
+from .state import PRDItem, WorkflowState
 
 
 @dataclass(frozen=True, slots=True)
@@ -16,6 +16,8 @@ class AgentRequest:
     task: str
     item_id: str = ""
     item_title: str = ""
+    item_description: str = ""
+    prd_items: list[PRDItem] = field(default_factory=list)
     instructions: str = ""
     context: str = ""
     working_directory: Path | None = None
@@ -36,6 +38,9 @@ class AgentResult:
     plan: list[str] = field(default_factory=list)
     builder_instructions: str = ""
     root_cause: str = ""
+    item_built: bool | None = None
+    commit_sha: str = ""
+    pr_url: str = ""
 
 
 class AgentAdapter(Protocol):
@@ -45,6 +50,25 @@ class AgentAdapter(Protocol):
 
     def run(self, request: AgentRequest) -> AgentResult:
         """Run the backend for one workflow node invocation."""
+
+        ...
+
+
+class RepositoryAdapter(Protocol):
+    """Interface for local commits and the final GitHub handoff."""
+
+    def commit_item(
+        self,
+        item_id: str,
+        item_title: str,
+        files_touched: list[str],
+    ) -> AgentResult:
+        """Commit one validated item's intended files."""
+
+        ...
+
+    def publish_pr(self, task: str) -> AgentResult:
+        """Push the branch and create its pull request."""
 
         ...
 
@@ -73,5 +97,11 @@ def state_update_from_result(result: AgentResult) -> WorkflowState:
         update["builder_instructions"] = result.builder_instructions
     if result.root_cause:
         update["root_cause"] = result.root_cause
+    if result.item_built is not None:
+        update["item_built"] = result.item_built
+    if result.commit_sha:
+        update["commit_sha"] = result.commit_sha
+    if result.pr_url:
+        update["pr_url"] = result.pr_url
 
     return update

@@ -50,6 +50,7 @@ Examples:
 ## Commit, push, and PR checks
 
 - Inspect the diff, current branch, and test results before committing.
+- Before committing, check whether related documentation (for example `README.md` or `explained.md`) also needs updating, and include those changes when relevant.
 - Push the feature branch with `git push -u origin <branch>`; do not push to `main` unless explicitly requested.
 - Pass the commit or PR title separately from the description when using GitHub CLI or an API.
 - Before opening the PR, state the exact title, description, and test command for auditability.
