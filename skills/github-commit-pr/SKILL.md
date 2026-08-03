@@ -41,6 +41,12 @@ Examples:
 - Omit greetings, filler, implementation walkthroughs, commit inventories, and unrelated future work.
 - Report failed or skipped tests honestly.
 
+## Merge authority
+
+- Never merge a pull request or enable auto-merge.
+- Only the user or another human may review and merge it.
+- The AI may open the pull request and leave it ready for human review.
+
 ## Commit, push, and PR checks
 
 - Inspect the diff, current branch, and test results before committing.

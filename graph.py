@@ -9,6 +9,7 @@ from workflow.nodes import (
     create_nodes,
     default_dependencies,
     route_after_building,
+    route_after_github,
     route_after_item_router,
     route_after_planning,
     route_after_validation,
@@ -30,6 +31,7 @@ def build_graph(
     builder.add_node("validation", nodes["validation"], metadata={"kind": "decision"})
     builder.add_node("debugger", nodes["debugger"])
     builder.add_node("item_router", nodes["item_router"])
+    builder.add_node("github_node", nodes["github_node"])
     builder.add_node("attempt_limit", nodes["attempt_limit"])
 
     builder.add_edge(START, "planning")
@@ -53,7 +55,12 @@ def build_graph(
     builder.add_conditional_edges(
         "item_router",
         route_after_item_router,
-        ["planning", END],
+        ["planning", "github_node"],
+    )
+    builder.add_conditional_edges(
+        "github_node",
+        route_after_github,
+        ["debugger", END],
     )
     builder.add_edge("attempt_limit", END)
 

@@ -23,8 +23,9 @@ GRAPH_NODE_ORDER = {
     "validation": 4,
     "debugger": 5,
     "item_router": 6,
-    "attempt_limit": 7,
-    "__end__": 8,
+    "github_node": 7,
+    "attempt_limit": 8,
+    "__end__": 9,
 }
 
 VIEW_NODE_LABELS = {
@@ -35,6 +36,7 @@ VIEW_NODE_LABELS = {
     "validation": "Validate",
     "debugger": "Debug failure",
     "item_router": "more items",
+    "github_node": "github node",
     "attempt_limit": "Attempt limit",
     "__end__": "Complete",
 }
@@ -44,6 +46,7 @@ VIEW_MAIN_FLOW = (
     "building",
     "validation",
     "item_router",
+    "github_node",
     "__end__",
 )
 VIEW_MAIN_NODES = (
@@ -53,6 +56,7 @@ VIEW_MAIN_NODES = (
     "critic_auditor",
     "validation",
     "item_router",
+    "github_node",
     "__end__",
 )
 VIEW_CRITIC_EDGES = (
@@ -63,6 +67,7 @@ VIEW_MAIN_RECOVERY_EDGES = (("item_router", "planning"),)
 VIEW_RECOVERY_NODES = ("debugger", "attempt_limit")
 VIEW_RECOVERY_EDGES = (
     ("validation", "debugger"),
+    ("github_node", "debugger"),
     ("debugger", "planning"),
     ("building", "attempt_limit"),
     ("attempt_limit", "__end__"),
@@ -205,9 +210,13 @@ def structured_mermaid(
                 lines.append(_view_node(node_id, decision_node_ids))
         lines.append("  end")
 
-        for source, target in VIEW_RECOVERY_EDGES:
-            if (source, target) in edges:
-                lines.append(f"  {source} -.-> {target}")
+        if any((source, target) in edges for source, target in VIEW_RECOVERY_EDGES):
+            lines.extend(
+                [
+                    "  main -.-> recovery",
+                    "  recovery -.-> main",
+                ]
+            )
 
     lines.extend(
         [

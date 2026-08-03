@@ -87,6 +87,7 @@ def create_nodes(
         "validation": lambda state: validation(state, deps),
         "debugger": lambda state: debugger(state, deps),
         "item_router": item_router,
+        "github_node": github_node,
         "attempt_limit": attempt_limit,
     }
 
@@ -269,6 +270,12 @@ def item_router(state: WorkflowState) -> WorkflowState:
     }
 
 
+def github_node(state: WorkflowState) -> WorkflowState:
+    """Provide a pass-through handoff before workflow completion."""
+
+    return {}
+
+
 def attempt_limit(state: WorkflowState) -> WorkflowState:
     """Stop safely when an item needs more build attempts than allowed."""
 
@@ -318,10 +325,18 @@ def route_after_validation(
 
 def route_after_item_router(
     state: WorkflowState,
-) -> Literal["planning", "__end__"]:
+) -> Literal["planning", "github_node"]:
     """Start the next incomplete item or finish the workflow."""
 
-    return "planning" if select_next_item(state) is not None else "__end__"
+    return "planning" if select_next_item(state) is not None else "github_node"
+
+
+def route_after_github(
+    state: WorkflowState,
+) -> Literal["debugger", "__end__"]:
+    """Retry a failed GitHub handoff through the debugger."""
+
+    return "debugger" if state.get("status") == "failed" else "__end__"
 
 
 def _request_for(
@@ -390,10 +405,12 @@ __all__ = [
     "default_dependencies",
     "claude_opus_4_8_dependencies",
     "gpt_5_6_luna_dependencies",
+    "github_node",
     "item_router",
     "attempt_limit",
     "planning",
     "route_after_building",
+    "route_after_github",
     "route_after_item_router",
     "route_after_validation",
     "select_next_item",

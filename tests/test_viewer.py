@@ -20,6 +20,7 @@ class GraphViewerTests(unittest.TestCase):
         self.assertIn("planning --> building;", content)
         self.assertIn("building --> validation;", content)
         self.assertIn("validation --> debugger;", content)
+        self.assertIn("github_node -.-> debugger;", content)
         self.assertIn("building --> critic_auditor;", content)
         self.assertIn("critic_auditor -.-> building;", content)
         self.assertIn("debugger -.-> planning;", content)
@@ -44,14 +45,28 @@ class GraphViewerTests(unittest.TestCase):
         self.assertIn('planning["planning"]', content)
         self.assertIn('building["Build"]:::mainNode', content)
         self.assertIn('item_router{"more items"}', content)
+        self.assertIn('github_node["github node"]:::mainNode', content)
         self.assertIn('critic_auditor["critic_auditor"]', content)
         main_section = content.split("  end", 1)[0]
         self.assertIn("building --> critic_auditor", main_section)
         self.assertIn("critic_auditor -.-> building", main_section)
         self.assertNotIn("building --> building", main_section)
         self.assertIn("item_router -.-> planning", main_section)
+        self.assertIn("item_router --> github_node", main_section)
+        self.assertIn("github_node --> __end__", main_section)
         self.assertNotIn("critic_auditor -.-> validation", content)
         self.assertNotIn("critic_auditor -.-> item_router", content)
+
+        detailed_content = structured_mermaid(
+            drawable_graph.draw_mermaid(),
+            decision_nodes,
+            detailed=True,
+        )
+        self.assertIn("main -.-> recovery", detailed_content)
+        self.assertIn("recovery -.-> main", detailed_content)
+        self.assertNotIn("validation -.-> debugger", detailed_content)
+        self.assertNotIn("github_node -.-> debugger", detailed_content)
+        self.assertNotIn("building -.-> attempt_limit", detailed_content)
 
 
 if __name__ == "__main__":

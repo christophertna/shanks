@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from graph import build_graph
 from workflow.adapters import StubAgentAdapter
 from workflow.contracts import AgentRequest, AgentResult
-from workflow.nodes import NodeDependencies, select_next_item
+from workflow.nodes import NodeDependencies, route_after_github, select_next_item
 
 
 @dataclass
@@ -239,6 +239,10 @@ class GraphRoutingTests(unittest.TestCase):
         self.assertIsNotNone(selected)
         self.assertEqual(selected[0], 1)
         self.assertEqual(selected[1]["id"], "next")
+
+    def test_github_failure_routes_to_debugger(self) -> None:
+        self.assertEqual(route_after_github({"status": "failed"}), "debugger")
+        self.assertEqual(route_after_github({"status": "complete"}), "__end__")
 
 
 def _initial_state() -> dict[str, object]:
