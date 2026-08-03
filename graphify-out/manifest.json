@@ -55,18 +55,13 @@
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1785643797.5247257,
-    "ast_hash": "6a47d64fcc136324ca395065a707ef76",
+    "mtime": 1785724411.5284975,
+    "ast_hash": "1647f4578df83c41f65c7e9edf92898a",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1785643815.4312918,
-    "ast_hash": "82efb97a359f5c7290bf2513d14686be",
-    "semantic_hash": ""
-  },
-  "explained.md": {
-    "mtime": 1785723733.6756434,
-    "ast_hash": "60c0f3bf4c42128d41408db9a47df512",
+    "mtime": 1785724411.7078571,
+    "ast_hash": "62c8cc5d25ff2803b4e2d96a77a4aae2",
     "semantic_hash": ""
   },
   "graph.html": {

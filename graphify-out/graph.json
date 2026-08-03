@@ -10,8 +10,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "graph",
-      "community": 0,
-      "community_name": "NodeDependencies",
+      "community": 2,
+      "community_name": "nodes.py",
       "norm_label": "graph.py"
     },
     {
@@ -32,8 +32,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "graph_rationale_1",
-      "community": 0,
-      "community_name": "NodeDependencies",
+      "community": 2,
+      "community_name": "nodes.py",
       "norm_label": "langgraph workflow assembled from standardized agent nodes."
     },
     {
@@ -1294,8 +1294,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "workflow_contracts",
-      "community": 5,
-      "community_name": "AgentRequest",
+      "community": 2,
+      "community_name": "nodes.py",
       "norm_label": "contracts.py"
     },
     {
@@ -1371,8 +1371,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "workflow_contracts_rationale_1",
-      "community": 5,
-      "community_name": "AgentRequest",
+      "community": 2,
+      "community_name": "nodes.py",
       "norm_label": "common interfaces shared by agent adapters and graph nodes."
     },
     {
@@ -1745,8 +1745,8 @@
       "source_location": "L284",
       "_origin": "ast",
       "id": "workflow_nodes_route_after_building",
-      "community": 0,
-      "community_name": "NodeDependencies",
+      "community": 2,
+      "community_name": "nodes.py",
       "norm_label": "route_after_building()"
     },
     {
@@ -1767,8 +1767,8 @@
       "source_location": "L309",
       "_origin": "ast",
       "id": "workflow_nodes_route_after_validation",
-      "community": 0,
-      "community_name": "NodeDependencies",
+      "community": 2,
+      "community_name": "nodes.py",
       "norm_label": "route_after_validation()"
     },
     {
@@ -1998,8 +1998,8 @@
       "source_location": "L287",
       "_origin": "ast",
       "id": "workflow_nodes_rationale_287",
-      "community": 0,
-      "community_name": "NodeDependencies",
+      "community": 2,
+      "community_name": "nodes.py",
       "norm_label": "route code to the critic, validation, or a safe attempt-limit stop."
     },
     {
@@ -2020,8 +2020,8 @@
       "source_location": "L312",
       "_origin": "ast",
       "id": "workflow_nodes_rationale_312",
-      "community": 0,
-      "community_name": "NodeDependencies",
+      "community": 2,
+      "community_name": "nodes.py",
       "norm_label": "send failures to debugging and successes to the item router."
     },
     {
@@ -2265,215 +2265,6 @@
       "community": 10,
       "community_name": "CLAUDE.md",
       "norm_label": "graphify"
-    },
-    {
-      "label": "explained.md",
-      "file_type": "document",
-      "source_file": "explained.md",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "explained",
-      "community": 3,
-      "community_name": "Important files",
-      "norm_label": "explained.md"
-    },
-    {
-      "label": "This Project, In Simple Words",
-      "file_type": "document",
-      "source_file": "explained.md",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "explained_this_project_in_simple_words",
-      "community": 3,
-      "community_name": "Important files",
-      "norm_label": "this project, in simple words"
-    },
-    {
-      "label": "The main flow",
-      "file_type": "document",
-      "source_file": "explained.md",
-      "source_location": "L7",
-      "_origin": "ast",
-      "id": "explained_the_main_flow",
-      "community": 3,
-      "community_name": "Important files",
-      "norm_label": "the main flow"
-    },
-    {
-      "label": "Critic",
-      "file_type": "document",
-      "source_file": "explained.md",
-      "source_location": "L33",
-      "_origin": "ast",
-      "id": "explained_critic",
-      "community": 3,
-      "community_name": "Important files",
-      "norm_label": "critic"
-    },
-    {
-      "label": "GPT-5.6 Luna",
-      "file_type": "document",
-      "source_file": "explained.md",
-      "source_location": "L39",
-      "_origin": "ast",
-      "id": "explained_gpt_5_6_luna",
-      "community": 3,
-      "community_name": "Important files",
-      "norm_label": "gpt-5.6 luna"
-    },
-    {
-      "label": "Claude Opus 4.8",
-      "file_type": "document",
-      "source_file": "explained.md",
-      "source_location": "L57",
-      "_origin": "ast",
-      "id": "explained_claude_opus_4_8",
-      "community": 3,
-      "community_name": "Important files",
-      "norm_label": "claude opus 4.8"
-    },
-    {
-      "label": "Important files",
-      "file_type": "document",
-      "source_file": "explained.md",
-      "source_location": "L72",
-      "_origin": "ast",
-      "id": "explained_important_files",
-      "community": 3,
-      "community_name": "Important files",
-      "norm_label": "important files"
-    },
-    {
-      "label": "`graph.py`",
-      "file_type": "document",
-      "source_file": "explained.md",
-      "source_location": "L74",
-      "_origin": "ast",
-      "id": "explained_graph_py",
-      "community": 3,
-      "community_name": "Important files",
-      "norm_label": "`graph.py`"
-    },
-    {
-      "label": "`workflow/state.py`",
-      "file_type": "document",
-      "source_file": "explained.md",
-      "source_location": "L82",
-      "_origin": "ast",
-      "id": "explained_workflow_state_py",
-      "community": 3,
-      "community_name": "Important files",
-      "norm_label": "`workflow/state.py`"
-    },
-    {
-      "label": "`workflow/contracts.py`",
-      "file_type": "document",
-      "source_file": "explained.md",
-      "source_location": "L97",
-      "_origin": "ast",
-      "id": "explained_workflow_contracts_py",
-      "community": 3,
-      "community_name": "Important files",
-      "norm_label": "`workflow/contracts.py`"
-    },
-    {
-      "label": "`workflow/adapters.py`",
-      "file_type": "document",
-      "source_file": "explained.md",
-      "source_location": "L105",
-      "_origin": "ast",
-      "id": "explained_workflow_adapters_py",
-      "community": 3,
-      "community_name": "Important files",
-      "norm_label": "`workflow/adapters.py`"
-    },
-    {
-      "label": "`workflow/nodes.py`",
-      "file_type": "document",
-      "source_file": "explained.md",
-      "source_location": "L120",
-      "_origin": "ast",
-      "id": "explained_workflow_nodes_py",
-      "community": 3,
-      "community_name": "Important files",
-      "norm_label": "`workflow/nodes.py`"
-    },
-    {
-      "label": "`graph.html`",
-      "file_type": "document",
-      "source_file": "explained.md",
-      "source_location": "L132",
-      "_origin": "ast",
-      "id": "explained_graph_html",
-      "community": 3,
-      "community_name": "Important files",
-      "norm_label": "`graph.html`"
-    },
-    {
-      "label": "`serve_graph.py`",
-      "file_type": "document",
-      "source_file": "explained.md",
-      "source_location": "L138",
-      "_origin": "ast",
-      "id": "explained_serve_graph_py",
-      "community": 3,
-      "community_name": "Important files",
-      "norm_label": "`serve_graph.py`"
-    },
-    {
-      "label": "`tests/`",
-      "file_type": "document",
-      "source_file": "explained.md",
-      "source_location": "L145",
-      "_origin": "ast",
-      "id": "explained_tests",
-      "community": 3,
-      "community_name": "Important files",
-      "norm_label": "`tests/`"
-    },
-    {
-      "label": "`graphify-out/`",
-      "file_type": "document",
-      "source_file": "explained.md",
-      "source_location": "L151",
-      "_origin": "ast",
-      "id": "explained_graphify_out",
-      "community": 3,
-      "community_name": "Important files",
-      "norm_label": "`graphify-out/`"
-    },
-    {
-      "label": "Ralph",
-      "file_type": "document",
-      "source_file": "explained.md",
-      "source_location": "L175",
-      "_origin": "ast",
-      "id": "explained_ralph",
-      "community": 3,
-      "community_name": "Important files",
-      "norm_label": "ralph"
-    },
-    {
-      "label": "Useful commands",
-      "file_type": "document",
-      "source_file": "explained.md",
-      "source_location": "L233",
-      "_origin": "ast",
-      "id": "explained_useful_commands",
-      "community": 3,
-      "community_name": "Important files",
-      "norm_label": "useful commands"
-    },
-    {
-      "label": "Current limits",
-      "file_type": "document",
-      "source_file": "explained.md",
-      "source_location": "L259",
-      "_origin": "ast",
-      "id": "explained_current_limits",
-      "community": 3,
-      "community_name": "Important files",
-      "norm_label": "current limits"
     },
     {
       "label": "ralph/CLAUDE.md",
@@ -8206,204 +7997,6 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "source_file": "explained.md",
-      "source_location": "L1",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "explained",
-      "target": "explained_this_project_in_simple_words",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "explained.md",
-      "source_location": "L33",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "explained_this_project_in_simple_words",
-      "target": "explained_critic",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "explained.md",
-      "source_location": "L259",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "explained_this_project_in_simple_words",
-      "target": "explained_current_limits",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "explained.md",
-      "source_location": "L72",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "explained_this_project_in_simple_words",
-      "target": "explained_important_files",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "explained.md",
-      "source_location": "L175",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "explained_this_project_in_simple_words",
-      "target": "explained_ralph",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "explained.md",
-      "source_location": "L7",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "explained_this_project_in_simple_words",
-      "target": "explained_the_main_flow",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "explained.md",
-      "source_location": "L233",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "explained_this_project_in_simple_words",
-      "target": "explained_useful_commands",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "explained.md",
-      "source_location": "L57",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "explained_critic",
-      "target": "explained_claude_opus_4_8",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "explained.md",
-      "source_location": "L39",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "explained_critic",
-      "target": "explained_gpt_5_6_luna",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "explained.md",
-      "source_location": "L132",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "explained_important_files",
-      "target": "explained_graph_html",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "explained.md",
-      "source_location": "L74",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "explained_important_files",
-      "target": "explained_graph_py",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "explained.md",
-      "source_location": "L151",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "explained_important_files",
-      "target": "explained_graphify_out",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "explained.md",
-      "source_location": "L138",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "explained_important_files",
-      "target": "explained_serve_graph_py",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "explained.md",
-      "source_location": "L145",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "explained_important_files",
-      "target": "explained_tests",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "explained.md",
-      "source_location": "L105",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "explained_important_files",
-      "target": "explained_workflow_adapters_py",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "explained.md",
-      "source_location": "L97",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "explained_important_files",
-      "target": "explained_workflow_contracts_py",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "explained.md",
-      "source_location": "L120",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "explained_important_files",
-      "target": "explained_workflow_nodes_py",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "explained.md",
-      "source_location": "L82",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "explained_important_files",
-      "target": "explained_workflow_state_py",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
       "source_file": "scripts/ralph/CLAUDE.md",
       "source_location": "L1",
       "weight": 1.0,
@@ -8612,5 +8205,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "a9ae170bfc432c28256d1d273df446f7cc98cd29"
+  "built_at_commit": "b20af6332e72c89da5b956544f1381fec62b7ab6"
 }

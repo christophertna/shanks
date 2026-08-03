@@ -4,6 +4,9 @@ This project is a small test system for using AI agents in a work flow.
 
 It uses **LangGraph** to connect steps together.
 
+This file is for human orientation only. Ralph and other agents do not load it
+as prompt context, and Graphify excludes it from the code map.
+
 ## The main flow
 
 ```text
@@ -16,6 +19,9 @@ critic_auditor
 building again
    ↓
 validation
+   ↓
+more items? ──→ Complete
+   └──────────→ planning
 ```
 
 - `planning` picks the next unfinished PRD item.
@@ -25,8 +31,9 @@ validation
 - If the critic approves it, the code goes to `validation`.
 - If validation fails, `debugger` studies the problem.
 - The problem then goes back to `planning` for the same PRD item.
-- If validation passes, the next PRD item starts.
-- When all items pass, the graph ends.
+- If validation passes, the `more items` decision sends the next PRD item to
+  `planning`.
+- When no items remain, `more items` sends the graph to `Complete`.
 
 There is a limit on build attempts. This helps stop endless loops.
 
@@ -77,7 +84,8 @@ Builds the LangGraph flow.
 
 It connects the nodes and controls where each step goes next.
 
-Only `validation` is shown as a diamond in the viewer because it is a decision step.
+`validation` and `more items` are shown as diamonds in the viewer because they
+are decision steps.
 
 ### `workflow/state.py`
 
@@ -126,6 +134,7 @@ Contains the work done by each graph node:
 - Critic review.
 - Validation.
 - Debugging.
+- The `more items` routing decision.
 
 It also selects the next unfinished PRD item and handles retries.
 
@@ -203,9 +212,11 @@ bash scripts/ralph/ralph.sh --project-dir ./target-project --tool codex 10
 The number is the maximum number of loops. Use `--project-dir` to point Ralph
 at the project whose files should be edited. The base directory still owns the
 Ralph runner, prompts, PRD, progress log, metadata, skills, and graph engine;
-the target directory becomes the agent's working directory for edits, Git, and
+the target directory becomes the agent's working directory for edits and
 Graphify. If `--project-dir` is omitted, the target defaults to the base
-directory for backward compatibility.
+directory for backward compatibility, so this agent repository's Git tracking
+also remains at the base directory. A separately supplied target uses its own
+Git repository when it is a different repository.
 
 Ralph now loads the project-local `ponytail` skill by default and prepends its
 instructions to every iteration:
