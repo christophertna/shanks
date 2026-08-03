@@ -1,0 +1,1 @@
+../../../skills/github-commit-pr/SKILL.md
