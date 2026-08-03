@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TypedDict
+from typing import Literal, TypedDict
 
 
 class PRDItem(TypedDict, total=False):
@@ -19,6 +19,7 @@ class WorkflowState(TypedDict, total=False):
     """State shared by every graph node and persisted between retries."""
 
     task: str
+    workflow_mode: Literal["learn", "implement"] | None
     plan: list[str]
     prd_items: list[PRDItem]
     current_item_index: int
@@ -40,4 +41,5 @@ class WorkflowState(TypedDict, total=False):
     debugger_model: str
     root_cause: str
     completed_items: list[str]
+    learning_notes: str
     status: str

@@ -1,7 +1,7 @@
 {
   "graph.py": {
-    "mtime": 1785729727.7870228,
-    "ast_hash": "ee841d270d46e018cce552d8bec67189",
+    "mtime": 1785784598.9504747,
+    "ast_hash": "dc8eb977a9b6ba9dcba474575284ac2a",
     "semantic_hash": ""
   },
   "scripts/ralph/ralph.sh": {
@@ -10,13 +10,13 @@
     "semantic_hash": ""
   },
   "serve_graph.py": {
-    "mtime": 1785731113.3512948,
-    "ast_hash": "da492aace3e44ad42f242a5ab7e951f1",
+    "mtime": 1785784423.5664144,
+    "ast_hash": "fec6a09d7238bfa5e0de1229a406d20c",
     "semantic_hash": ""
   },
   "tests/test_graph.py": {
-    "mtime": 1785729728.492955,
-    "ast_hash": "3c2e5645ad55ae5a9fd7c18eeea5e375",
+    "mtime": 1785784848.5742488,
+    "ast_hash": "fee4a134fc2ce0f1478332ffb10348e3",
     "semantic_hash": ""
   },
   "tests/test_node_contracts.py": {
@@ -40,14 +40,14 @@
     "semantic_hash": "f71d687c6bd418dac4efbd51abf1f97b"
   },
   "workflow/nodes.py": {
-    "mtime": 1785729727.9654858,
-    "ast_hash": "544f777961c9fe7c9366ff8155194576",
+    "mtime": 1785784826.7527802,
+    "ast_hash": "f9d95bc969fd6f26fa220e5ea3a117c8",
     "semantic_hash": ""
   },
   "workflow/state.py": {
-    "mtime": 1785643060.1231642,
-    "ast_hash": "d491bda8e588425a0447bc7265b79979",
-    "semantic_hash": "d491bda8e588425a0447bc7265b79979"
+    "mtime": 1785784335.7191489,
+    "ast_hash": "2638e4918674aae45d95646cfd2a0a67",
+    "semantic_hash": ""
   },
   ".codex/hooks.json": {
     "mtime": 1785643810.859003,
@@ -65,8 +65,8 @@
     "semantic_hash": ""
   },
   "graph.html": {
-    "mtime": 1785708169.2544825,
-    "ast_hash": "c35755566c8ff5d818d619036d4b4ad3",
+    "mtime": 1785772816.1030164,
+    "ast_hash": "b48d7a5deb0dd47ce4bfe86f3f580fd4",
     "semantic_hash": ""
   },
   "requirements.txt": {
@@ -85,8 +85,8 @@
     "semantic_hash": ""
   },
   "tests/test_viewer.py": {
-    "mtime": 1785731113.5241642,
-    "ast_hash": "a05b65ebacc86a1b9f4e04bb8df38d30",
+    "mtime": 1785784423.7458646,
+    "ast_hash": "7051fd5822f9a302160f595c049799c5",
     "semantic_hash": ""
   },
   "workflow/critic_output.schema.json": {
@@ -110,8 +110,8 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1785725852.9251897,
-    "ast_hash": "fd7eb6a5b27a5510d48b8566f6bd4009",
+    "mtime": 1785784585.1636355,
+    "ast_hash": "1d1b8fe0f99a4cce522f2b4049f1d993",
     "semantic_hash": ""
   },
   ".agents/skills/github-commit-pr/SKILL.md": {
@@ -127,6 +127,36 @@
   "skills/github-commit-pr/SKILL.md": {
     "mtime": 1785729013.2366238,
     "ast_hash": "fc20eddfc30618c36299cb2a5567736c",
+    "semantic_hash": ""
+  },
+  ".agents/skills/domain-modeling/ADR-FORMAT.md": {
+    "mtime": 1785783725.5026143,
+    "ast_hash": "bb327bab674f400796f64b6e2ef5850c",
+    "semantic_hash": ""
+  },
+  ".agents/skills/domain-modeling/CONTEXT-FORMAT.md": {
+    "mtime": 1785783725.5027776,
+    "ast_hash": "c2f41ffc931955b2b8d01322273d75fa",
+    "semantic_hash": ""
+  },
+  ".agents/skills/domain-modeling/SKILL.md": {
+    "mtime": 1785783725.5029502,
+    "ast_hash": "ef92f0dcd9f2007e71a319a3af54d2b1",
+    "semantic_hash": ""
+  },
+  ".agents/skills/domain-modeling/agents/openai.yaml": {
+    "mtime": 1785783725.5032003,
+    "ast_hash": "e68374ca79182d08c013ce592a4b429c",
+    "semantic_hash": ""
+  },
+  ".agents/skills/grilling/SKILL.md": {
+    "mtime": 1785783725.5228758,
+    "ast_hash": "340be7002489c3a90a8c0968ab204654",
+    "semantic_hash": ""
+  },
+  ".agents/skills/grilling/agents/openai.yaml": {
+    "mtime": 1785783725.5231442,
+    "ast_hash": "4b0364889bf3880a5ff46f0906d73efc",
     "semantic_hash": ""
   }
 }

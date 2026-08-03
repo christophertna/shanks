@@ -3,6 +3,7 @@
 Shanks is a small LangGraph-based workflow project for running Ralph-style agent tasks.
 It turns a task plan into a repeatable workflow that can plan work, build or revise it,
 ask a critic for feedback, validate the result, and move on to the next item.
+Runs begin with an intake choice: learn the codebase or implement a feature.
 
 The repository also includes a lightweight Mermaid viewer for seeing the main workflow
 and its recovery paths.
@@ -30,3 +31,21 @@ Start the graph viewer:
 ```
 
 Then open `http://127.0.0.1:8765/graph.html`.
+
+## Interactive workflow
+
+The first graph invocation pauses at intake. Resume the same thread with the
+user's label:
+
+```python
+from langgraph.types import Command
+
+from graph import build_graph
+
+graph = build_graph()
+config = {"configurable": {"thread_id": "session-1"}}
+graph.invoke({"task": "Add a feature"}, config=config)
+result = graph.invoke(Command(resume="implement"), config=config)
+```
+
+Use `"learn"` to run the documentation branch; it returns to intake afterward.

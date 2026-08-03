@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
+from langgraph.types import interrupt
+
 from .adapters import (
     CheapCriticAdapter,
     ClaudeOpus48CriticAdapter,
@@ -31,6 +33,19 @@ class NodeDependencies:
     critic: AgentAdapter
     validator: AgentAdapter
     debugger: AgentAdapter
+
+
+LEARN_PROMPT = """
+Use /grill-with-docs in learn mode. Read the target codebase and explain its
+architecture, important workflows, conventions, and the safest places to make
+changes. Do not edit files. Return the resulting codebase orientation for the
+user, then stop.
+""".strip()
+IMPLEMENT_PROMPT = """
+Use /grill-with-docs before implementation. Sharpen the requested feature
+against the existing codebase, record useful terminology and decisions, then
+produce an actionable implementation plan for the builder.
+""".strip()
 
 
 def default_dependencies(*, critic: AgentAdapter | None = None) -> NodeDependencies:
@@ -81,6 +96,8 @@ def create_nodes(
     deps = dependencies or default_dependencies()
 
     return {
+        "intake": intake,
+        "learning": lambda state: learning(state, deps),
         "planning": lambda state: planning(state, deps),
         "building": lambda state: building(state, deps),
         "critic_auditor": lambda state: critic_auditor(state, deps),
@@ -90,6 +107,70 @@ def create_nodes(
         "github_node": github_node,
         "attempt_limit": attempt_limit,
     }
+
+
+def intake(state: WorkflowState) -> WorkflowState:
+    """Ask for the top-level workflow mode and route the run accordingly."""
+
+    mode = state.get("workflow_mode")
+    if mode in {"learn", "implement"}:
+        return {}
+
+    prompt: dict[str, object] = {
+        "type": "intake",
+        "question": "What would you like to do?",
+        "options": [
+            {"value": "learn", "label": "Learn the codebase"},
+            {"value": "implement", "label": "Implement something"},
+        ],
+    }
+    while True:
+        answer = interrupt(prompt)
+        if isinstance(answer, dict):
+            answer = answer.get("choice", answer.get("mode"))
+        if answer in ("learn", "implement"):
+            update: WorkflowState = {
+                "workflow_mode": answer,
+                "status": f"intake_{answer}",
+            }
+            if answer == "implement" and not state.get("prd_items"):
+                task = state.get("task", "").strip() or "Implement the requested feature"
+                update["prd_items"] = [
+                    {
+                        "id": "feature-1",
+                        "title": task,
+                        "description": task,
+                        "passes": False,
+                    }
+                ]
+            return update
+        prompt = {
+            **prompt,
+            "error": "Choose either learn or implement.",
+        }
+
+
+def learning(state: WorkflowState, dependencies: NodeDependencies) -> WorkflowState:
+    """Run the documentation-oriented agent, then return to intake."""
+
+    item = _current_item(state)
+    item_id = item.get("id", "codebase")
+    request = _request_for(
+        state,
+        item,
+        item_id,
+        instructions=LEARN_PROMPT,
+    )
+    result = dependencies.planner.run(request)
+    update = state_update_from_result(result)
+    update.update(
+        {
+            "workflow_mode": None,
+            "learning_notes": result.feedback,
+            "status": "learned" if result.status != "failed" else "learning_failed",
+        }
+    )
+    return update
 
 
 def planning(state: WorkflowState, dependencies: NodeDependencies) -> WorkflowState:
@@ -102,7 +183,22 @@ def planning(state: WorkflowState, dependencies: NodeDependencies) -> WorkflowSt
     item_index, item = selected
     item_id = item.get("id", f"item-{item_index + 1}")
     previous_item_id = state.get("current_item_id")
-    request = _request_for(state, item, item_id)
+    learned_context = state.get("learning_notes", "")
+    instructions = "\n\n".join(
+        part
+        for part in (
+            IMPLEMENT_PROMPT,
+            (
+                "Existing codebase orientation from the previous learn pass:\n"
+                + learned_context
+                if learned_context
+                else ""
+            ),
+            state.get("builder_instructions", ""),
+        )
+        if part
+    )
+    request = _request_for(state, item, item_id, instructions=instructions)
     result = dependencies.planner.run(request)
     update = state_update_from_result(result)
     update.update(
@@ -313,6 +409,14 @@ def route_after_planning(
     return "building"
 
 
+def route_after_intake(
+    state: WorkflowState,
+) -> Literal["learning", "planning"]:
+    """Route the selected top-level mode into its focused workflow."""
+
+    return "learning" if state.get("workflow_mode") == "learn" else "planning"
+
+
 def route_after_validation(
     state: WorkflowState,
 ) -> Literal["debugger", "item_router"]:
@@ -406,9 +510,12 @@ __all__ = [
     "claude_opus_4_8_dependencies",
     "gpt_5_6_luna_dependencies",
     "github_node",
+    "intake",
+    "learning",
     "item_router",
     "attempt_limit",
     "planning",
+    "route_after_intake",
     "route_after_building",
     "route_after_github",
     "route_after_item_router",
