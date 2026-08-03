@@ -568,8 +568,8 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "tests_test_graph_sequenceadapter_run",
-      "community": 0,
-      "community_name": "NodeDependencies",
+      "community": 5,
+      "community_name": "AgentRequest",
       "norm_label": ".run()"
     },
     {
@@ -777,8 +777,8 @@
       "source_location": "L113",
       "_origin": "ast",
       "id": "tests_test_node_contracts_nodecontracttests_test_luna_dependency_factory_wires_the_critic_node",
-      "community": 5,
-      "community_name": "AgentRequest",
+      "community": 0,
+      "community_name": "NodeDependencies",
       "norm_label": ".test_luna_dependency_factory_wires_the_critic_node()"
     },
     {
@@ -788,8 +788,8 @@
       "source_location": "L118",
       "_origin": "ast",
       "id": "tests_test_node_contracts_nodecontracttests_test_claude_dependency_factory_wires_the_critic_node",
-      "community": 5,
-      "community_name": "AgentRequest",
+      "community": 0,
+      "community_name": "NodeDependencies",
       "norm_label": ".test_claude_dependency_factory_wires_the_critic_node()"
     },
     {
@@ -898,8 +898,8 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "workflow_adapters_stubagentadapter_run",
-      "community": 0,
-      "community_name": "NodeDependencies",
+      "community": 5,
+      "community_name": "AgentRequest",
       "norm_label": ".run()"
     },
     {
@@ -1294,8 +1294,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "workflow_contracts",
-      "community": 2,
-      "community_name": "nodes.py",
+      "community": 5,
+      "community_name": "AgentRequest",
       "norm_label": "contracts.py"
     },
     {
@@ -1316,8 +1316,8 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "workflow_contracts_agentresult",
-      "community": 0,
-      "community_name": "NodeDependencies",
+      "community": 5,
+      "community_name": "AgentRequest",
       "norm_label": "agentresult"
     },
     {
@@ -1371,8 +1371,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "workflow_contracts_rationale_1",
-      "community": 2,
-      "community_name": "nodes.py",
+      "community": 5,
+      "community_name": "AgentRequest",
       "norm_label": "common interfaces shared by agent adapters and graph nodes."
     },
     {
@@ -1393,8 +1393,8 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "workflow_contracts_rationale_26",
-      "community": 0,
-      "community_name": "NodeDependencies",
+      "community": 5,
+      "community_name": "AgentRequest",
       "norm_label": "provider-neutral output returned by an agent backend."
     },
     {
@@ -1602,8 +1602,8 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "workflow_nodes_gpt_5_6_luna_dependencies",
-      "community": 5,
-      "community_name": "AgentRequest",
+      "community": 0,
+      "community_name": "NodeDependencies",
       "norm_label": "gpt_5_6_luna_dependencies()"
     },
     {
@@ -1613,8 +1613,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "workflow_nodes_py_path",
-      "community": 5,
-      "community_name": "AgentRequest",
+      "community": 0,
+      "community_name": "NodeDependencies",
       "norm_label": "path"
     },
     {
@@ -1624,8 +1624,8 @@
       "source_location": "L56",
       "_origin": "ast",
       "id": "workflow_nodes_claude_opus_4_8_dependencies",
-      "community": 5,
-      "community_name": "AgentRequest",
+      "community": 0,
+      "community_name": "NodeDependencies",
       "norm_label": "claude_opus_4_8_dependencies()"
     },
     {
@@ -1877,8 +1877,8 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "workflow_nodes_rationale_49",
-      "community": 5,
-      "community_name": "AgentRequest",
+      "community": 0,
+      "community_name": "NodeDependencies",
       "norm_label": "use the read-only gpt-5.6 luna subagent for critic_auditor."
     },
     {
@@ -1888,8 +1888,8 @@
       "source_location": "L57",
       "_origin": "ast",
       "id": "workflow_nodes_rationale_57",
-      "community": 5,
-      "community_name": "AgentRequest",
+      "community": 0,
+      "community_name": "NodeDependencies",
       "norm_label": "use the read-only claude opus 4.8 subagent for critic_auditor."
     },
     {
@@ -2265,6 +2265,50 @@
       "community": 10,
       "community_name": "CLAUDE.md",
       "norm_label": "graphify"
+    },
+    {
+      "label": "README.md",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "readme",
+      "community": 3,
+      "community_name": "Shanks",
+      "norm_label": "readme.md"
+    },
+    {
+      "label": "Shanks",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "readme_shanks",
+      "community": 3,
+      "community_name": "Shanks",
+      "norm_label": "shanks"
+    },
+    {
+      "label": "Main pieces",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": "L10",
+      "_origin": "ast",
+      "id": "readme_main_pieces",
+      "community": 3,
+      "community_name": "Shanks",
+      "norm_label": "main pieces"
+    },
+    {
+      "label": "Quick start",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": "L18",
+      "_origin": "ast",
+      "id": "readme_quick_start",
+      "community": 3,
+      "community_name": "Shanks",
+      "norm_label": "quick start"
     },
     {
       "label": "ralph/CLAUDE.md",
@@ -7997,6 +8041,39 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
+      "source_file": "README.md",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "readme",
+      "target": "readme_shanks",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "README.md",
+      "source_location": "L10",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "readme_shanks",
+      "target": "readme_main_pieces",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "README.md",
+      "source_location": "L18",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "readme_shanks",
+      "target": "readme_quick_start",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
       "source_file": "scripts/ralph/CLAUDE.md",
       "source_location": "L1",
       "weight": 1.0,
@@ -8205,5 +8282,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "b20af6332e72c89da5b956544f1381fec62b7ab6"
+  "built_at_commit": "9ae93915a78d0b160270507c5e8d3c1fc6c5c879"
 }

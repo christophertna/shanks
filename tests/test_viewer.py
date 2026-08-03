@@ -42,11 +42,13 @@ class GraphViewerTests(unittest.TestCase):
         )
 
         self.assertIn('planning["planning"]', content)
+        self.assertIn('building["Build"]:::mainNode', content)
         self.assertIn('item_router{"more items"}', content)
         self.assertIn('critic_auditor["critic_auditor"]', content)
         main_section = content.split("  end", 1)[0]
         self.assertIn("building --> critic_auditor", main_section)
         self.assertIn("critic_auditor -.-> building", main_section)
+        self.assertNotIn("building --> building", main_section)
         self.assertIn("item_router -.-> planning", main_section)
         self.assertNotIn("critic_auditor -.-> validation", content)
         self.assertNotIn("critic_auditor -.-> item_router", content)
