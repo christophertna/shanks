@@ -259,6 +259,7 @@ def planning(state: WorkflowState, dependencies: NodeDependencies) -> WorkflowSt
             or result.feedback
             or state.get("builder_instructions", ""),
             "critic_passed": False,
+            "critic_feedback": "",
             "validation_passed": False,
             "max_attempts": state.get("max_attempts", 3),
         }
@@ -296,7 +297,21 @@ def building(state: WorkflowState, dependencies: NodeDependencies) -> WorkflowSt
         }
 
     item = _current_item(state)
-    request = _request_for(state, item, state.get("current_item_id", ""))
+    critic_feedback = state.get("critic_feedback", "").strip()
+    instructions = "\n\n".join(
+        part
+        for part in (
+            state.get("builder_instructions", ""),
+            f"Critic feedback:\n{critic_feedback}" if critic_feedback else "",
+        )
+        if part
+    )
+    request = _request_for(
+        state,
+        item,
+        state.get("current_item_id", ""),
+        instructions=instructions,
+    )
     result = dependencies.builder.run(request)
     update = _merge_files(state, state_update_from_result(result))
     attempts_count = state.get("attempts_count", 0) + 1
