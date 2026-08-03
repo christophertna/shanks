@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import sys
+import threading
 import time
 import types
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -13,56 +15,73 @@ from urllib.parse import parse_qs, urlparse
 
 PROJECT_DIR = Path(__file__).parent
 GRAPH_FILE = PROJECT_DIR / "graph.py"
+SERVER_FILE = Path(__file__).resolve()
 WORKFLOW_DIR = PROJECT_DIR / "workflow"
 GRAPH_CHECK_INTERVAL_SECONDS = 0.5
 GRAPH_NODE_ORDER = {
     "__start__": 0,
-    "planning": 1,
-    "building": 2,
-    "critic_auditor": 3,
-    "validation": 4,
-    "debugger": 5,
-    "item_router": 6,
-    "attempt_limit": 7,
-    "__end__": 8,
+    "intake": 1,
+    "learning": 2,
+    "planning": 3,
+    "building": 4,
+    "critic_auditor": 5,
+    "validation": 6,
+    "debugger": 7,
+    "item_router": 8,
+    "github_node": 9,
+    "attempt_limit": 10,
+    "__end__": 11,
 }
 
 VIEW_NODE_LABELS = {
     "__start__": "Start",
+    "intake": "Intake",
+    "learning": "Learn codebase",
     "planning": "planning",
     "building": "Build",
     "critic_auditor": "critic_auditor",
     "validation": "Validate",
     "debugger": "Debug failure",
     "item_router": "more items",
+    "github_node": "github node",
     "attempt_limit": "Attempt limit",
     "__end__": "Complete",
 }
 VIEW_MAIN_FLOW = (
     "__start__",
+    "intake",
     "planning",
     "building",
     "validation",
     "item_router",
+    "github_node",
     "__end__",
 )
 VIEW_MAIN_NODES = (
     "__start__",
+    "intake",
+    "learning",
     "planning",
     "building",
     "critic_auditor",
     "validation",
     "item_router",
+    "github_node",
     "__end__",
 )
 VIEW_CRITIC_EDGES = (
     ("building", "critic_auditor", "-->"),
     ("critic_auditor", "building", "-.->"),
 )
+VIEW_INTAKE_EDGES = (
+    ("intake", "learning", "-.->"),
+    ("learning", "intake", "-.->"),
+)
 VIEW_MAIN_RECOVERY_EDGES = (("item_router", "planning"),)
 VIEW_RECOVERY_NODES = ("debugger", "attempt_limit")
 VIEW_RECOVERY_EDGES = (
     ("validation", "debugger"),
+    ("github_node", "debugger"),
     ("debugger", "planning"),
     ("building", "attempt_limit"),
     ("attempt_limit", "__end__"),
@@ -101,6 +120,27 @@ def graph_revision() -> tuple[tuple[str, int, int], ...]:
             (path.relative_to(PROJECT_DIR).as_posix(), stat.st_mtime_ns, stat.st_size)
         )
     return tuple(revisions)
+
+
+def server_revision() -> tuple[int, int] | None:
+    """Return a revision signature for the running server source."""
+
+    try:
+        stat = SERVER_FILE.stat()
+    except FileNotFoundError:
+        return None
+    return stat.st_mtime_ns, stat.st_size
+
+
+def restart_on_server_change(initial_revision: tuple[int, int]) -> None:
+    """Re-exec the viewer when its server source changes."""
+
+    while True:
+        time.sleep(GRAPH_CHECK_INTERVAL_SECONDS)
+        revision = server_revision()
+        if revision is None or revision == initial_revision:
+            continue
+        os.execv(sys.executable, [sys.executable, *sys.argv])
 
 
 def load_graph_module() -> types.ModuleType:
@@ -188,6 +228,9 @@ def structured_mermaid(
     for source, target, arrow in VIEW_CRITIC_EDGES:
         if (source, target) in edges:
             lines.append(f"    {source} {arrow} {target}")
+    for source, target, arrow in VIEW_INTAKE_EDGES:
+        if (source, target) in edges:
+            lines.append(f"    {source} {arrow} {target}")
     for source, target in VIEW_MAIN_RECOVERY_EDGES:
         if (source, target) in edges:
             lines.append(f"    {source} -.-> {target}")
@@ -205,14 +248,19 @@ def structured_mermaid(
                 lines.append(_view_node(node_id, decision_node_ids))
         lines.append("  end")
 
-        for source, target in VIEW_RECOVERY_EDGES:
-            if (source, target) in edges:
-                lines.append(f"  {source} -.-> {target}")
+        if any((source, target) in edges for source, target in VIEW_RECOVERY_EDGES):
+            lines.extend(
+                [
+                    "  main -.-> recovery",
+                    "  recovery -.-> main",
+                ]
+            )
 
     lines.extend(
         [
             "  classDef mainNode fill:#ffffff,stroke:#2563eb,stroke-width:2px,color:#0f172a",
             "  classDef decisionNode fill:#eff6ff,stroke:#2563eb,stroke-width:2px,color:#0f172a",
+            "  classDef yellowNode fill:#fef3c7,stroke:#ca8a04,stroke-width:2px,color:#713f12",
             "  classDef startNode fill:#dbeafe,stroke:#2563eb,stroke-width:2px,color:#1e3a8a",
             "  classDef endNode fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#14532d",
             "  classDef recoveryNode fill:#faf5ff,stroke:#9333ea,stroke-width:2px,color:#581c87",
@@ -231,10 +279,13 @@ def _view_node(node_id: str, decision_node_ids: set[str]) -> str:
     if node_id == "__end__":
         return f'    {node_id}(["{label}"]):::endNode'
     if node_id in {"item_router", *decision_node_ids}:
-        return f'    {node_id}{{"{label}"}}:::decisionNode'
+        node_class = "yellowNode" if node_id == "validation" else "decisionNode"
+        return f'    {node_id}{{"{label}"}}:::{node_class}'
     node_class = "safetyNode" if node_id == "attempt_limit" else "recoveryNode"
     if node_id in VIEW_MAIN_NODES:
         node_class = "mainNode"
+    if node_id == "github_node":
+        node_class = "yellowNode"
     return f'    {node_id}["{label}"]:::{node_class}'
 
 
@@ -354,10 +405,21 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8765)
     args = parser.parse_args()
 
+    initial_revision = server_revision()
+    if initial_revision is not None:
+        threading.Thread(
+            target=restart_on_server_change,
+            args=(initial_revision,),
+            daemon=True,
+        ).start()
+
     server = ThreadingHTTPServer(("127.0.0.1", args.port), GraphRequestHandler)
     server.daemon_threads = True
     print(f"Open http://127.0.0.1:{args.port}/graph.html")
-    print("The viewer updates when graph.py or workflow/*.py changes.")
+    print(
+        "The viewer updates when graph.py or workflow/*.py changes; "
+        "serve_graph.py reloads itself when edited."
+    )
 
     try:
         server.serve_forever()

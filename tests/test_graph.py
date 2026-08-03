@@ -1,10 +1,12 @@
 import unittest
 from dataclasses import dataclass, field
 
+from langgraph.types import Command
+
 from graph import build_graph
 from workflow.adapters import StubAgentAdapter
 from workflow.contracts import AgentRequest, AgentResult
-from workflow.nodes import NodeDependencies, select_next_item
+from workflow.nodes import NodeDependencies, route_after_github, select_next_item
 
 
 @dataclass
@@ -12,8 +14,10 @@ class SequenceAdapter:
     model_name: str
     results: list[AgentResult]
     calls: int = field(default=0, init=False)
+    requests: list[AgentRequest] = field(default_factory=list, init=False)
 
     def run(self, request: AgentRequest) -> AgentResult:
+        self.requests.append(request)
         result = self.results[min(self.calls, len(self.results) - 1)]
         self.calls += 1
         return result
@@ -24,10 +28,12 @@ class GraphRoutingTests(unittest.TestCase):
         result = build_graph().invoke(
             {
                 "task": "Build a simple workflow",
+                "workflow_mode": "implement",
                 "prd_items": [
                     {"id": "item-1", "title": "First item", "passes": False}
                 ],
-            }
+            },
+            {"configurable": {"thread_id": "default-completes"}},
         )
 
         self.assertTrue(result["critic_passed"])
@@ -39,11 +45,13 @@ class GraphRoutingTests(unittest.TestCase):
         result = build_graph().invoke(
             {
                 "task": "Build the workflow",
+                "workflow_mode": "implement",
                 "prd_items": [
                     {"id": "item-1", "title": "First item", "passes": False},
                     {"id": "item-2", "title": "Second item", "passes": False},
                 ],
-            }
+            },
+            {"configurable": {"thread_id": "advances-items"}},
         )
 
         self.assertTrue(all(item["passes"] for item in result["prd_items"]))
@@ -66,8 +74,10 @@ class GraphRoutingTests(unittest.TestCase):
         result = build_graph(dependencies).invoke(
             {
                 "task": "Already complete",
+                "workflow_mode": "implement",
                 "prd_items": [{"id": "done", "passes": True}],
-            }
+            },
+            {"configurable": {"thread_id": "already-complete"}},
         )
 
         self.assertEqual(builder.calls, 0)
@@ -100,7 +110,8 @@ class GraphRoutingTests(unittest.TestCase):
         )
 
         result = build_graph(dependencies).invoke(
-            {**_initial_state(), "max_attempts": 2}
+            {**_initial_state(), "max_attempts": 2},
+            {"configurable": {"thread_id": "attempt-limit"}},
         )
 
         self.assertEqual(builder.calls, 2)
@@ -139,7 +150,10 @@ class GraphRoutingTests(unittest.TestCase):
             debugger=StubAgentAdapter("debugger", "debugger"),
         )
 
-        result = build_graph(dependencies).invoke(_initial_state())
+        result = build_graph(dependencies).invoke(
+            _initial_state(),
+            {"configurable": {"thread_id": "critic-rejection"}},
+        )
 
         self.assertEqual(builder.calls, 2)
         self.assertEqual(critic.calls, 2)
@@ -217,7 +231,10 @@ class GraphRoutingTests(unittest.TestCase):
             debugger=debugger,
         )
 
-        result = build_graph(dependencies).invoke(_initial_state())
+        result = build_graph(dependencies).invoke(
+            _initial_state(),
+            {"configurable": {"thread_id": "validation-retry"}},
+        )
 
         self.assertEqual(planner.calls, 2)
         self.assertEqual(debugger.calls, 1)
@@ -225,6 +242,68 @@ class GraphRoutingTests(unittest.TestCase):
         self.assertEqual(result["current_item_id"], "item-1")
         self.assertEqual(result["root_cause"], "Missing setup.")
         self.assertTrue(result["prd_items"][0]["passes"])
+        self.assertIn("/grill-with-docs", planner.requests[0].instructions)
+
+    def test_intake_learn_returns_to_the_same_question(self) -> None:
+        graph = build_graph()
+        config = {"configurable": {"thread_id": "learn-then-choose"}}
+
+        paused = graph.invoke({"task": "Understand this codebase"}, config)
+
+        self.assertEqual(paused["__interrupt__"][0].value["type"], "intake")
+        learned = graph.invoke(Command(resume="learn"), config)
+
+        self.assertEqual(learned["status"], "learned")
+        self.assertIsNone(learned["workflow_mode"])
+        self.assertEqual(learned["__interrupt__"][0].value["type"], "intake")
+
+    def test_intake_implement_enters_the_existing_workflow(self) -> None:
+        graph = build_graph()
+        config = {"configurable": {"thread_id": "implement-feature"}}
+
+        graph.invoke({"task": "Add a feature"}, config)
+        result = graph.invoke(Command(resume={"choice": "implement"}), config)
+
+        self.assertNotIn("__interrupt__", result)
+        self.assertEqual(result["workflow_mode"], "implement")
+        self.assertEqual(result["prd_items"][0]["title"], "Add a feature")
+        self.assertTrue(result["prd_items"][0]["passes"])
+
+    def test_implementation_reuses_learning_notes(self) -> None:
+        planner = SequenceAdapter(
+            "planner",
+            [
+                AgentResult(
+                    status="learned",
+                    assigned_model="planner",
+                    feedback="The workflow is assembled in graph.py.",
+                ),
+                AgentResult(
+                    status="planned",
+                    assigned_model="planner",
+                    plan=["Implement the requested change"],
+                    builder_instructions="Build the feature.",
+                ),
+            ],
+        )
+        dependencies = NodeDependencies(
+            planner=planner,
+            builder=StubAgentAdapter("builder", "builder"),
+            critic=StubAgentAdapter("critic", "critic"),
+            validator=StubAgentAdapter("validator", "validator"),
+            debugger=StubAgentAdapter("debugger", "debugger"),
+        )
+        graph = build_graph(dependencies)
+        config = {"configurable": {"thread_id": "learn-then-implement"}}
+
+        graph.invoke({"task": "Understand and change the workflow"}, config)
+        graph.invoke(Command(resume="learn"), config)
+        graph.invoke(Command(resume="implement"), config)
+
+        self.assertIn(
+            "The workflow is assembled in graph.py.",
+            planner.requests[1].instructions,
+        )
 
     def test_item_selector_skips_completed_items(self) -> None:
         selected = select_next_item(
@@ -240,10 +319,15 @@ class GraphRoutingTests(unittest.TestCase):
         self.assertEqual(selected[0], 1)
         self.assertEqual(selected[1]["id"], "next")
 
+    def test_github_failure_routes_to_debugger(self) -> None:
+        self.assertEqual(route_after_github({"status": "failed"}), "debugger")
+        self.assertEqual(route_after_github({"status": "complete"}), "__end__")
+
 
 def _initial_state() -> dict[str, object]:
     return {
         "task": "Build the workflow",
+        "workflow_mode": "implement",
         "prd_items": [
             {"id": "item-1", "title": "First item", "passes": False}
         ],

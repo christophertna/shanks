@@ -272,6 +272,10 @@
       }
 
       const graphEvents = new EventSource("/graph-events");
+      graphEvents.addEventListener("open", () => {
+        lastDefinition = "";
+        refreshGraph();
+      });
       graphEvents.addEventListener("graph-changed", () => {
         status.textContent = "Graph source changed · updating graph…";
         refreshGraph();
