@@ -206,6 +206,10 @@ class GraphRoutingTests(unittest.TestCase):
         self.assertEqual(critic.calls, 2)
         self.assertEqual(result["attempts_count"], 2)
         self.assertEqual(result["current_item_id"], "item-1")
+        self.assertIn(
+            "Critic feedback:\nNeeds a test.",
+            builder.requests[1].instructions,
+        )
         self.assertTrue(result["validation_passed"])
 
     def test_validation_failure_debugs_and_retries_same_item(self) -> None:
