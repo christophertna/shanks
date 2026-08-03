@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "approved": {
+      "type": "boolean"
+    },
+    "feedback": {
+      "type": "string"
+    }
+  },
+  "required": ["approved", "feedback"]
+}

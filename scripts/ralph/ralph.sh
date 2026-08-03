@@ -1,12 +1,13 @@
 #!/bin/bash
 # Ralph Wiggum - Long-running AI agent loop
-# Usage: ./ralph.sh [--tool amp|claude|codex] [max_iterations]
+# Usage: ./ralph.sh [--tool claude|codex] [--skill skill-name|--no-skill] [max_iterations]
 
 set -e
 set -o pipefail
 
 # Parse arguments
-TOOL="amp"  # Default to amp for backwards compatibility
+TOOL="codex"
+SKILL_NAME="ponytail"
 MAX_ITERATIONS=10
 
 while [[ $# -gt 0 ]]; do
@@ -17,6 +18,22 @@ while [[ $# -gt 0 ]]; do
       ;;
     --tool=*)
       TOOL="${1#*=}"
+      shift
+      ;;
+    --skill)
+      if [[ $# -lt 2 ]]; then
+        echo "Error: --skill requires a skill name."
+        exit 1
+      fi
+      SKILL_NAME="$2"
+      shift 2
+      ;;
+    --skill=*)
+      SKILL_NAME="${1#*=}"
+      shift
+      ;;
+    --no-skill)
+      SKILL_NAME=""
       shift
       ;;
     *)
@@ -30,16 +47,65 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Validate tool choice
-if [[ "$TOOL" != "amp" && "$TOOL" != "claude" && "$TOOL" != "codex" ]]; then
-  echo "Error: Invalid tool '$TOOL'. Must be 'amp', 'claude', or 'codex'."
+if [[ "$TOOL" != "claude" && "$TOOL" != "codex" ]]; then
+  echo "Error: Invalid tool '$TOOL'. Must be 'claude' or 'codex'."
   exit 1
 fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+cd "$PROJECT_DIR"
 PRD_FILE="$SCRIPT_DIR/prd.json"
 PROGRESS_FILE="$SCRIPT_DIR/progress.txt"
 METADATA_FILE="$SCRIPT_DIR/metadata.txt"
 ARCHIVE_DIR="$SCRIPT_DIR/archive"
 LAST_BRANCH_FILE="$SCRIPT_DIR/.last-branch"
+
+resolve_skill_file() {
+  local skill_name="$1"
+  local candidate
+
+  for candidate in \
+    "$PROJECT_DIR/.agents/skills/$skill_name/SKILL.md" \
+    "$PROJECT_DIR/.claude/skills/$skill_name/SKILL.md" \
+    "$PROJECT_DIR/skills/$skill_name/SKILL.md"; do
+    if [ -f "$candidate" ]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
+SKILL_FILE=""
+if [ -n "$SKILL_NAME" ]; then
+  if [[ ! "$SKILL_NAME" =~ ^[A-Za-z0-9_-]+$ ]]; then
+    echo "Error: Invalid skill name '$SKILL_NAME'."
+    exit 1
+  fi
+  SKILL_FILE="$(resolve_skill_file "$SKILL_NAME" || true)"
+  if [ -z "$SKILL_FILE" ]; then
+    echo "Error: Missing project-local skill '$SKILL_NAME'."
+    echo "Expected .agents/skills/$SKILL_NAME/SKILL.md or .claude/skills/$SKILL_NAME/SKILL.md."
+    exit 1
+  fi
+fi
+
+run_agent() {
+  local prompt_file="$1"
+  shift
+
+  if [ -n "$SKILL_FILE" ]; then
+    {
+      printf '# Project skill: %s\n\n' "$SKILL_NAME"
+      printf 'Apply this skill during the Ralph iteration. Read it before making changes.\n\n'
+      cat "$SKILL_FILE"
+      printf '\n\n# Ralph iteration instructions\n\n'
+      cat "$prompt_file"
+    } | "$@" 2>&1
+  else
+    "$@" < "$prompt_file" 2>&1
+  fi
+}
 
 sanitize_metadata_field() {
   printf '%s' "$1" | tr '\r\n\t' '   '
@@ -187,7 +253,7 @@ if [ ! -f "$PROGRESS_FILE" ]; then
   echo "---" >> "$PROGRESS_FILE"
 fi
 
-echo "Starting Ralph - Tool: $TOOL - Max iterations: $MAX_ITERATIONS"
+echo "Starting Ralph - Tool: $TOOL - Skill: ${SKILL_NAME:-none} - Max iterations: $MAX_ITERATIONS"
 
 for i in $(seq 1 $MAX_ITERATIONS); do
   STORY_RECORD=$(jq -r '
@@ -222,23 +288,16 @@ for i in $(seq 1 $MAX_ITERATIONS); do
   echo "==============================================================="
 
   # Run the selected tool with the ralph prompt
-  if [[ "$TOOL" == "amp" ]]; then
-    if OUTPUT=$(amp --dangerously-allow-all < "$SCRIPT_DIR/prompt.md" 2>&1); then
-      TOOL_EXIT=0
-    else
-      TOOL_EXIT=$?
-    fi
-  elif [[ "$TOOL" == "claude" ]]; then
+  if [[ "$TOOL" == "claude" ]]; then
     # Claude Code: use --dangerously-skip-permissions for autonomous operation, --print for output
-    if OUTPUT=$(claude --dangerously-skip-permissions --print < "$SCRIPT_DIR/CLAUDE.md" 2>&1); then
+    if OUTPUT=$(run_agent "$SCRIPT_DIR/CLAUDE.md" claude --dangerously-skip-permissions --print); then
       TOOL_EXIT=0
     else
       TOOL_EXIT=$?
     fi
   else
     # Codex CLI: use the project-local prompt with workspace write access.
-    PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-    if OUTPUT=$(codex exec --sandbox workspace-write --cd "$PROJECT_DIR" < "$SCRIPT_DIR/CODEX.md" 2>&1); then
+    if OUTPUT=$(run_agent "$SCRIPT_DIR/CODEX.md" codex exec --sandbox workspace-write --cd "$PROJECT_DIR"); then
       TOOL_EXIT=0
     else
       TOOL_EXIT=$?

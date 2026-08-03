@@ -20,7 +20,7 @@ validation
 
 - `planning` picks the next unfinished PRD item.
 - `building` writes or changes code.
-- `critic_auditor` checks the code with a cheaper model.
+- `critic_auditor` checks the code with the configured critic adapter.
 - If the critic rejects it, the code goes back to `building`.
 - If the critic approves it, the code goes to `validation`.
 - If validation fails, `debugger` studies the problem.
@@ -29,6 +29,45 @@ validation
 - When all items pass, the graph ends.
 
 There is a limit on build attempts. This helps stop endless loops.
+
+## Critic
+
+The `critic_auditor` node reviews the current PRD item after building. The
+default graph uses a deterministic cheap critic, but real model adapters can be
+selected explicitly.
+
+### GPT-5.6 Luna
+
+This uses a read-only Codex subagent with the `gpt-5.6-luna` model and `max`
+reasoning effort:
+
+```python
+from pathlib import Path
+
+from graph import build_graph
+from workflow.nodes import gpt_5_6_luna_dependencies
+
+graph = build_graph(gpt_5_6_luna_dependencies(Path.cwd()))
+```
+
+The subagent must be authenticated for the local `codex` CLI. It returns a
+structured approval and feedback object and runs with `read-only` sandbox
+access, so the critic cannot modify the repository.
+
+### Claude Opus 4.8
+
+To use Claude instead, select its dependency factory. It uses
+`claude-opus-4-8` at `medium` effort in Claude Code plan mode with read-only
+tools:
+
+```python
+from pathlib import Path
+
+from graph import build_graph
+from workflow.nodes import claude_opus_4_8_dependencies
+
+graph = build_graph(claude_opus_4_8_dependencies(Path.cwd()))
+```
 
 ## Important files
 
@@ -160,7 +199,23 @@ bash scripts/ralph/ralph.sh --tool codex 10
 bash scripts/ralph/ralph.sh --tool claude 10
 ```
 
-The number is the maximum number of loops.
+The number is the maximum number of loops. Ralph now loads the project-local
+`ponytail` skill by default and prepends its instructions to every iteration:
+
+- Codex skill: `.agents/skills/ponytail/SKILL.md`
+- Claude Code skill: `.claude/skills/ponytail/SKILL.md`
+
+The behavior is implemented in `scripts/ralph/ralph.sh`: `SKILL_NAME` defaults
+to `ponytail`, `resolve_skill_file()` finds the project-local `SKILL.md`, and
+`run_agent()` prepends its contents to the selected tool's prompt.
+
+```bash
+bash scripts/ralph/ralph.sh --tool codex --skill ponytail 10
+```
+
+Use `--skill <name>` for another project-local skill, or `--no-skill` to disable
+skill loading for a run. Ralph searches `.agents/skills/`, `.claude/skills/`,
+then `skills/` in the project root.
 
 ## Useful commands
 

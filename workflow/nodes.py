@@ -3,9 +3,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Literal
 
-from .adapters import CheapCriticAdapter, StubAgentAdapter
+from .adapters import (
+    CheapCriticAdapter,
+    ClaudeOpus48CriticAdapter,
+    GPT56LunaCriticAdapter,
+    StubAgentAdapter,
+)
 from .contracts import (
     AgentAdapter,
     AgentRequest,
@@ -27,15 +33,31 @@ class NodeDependencies:
     debugger: AgentAdapter
 
 
-def default_dependencies() -> NodeDependencies:
-    """Return side-effect-free adapters for local graph development."""
+def default_dependencies(*, critic: AgentAdapter | None = None) -> NodeDependencies:
+    """Return side-effect-free adapters, with an optional critic override."""
 
     return NodeDependencies(
         planner=StubAgentAdapter("planner", "planner-stub"),
         builder=StubAgentAdapter("builder", "builder-stub"),
-        critic=CheapCriticAdapter(),
+        critic=critic or CheapCriticAdapter(),
         validator=StubAgentAdapter("validator", "validator-stub"),
         debugger=StubAgentAdapter("debugger", "debugger-stub"),
+    )
+
+
+def gpt_5_6_luna_dependencies(project_directory: Path) -> NodeDependencies:
+    """Use the read-only GPT-5.6 Luna subagent for critic_auditor."""
+
+    return default_dependencies(
+        critic=GPT56LunaCriticAdapter(project_directory),
+    )
+
+
+def claude_opus_4_8_dependencies(project_directory: Path) -> NodeDependencies:
+    """Use the read-only Claude Opus 4.8 subagent for critic_auditor."""
+
+    return default_dependencies(
+        critic=ClaudeOpus48CriticAdapter(project_directory),
     )
 
 
@@ -366,6 +388,8 @@ __all__ = [
     "create_nodes",
     "debugger",
     "default_dependencies",
+    "claude_opus_4_8_dependencies",
+    "gpt_5_6_luna_dependencies",
     "item_router",
     "attempt_limit",
     "planning",

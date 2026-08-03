@@ -9,7 +9,7 @@ import time
 import types
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 PROJECT_DIR = Path(__file__).parent
 GRAPH_FILE = PROJECT_DIR / "graph.py"
@@ -18,14 +18,63 @@ GRAPH_CHECK_INTERVAL_SECONDS = 0.5
 GRAPH_NODE_ORDER = {
     "__start__": 0,
     "planning": 1,
-    "critic_auditor": 2,
-    "building": 3,
+    "building": 2,
+    "critic_auditor": 3,
     "validation": 4,
     "debugger": 5,
     "item_router": 6,
     "attempt_limit": 7,
     "__end__": 8,
 }
+
+VIEW_NODE_LABELS = {
+    "__start__": "Start",
+    "planning": "planning",
+    "building": "Build",
+    "critic_auditor": "critic_auditor",
+    "validation": "Validate",
+    "debugger": "Debug failure",
+    "item_router": "more items",
+    "attempt_limit": "Attempt limit",
+    "__end__": "Complete",
+}
+VIEW_MAIN_FLOW = (
+    "__start__",
+    "planning",
+    "building",
+    "validation",
+    "item_router",
+    "__end__",
+)
+VIEW_MAIN_NODES = (
+    "__start__",
+    "planning",
+    "building",
+    "critic_auditor",
+    "validation",
+    "item_router",
+    "__end__",
+)
+VIEW_CRITIC_EDGES = (
+    ("building", "critic_auditor", "-->"),
+    ("critic_auditor", "building", "-.->"),
+)
+VIEW_MAIN_RECOVERY_EDGES = (("item_router", "planning"),)
+VIEW_RECOVERY_NODES = ("debugger", "attempt_limit")
+VIEW_RECOVERY_EDGES = (
+    ("validation", "debugger"),
+    ("debugger", "planning"),
+    ("building", "attempt_limit"),
+    ("attempt_limit", "__end__"),
+)
+VIEW_NODE_DECLARATION = re.compile(
+    r"^\s*([A-Za-z0-9_]+)(?=\(|\[|\{)",
+    re.MULTILINE,
+)
+VIEW_EDGE = re.compile(
+    r"^\s*([A-Za-z0-9_]+)\s+(-\.->|-->)\s+([A-Za-z0-9_]+)",
+    re.MULTILINE,
+)
 
 
 def graph_source_files() -> tuple[Path, ...]:
@@ -105,6 +154,88 @@ def style_mermaid(content: str, decision_node_ids: set[str]) -> str:
         )
 
     return content
+
+
+def structured_mermaid(
+    content: str,
+    decision_node_ids: set[str],
+    *,
+    detailed: bool = False,
+) -> str:
+    """Build a readable overview, optionally showing recovery paths."""
+
+    node_ids = set(VIEW_NODE_DECLARATION.findall(content))
+    edges = {
+        (source, target)
+        for source, _arrow, target in VIEW_EDGE.findall(content)
+    }
+    if not set(VIEW_MAIN_FLOW).issubset(node_ids):
+        return style_mermaid(content, decision_node_ids)
+
+    lines = [
+        "%%{init: {\"flowchart\": {\"curve\": \"basis\", \"nodeSpacing\": 54, \"rankSpacing\": 88}}}%%",
+        "flowchart LR",
+        '  subgraph main["Main workflow"]',
+        "    direction LR",
+    ]
+
+    for node_id in VIEW_MAIN_NODES:
+        if node_id in node_ids:
+            lines.append(_view_node(node_id, decision_node_ids))
+    for source, target in zip(VIEW_MAIN_FLOW, VIEW_MAIN_FLOW[1:]):
+        if (source, target) in edges:
+            lines.append(f"    {source} --> {target}")
+    for source, target, arrow in VIEW_CRITIC_EDGES:
+        if (source, target) in edges:
+            lines.append(f"    {source} {arrow} {target}")
+    for source, target in VIEW_MAIN_RECOVERY_EDGES:
+        if (source, target) in edges:
+            lines.append(f"    {source} -.-> {target}")
+    lines.append("  end")
+
+    if detailed:
+        lines.extend(
+            [
+                '  subgraph recovery["Recovery and safety"]',
+                "    direction TB",
+            ]
+        )
+        for node_id in VIEW_RECOVERY_NODES:
+            if node_id in node_ids:
+                lines.append(_view_node(node_id, decision_node_ids))
+        lines.append("  end")
+
+        for source, target in VIEW_RECOVERY_EDGES:
+            if (source, target) in edges:
+                lines.append(f"  {source} -.-> {target}")
+
+    lines.extend(
+        [
+            "  classDef mainNode fill:#ffffff,stroke:#2563eb,stroke-width:2px,color:#0f172a",
+            "  classDef decisionNode fill:#eff6ff,stroke:#2563eb,stroke-width:2px,color:#0f172a",
+            "  classDef startNode fill:#dbeafe,stroke:#2563eb,stroke-width:2px,color:#1e3a8a",
+            "  classDef endNode fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#14532d",
+            "  classDef recoveryNode fill:#faf5ff,stroke:#9333ea,stroke-width:2px,color:#581c87",
+            "  classDef safetyNode fill:#fff7ed,stroke:#ea580c,stroke-width:2px,color:#7c2d12",
+        ]
+    )
+    return "\n".join(lines) + "\n"
+
+
+def _view_node(node_id: str, decision_node_ids: set[str]) -> str:
+    """Return one consistently labeled node for the structured viewer."""
+
+    label = VIEW_NODE_LABELS.get(node_id, node_id)
+    if node_id == "__start__":
+        return f'    {node_id}(["{label}"]):::startNode'
+    if node_id == "__end__":
+        return f'    {node_id}(["{label}"]):::endNode'
+    if node_id in {"item_router", *decision_node_ids}:
+        return f'    {node_id}{{"{label}"}}:::decisionNode'
+    node_class = "safetyNode" if node_id == "attempt_limit" else "recoveryNode"
+    if node_id in VIEW_MAIN_NODES:
+        node_class = "mainNode"
+    return f'    {node_id}["{label}"]:::{node_class}'
 
 
 def style_edge_directions(content: str) -> str:
@@ -195,9 +326,12 @@ class GraphRequestHandler(BaseHTTPRequestHandler):
                 for node in drawable_graph.nodes.values()
                 if (node.metadata or {}).get("kind") == "decision"
             }
-            content = style_mermaid(
+            query = parse_qs(urlparse(self.path).query)
+            detailed = query.get("mode", ["overview"])[0] == "detail"
+            content = structured_mermaid(
                 drawable_graph.draw_mermaid(),
                 decision_node_ids,
+                detailed=detailed,
             )
             payload = content.encode("utf-8")
             self.send_response(200)

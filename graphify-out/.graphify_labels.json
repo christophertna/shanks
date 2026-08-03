@@ -6,13 +6,11 @@
   "4": "ralph.sh",
   "5": "AgentRequest",
   "6": "Ralph Agent Instructions",
-  "7": "Ralph Agent Instructions",
   "8": "Ralph Agent Instructions (Codex)",
   "9": "AGENTS.md",
   "10": "CLAUDE.md",
-  "11": ".__init__",
-  "12": "WorkflowState",
-  "13": "create_nodes",
-  "14": "__init__.py",
-  "15": "select_next_item"
+  "11": "critic_output.schema.json",
+  "12": "default_dependencies",
+  "13": "NodeContractTests",
+  "14": "AgentRequest"
 }
