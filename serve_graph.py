@@ -31,7 +31,8 @@ GRAPH_NODE_ORDER = {
     "item_router": 9,
     "github_node": 10,
     "attempt_limit": 11,
-    "__end__": 12,
+    "failed_build": 12,
+    "__end__": 13,
 }
 
 VIEW_NODE_LABELS = {
@@ -47,6 +48,7 @@ VIEW_NODE_LABELS = {
     "item_router": "more items",
     "github_node": "github node",
     "attempt_limit": "Attempt limit",
+    "failed_build": "Failed build",
     "__end__": "Complete",
 }
 VIEW_MAIN_FLOW = (
@@ -82,12 +84,14 @@ VIEW_INTAKE_EDGES = (
     ("learning", "intake", "-.->"),
 )
 VIEW_MAIN_RECOVERY_EDGES = (("item_router", "planning"),)
-VIEW_RECOVERY_NODES = ("debugger", "attempt_limit")
+VIEW_RECOVERY_NODES = ("debugger", "attempt_limit", "failed_build")
 VIEW_RECOVERY_EDGES = (
     ("validation", "debugger"),
     ("debugger", "planning"),
     ("building", "attempt_limit"),
     ("attempt_limit", "__end__"),
+    ("building", "failed_build"),
+    ("failed_build", "__end__"),
 )
 VIEW_NODE_DECLARATION = re.compile(
     r"^\s*([A-Za-z0-9_]+)(?=\(|\[|\{)",
@@ -284,7 +288,11 @@ def _view_node(node_id: str, decision_node_ids: set[str]) -> str:
     if node_id in {"item_router", *decision_node_ids}:
         node_class = "yellowNode" if node_id == "validation" else "decisionNode"
         return f'    {node_id}{{"{label}"}}:::{node_class}'
-    node_class = "safetyNode" if node_id == "attempt_limit" else "recoveryNode"
+    node_class = (
+        "safetyNode"
+        if node_id in {"attempt_limit", "failed_build"}
+        else "recoveryNode"
+    )
     if node_id in VIEW_MAIN_NODES:
         node_class = "mainNode"
     if node_id == "github_node":

@@ -28,6 +28,8 @@ class GraphViewerTests(unittest.TestCase):
         self.assertIn("validation{validation}", content)
         self.assertIn("planning --> building;", content)
         self.assertIn("building --> validation;", content)
+        self.assertIn("building --> failed_build;", content)
+        self.assertIn("failed_build --> __end__;", content)
         self.assertIn("validation --> commit_item;", content)
         self.assertIn("commit_item --> item_router;", content)
         self.assertIn("validation --> debugger;", content)
