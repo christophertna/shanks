@@ -83,6 +83,86 @@ class GraphRoutingTests(unittest.TestCase):
         self.assertTrue(result["prd_items"][0]["passes"])
         self.assertEqual(result["current_item_id"], "item-1")
 
+    def test_failed_build_stops_before_critic_or_validation(self) -> None:
+        builder = SequenceAdapter(
+            "ralph",
+            [
+                AgentResult(
+                    status="failed",
+                    assigned_model="ralph",
+                    error="build failed",
+                )
+            ],
+        )
+        critic = SequenceAdapter(
+            "critic",
+            [
+                AgentResult(
+                    status="critic_audited",
+                    assigned_model="critic",
+                    approved=True,
+                )
+            ],
+        )
+        validator = SequenceAdapter(
+            "validator",
+            [
+                AgentResult(
+                    status="validated",
+                    assigned_model="validator",
+                    validation_passed=True,
+                )
+            ],
+        )
+        dependencies = NodeDependencies(
+            planner=StubAgentAdapter("planner", "planner"),
+            builder=builder,
+            critic=critic,
+            validator=validator,
+            debugger=StubAgentAdapter("debugger", "debugger"),
+        )
+
+        result = build_graph(dependencies).invoke(
+            _initial_state(),
+            {"configurable": {"thread_id": "failed-build-result"}},
+        )
+
+        self.assertEqual(result["status"], "failed")
+        self.assertFalse(result["build_completed"])
+        self.assertEqual(builder.calls, 1)
+        self.assertEqual(critic.calls, 0)
+        self.assertEqual(validator.calls, 0)
+
+    def test_exhausted_build_node_error_uses_failed_build_route(self) -> None:
+        class FailingBuilder:
+            model_name = "failing-builder"
+
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def run(self, request: AgentRequest) -> AgentResult:
+                self.calls += 1
+                raise ValueError("builder exploded")
+
+        builder = FailingBuilder()
+        dependencies = NodeDependencies(
+            planner=StubAgentAdapter("planner", "planner"),
+            builder=builder,
+            critic=StubAgentAdapter("critic", "critic"),
+            validator=StubAgentAdapter("validator", "validator"),
+            debugger=StubAgentAdapter("debugger", "debugger"),
+        )
+
+        result = build_graph(dependencies).invoke(
+            _initial_state(),
+            {"configurable": {"thread_id": "failed-build-error"}},
+        )
+
+        self.assertEqual(result["status"], "failed")
+        self.assertEqual(result["last_error"], "builder exploded")
+        self.assertFalse(result["build_completed"])
+        self.assertEqual(builder.calls, 1)
+
     def test_graph_advances_through_all_incomplete_items(self) -> None:
         repository = RecordingRepository()
         result = build_graph(_stub_dependencies(repository)).invoke(

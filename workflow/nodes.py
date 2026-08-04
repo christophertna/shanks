@@ -6,7 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from langgraph.types import interrupt
+from langgraph.errors import NodeError
+from langgraph.types import Command, interrupt
 
 from .adapters import (
     ClaudeAdapter,
@@ -140,6 +141,7 @@ def create_nodes(
         "item_router": item_router,
         "github_node": lambda state: github_node(state, deps),
         "attempt_limit": attempt_limit,
+        "failed_build": failed_build,
     }
 
 
@@ -334,7 +336,7 @@ def building(state: WorkflowState, dependencies: NodeDependencies) -> WorkflowSt
             "attempts_count": attempts_count,
             "attempts_by_item": attempts_by_item,
             "critic_passed": False,
-            "build_completed": True,
+            "build_completed": result.status != "failed",
             "status": result.status or "built",
             "files_touched_by_item": files_touched_by_item,
         }
@@ -494,11 +496,39 @@ def attempt_limit(state: WorkflowState) -> WorkflowState:
     }
 
 
+def failed_build(state: WorkflowState) -> WorkflowState:
+    """Stop safely when the builder fails after its retries are exhausted."""
+
+    return {
+        "status": "failed",
+        "last_error": state.get("last_error") or "Build failed.",
+        "build_completed": False,
+    }
+
+
+def build_error_handler(
+    state: WorkflowState,
+    error: NodeError,
+) -> Command:
+    """Route an exhausted native build-node failure to the terminal path."""
+
+    return Command(
+        update={
+            "status": "failed",
+            "last_error": str(error.error),
+            "build_completed": False,
+        },
+        goto="failed_build",
+    )
+
+
 def route_after_building(
     state: WorkflowState,
-) -> Literal["critic_auditor", "validation", "attempt_limit"]:
-    """Route code to the critic, validation, or a safe attempt-limit stop."""
+) -> Literal["critic_auditor", "validation", "attempt_limit", "failed_build"]:
+    """Route code to review, validation, retry limiting, or failed-build stop."""
 
+    if state.get("status") == "failed":
+        return "failed_build"
     if state.get("critic_passed"):
         return "validation"
     if (
@@ -667,6 +697,7 @@ __all__ = [
     "commit_item",
     "create_nodes",
     "debugger",
+    "failed_build",
     "default_dependencies",
     "claude_opus_4_8_dependencies",
     "gpt_5_6_luna_dependencies",
@@ -675,6 +706,7 @@ __all__ = [
     "learning",
     "item_router",
     "attempt_limit",
+    "build_error_handler",
     "planning",
     "route_after_intake",
     "route_after_building",

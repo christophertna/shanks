@@ -1,16 +1,16 @@
 # Graph Report - shanks  (2026-08-03)
 
 ## Corpus Check
-- 27 files · ~15,203 words
+- 27 files · ~15,656 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 353 nodes · 798 edges · 25 communities (21 shown, 4 thin omitted)
-- Extraction: 88% EXTRACTED · 12% INFERRED · 0% AMBIGUOUS · INFERRED: 94 edges (avg confidence: 0.52)
+- 365 nodes · 828 edges · 18 communities (16 shown, 2 thin omitted)
+- Extraction: 88% EXTRACTED · 12% INFERRED · 0% AMBIGUOUS · INFERRED: 99 edges (avg confidence: 0.53)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `972be597`
+- Built from commit: `e3540e4f`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -20,38 +20,33 @@
 - nodes.py
 - Shanks
 - ralph.sh
-- AgentRequest
 - Ralph Agent Instructions
 - GitHub Commits and PRs
 - Ralph Agent Instructions (Codex)
 - AGENTS.md
 - CLAUDE.md
 - critic_output.schema.json
-- default_dependencies
 - NodeContractTests
 - GitHub Commits and PRs
 - .__init__
 - .__init__
 - adapters.py
-- AgentRequest
-- NodeContractTests
-- AgentAdapter
-- ClaudeOpus48CriticAdapter
-- LocalTestAdapter
 
 ## God Nodes (most connected - your core abstractions)
 1. `AgentRequest` - 51 edges
-2. `AgentResult` - 50 edges
-3. `NodeDependencies` - 41 edges
-4. `WorkflowState` - 38 edges
+2. `AgentResult` - 51 edges
+3. `NodeDependencies` - 43 edges
+4. `WorkflowState` - 40 edges
 5. `NodeContractTests` - 36 edges
-6. `build_graph()` - 27 edges
+6. `build_graph()` - 30 edges
 7. `AgentAdapter` - 23 edges
 8. `GitHubAdapter` - 22 edges
 9. `default_dependencies()` - 22 edges
-10. `GraphRoutingTests` - 19 edges
+10. `GraphRoutingTests` - 21 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `build_graph()` --indirect_call--> `build_error_handler()`  [INFERRED]
+  graph.py → workflow/nodes.py
 - `build_graph()` --indirect_call--> `route_after_building()`  [INFERRED]
   graph.py → workflow/nodes.py
 - `build_graph()` --indirect_call--> `route_after_commit()`  [INFERRED]
@@ -60,17 +55,15 @@
   graph.py → workflow/nodes.py
 - `build_graph()` --indirect_call--> `route_after_item_router()`  [INFERRED]
   graph.py → workflow/nodes.py
-- `build_graph()` --indirect_call--> `route_after_planning()`  [INFERRED]
-  graph.py → workflow/nodes.py
 
 ## Import Cycles
 - None detected.
 
-## Communities (25 total, 4 thin omitted)
+## Communities (18 total, 2 thin omitted)
 
 ### Community 0 - "NodeDependencies"
-Cohesion: 0.18
-Nodes (15): build_graph(), Build the workflow with optional adapters or a Claude/Codex choice., GraphRoutingTests, _initial_state(), RecordingRepository, SequenceAdapter, _stub_dependencies(), Deterministic adapter used for local graph development and tests. (+7 more)
+Cohesion: 0.15
+Nodes (18): Command, build_graph(), Build the workflow with optional adapters or a Claude/Codex choice., GraphRoutingTests, _initial_state(), RecordingRepository, SequenceAdapter, _stub_dependencies() (+10 more)
 
 ### Community 1 - "GraphRequestHandler"
 Cohesion: 0.08
@@ -78,7 +71,7 @@ Nodes (26): BaseHTTPRequestHandler, ModuleType, graph_revision(), graph_source_f
 
 ### Community 2 - "nodes.py"
 Cohesion: 0.07
-Nodes (61): LangGraph workflow assembled from standardized agent nodes., NodeFunction, TypedDict, Common interfaces shared by agent adapters and graph nodes., Translate common agent output into shared workflow state fields., state_update_from_result(), Reusable workflow state, agent contracts, adapters, and nodes., attempt_limit() (+53 more)
+Nodes (68): LangGraph workflow assembled from standardized agent nodes., NodeError, NodeFunction, TypedDict, Common interfaces shared by agent adapters and graph nodes., Interface for local commits and the final GitHub handoff., Translate common agent output into shared workflow state fields., RepositoryAdapter (+60 more)
 
 ### Community 3 - "Shanks"
 Cohesion: 0.40
@@ -87,10 +80,6 @@ Nodes (4): Interactive workflow, Main pieces, Quick start, Shanks
 ### Community 4 - "ralph.sh"
 Cohesion: 0.18
 Nodes (6): initialize_metadata_file(), mark_item_built(), RALPH_BASE_DIR, RALPH_PROJECT_DIR, ralph.sh script, upsert_metadata()
-
-### Community 5 - "AgentRequest"
-Cohesion: 0.14
-Nodes (13): ClaudeAdapter, CodexAdapter, GPT56LunaCriticAdapter, Adapter for direct Codex CLI execution., Adapter for direct Claude Code CLI execution., Run the critic_auditor as a read-only GPT-5.6 Luna Codex subagent., claude_opus_4_8_dependencies(), default_dependencies() (+5 more)
 
 ### Community 6 - "Ralph Agent Instructions"
 Cohesion: 0.17
@@ -104,13 +93,13 @@ Nodes (19): ADR Format, Numbering, Optional sections, Template, What qualifies, 
 Cohesion: 0.22
 Nodes (8): Directories, Files, Graphify First, Progress Report Format, Quality Requirements, Ralph Agent Instructions (Codex), Stop Condition, Your Task
 
+### Community 10 - "CLAUDE.md"
+Cohesion: 0.33
+Nodes (5): Commands, Gotchas, graphify, Project overview, Repo etiquette
+
 ### Community 11 - "critic_output.schema.json"
 Cohesion: 0.17
 Nodes (11): approved, feedback, additionalProperties, type, type, properties, approved, feedback (+3 more)
-
-### Community 12 - "default_dependencies"
-Cohesion: 0.29
-Nodes (5): Protocol, Interface for local commits and the final GitHub handoff., Commit one validated item's intended files., Push the branch and create its pull request., RepositoryAdapter
 
 ### Community 13 - "NodeContractTests"
 Cohesion: 0.22
@@ -125,39 +114,23 @@ Cohesion: 0.12
 Nodes (15): builder_instructions, root_cause, additionalProperties, minLength, type, type, properties, builder_instructions (+7 more)
 
 ### Community 19 - "adapters.py"
-Cohesion: 0.16
-Nodes (13): _critic_result(), _debugger_request(), _debugger_result(), DebuggerAdapter, _parse_json_object(), Agent adapter implementations for graph nodes and external runners., Analyze validation failures with a read-only structured Codex run., Parse a JSON object even when the CLI adds non-JSON log lines. (+5 more)
-
-### Community 20 - "AgentRequest"
-Cohesion: 0.20
-Nodes (9): _critic_request(), _format_request(), RalphAdapter, Adapter for the project-local Ralph runner., Persist the graph's full PRD before Ralph reads its next story., Add the shared read-only audit instructions to a critic request., Create a stable prompt envelope for CLI-backed adapters., AgentRequest (+1 more)
-
-### Community 21 - "NodeContractTests"
-Cohesion: 0.21
-Nodes (3): NodeContractTests, GitHubAdapter, Commit validated items, then push the branch and open its PR.
-
-### Community 22 - "AgentAdapter"
-Cohesion: 0.29
-Nodes (5): CheapCriticAdapter, Deterministic low-cost critic used by the default graph., AgentAdapter, Interface implemented by Ralph, model CLIs, and test doubles., Run the backend for one workflow node invocation.
-
-### Community 23 - "ClaudeOpus48CriticAdapter"
-Cohesion: 0.33
-Nodes (4): ClaudeOpus48CriticAdapter, Normalize a read-only CLI critic into the common agent result shape., Run the critic_auditor as a read-only Claude Opus 4.8 subagent., StructuredCriticAdapter
+Cohesion: 0.06
+Nodes (50): Protocol, NodeContractTests, CheapCriticAdapter, ClaudeAdapter, ClaudeOpus48CriticAdapter, CodexAdapter, _critic_request(), _critic_result() (+42 more)
 
 ## Knowledge Gaps
-- **67 isolated node(s):** `RALPH_BASE_DIR`, `RALPH_PROJECT_DIR`, `$schema`, `type`, `additionalProperties` (+62 more)
+- **71 isolated node(s):** `RALPH_BASE_DIR`, `RALPH_PROJECT_DIR`, `$schema`, `type`, `additionalProperties` (+66 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **4 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **2 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `build_graph()` connect `NodeDependencies` to `GraphRequestHandler`, `nodes.py`, `AgentRequest`?**
-  _High betweenness centrality (0.072) - this node is a cross-community bridge._
-- **Why does `AgentRequest` connect `AgentRequest` to `NodeDependencies`, `nodes.py`, `AgentRequest`, `adapters.py`, `NodeContractTests`, `AgentAdapter`, `ClaudeOpus48CriticAdapter`, `LocalTestAdapter`?**
-  _High betweenness centrality (0.070) - this node is a cross-community bridge._
-- **Why does `AgentResult` connect `NodeDependencies` to `nodes.py`, `AgentRequest`, `default_dependencies`, `adapters.py`, `AgentRequest`, `NodeContractTests`, `AgentAdapter`, `ClaudeOpus48CriticAdapter`, `LocalTestAdapter`?**
-  _High betweenness centrality (0.070) - this node is a cross-community bridge._
+- **Why does `build_graph()` connect `NodeDependencies` to `GraphRequestHandler`, `nodes.py`, `adapters.py`?**
+  _High betweenness centrality (0.073) - this node is a cross-community bridge._
+- **Why does `AgentResult` connect `NodeDependencies` to `nodes.py`, `.__init__`, `adapters.py`?**
+  _High betweenness centrality (0.069) - this node is a cross-community bridge._
+- **Why does `AgentRequest` connect `adapters.py` to `NodeDependencies`, `nodes.py`?**
+  _High betweenness centrality (0.068) - this node is a cross-community bridge._
 - **Are the 19 inferred relationships involving `AgentRequest` (e.g. with `GraphRoutingTests` and `RecordingRepository`) actually correct?**
   _`AgentRequest` has 19 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 19 inferred relationships involving `AgentResult` (e.g. with `GraphRoutingTests` and `RecordingRepository`) actually correct?**

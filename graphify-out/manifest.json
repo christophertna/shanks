@@ -1,7 +1,7 @@
 {
   "graph.py": {
-    "mtime": 1785799837.755717,
-    "ast_hash": "332295a2b66ed1088bc322eea94498b3",
+    "mtime": 1785802352.9963408,
+    "ast_hash": "bbbd47937e5bc106865e5ab3456ca4bf",
     "semantic_hash": ""
   },
   "scripts/ralph/ralph.sh": {
@@ -10,13 +10,13 @@
     "semantic_hash": ""
   },
   "serve_graph.py": {
-    "mtime": 1785799837.7617083,
-    "ast_hash": "c032bb345f37ba4f5c37e860279284e0",
+    "mtime": 1785802190.3531373,
+    "ast_hash": "a6cdd696f6c1a580e0f774d8e882a4bd",
     "semantic_hash": ""
   },
   "tests/test_graph.py": {
-    "mtime": 1785801187.2660747,
-    "ast_hash": "cb140aae71be41d2a1f43165f8609637",
+    "mtime": 1785802237.9491923,
+    "ast_hash": "7830fe9bc9904e6b722e0872dd9989eb",
     "semantic_hash": ""
   },
   "tests/test_node_contracts.py": {
@@ -40,8 +40,8 @@
     "semantic_hash": ""
   },
   "workflow/nodes.py": {
-    "mtime": 1785801187.0868409,
-    "ast_hash": "7bf17f205ab5af560ebd3940829a87c5",
+    "mtime": 1785802352.8213499,
+    "ast_hash": "b9c1ba61b1bbebaaeb56183bb99a7fd8",
     "semantic_hash": ""
   },
   "workflow/state.py": {
@@ -60,8 +60,8 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1785724411.7078571,
-    "ast_hash": "62c8cc5d25ff2803b4e2d96a77a4aae2",
+    "mtime": 1785802332.2283156,
+    "ast_hash": "6fb7286013714715e7bcf31ed93c7888",
     "semantic_hash": ""
   },
   "graph.html": {
@@ -85,8 +85,8 @@
     "semantic_hash": ""
   },
   "tests/test_viewer.py": {
-    "mtime": 1785799837.762903,
-    "ast_hash": "17e9baadd9c577055ff89ba82e66aeed",
+    "mtime": 1785802238.1282823,
+    "ast_hash": "6a19d297d6bfca9f643cec84e34a1e1d",
     "semantic_hash": ""
   },
   "workflow/critic_output.schema.json": {
