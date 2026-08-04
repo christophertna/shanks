@@ -274,6 +274,7 @@ def planning(state: WorkflowState, dependencies: NodeDependencies) -> WorkflowSt
                 "attempts_count": 0,
                 "build_completed": False,
                 "validation_errors": [],
+                "commit_sha": "",
             }
         )
     return update
@@ -459,6 +460,11 @@ def commit_item(
     """Commit the validated current item before selecting the next one."""
 
     repository = dependencies.repository
+    if state.get("commit_sha"):
+        return {
+            "status": "committed",
+            "commit_sha": state["commit_sha"],
+        }
     if repository is None:
         return {"status": "commit_skipped"}
 
@@ -478,6 +484,11 @@ def github_node(
     """Push the completed branch and create its pull request."""
 
     repository = dependencies.repository
+    if state.get("pr_url"):
+        return {
+            "status": "pr_created",
+            "pr_url": state["pr_url"],
+        }
     if repository is None:
         return {"status": "complete"}
 

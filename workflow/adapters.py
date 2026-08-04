@@ -372,6 +372,60 @@ class GitHubAdapter:
         if pushed.status == "failed":
             return pushed
 
+        existing = self._run(
+            (
+                "gh",
+                "pr",
+                "list",
+                "--head",
+                branch,
+                "--state",
+                "all",
+                "--json",
+                "url",
+                "--limit",
+                "1",
+            )
+        )
+        if existing.status == "failed":
+            return existing
+        try:
+            existing_prs = json.loads(existing.feedback or "[]")
+        except json.JSONDecodeError as error:
+            return AgentResult(
+                status="failed",
+                assigned_model=self.model_name,
+                error=f"Could not parse existing PR lookup: {error}",
+                feedback=existing.feedback,
+            )
+        if not isinstance(existing_prs, list):
+            return AgentResult(
+                status="failed",
+                assigned_model=self.model_name,
+                error="Existing PR lookup returned an invalid response.",
+                feedback=existing.feedback,
+            )
+        if existing_prs:
+            first_pr = existing_prs[0]
+            pr_url = (
+                first_pr.get("url", "")
+                if isinstance(first_pr, dict)
+                else ""
+            )
+            if not isinstance(pr_url, str) or not pr_url:
+                return AgentResult(
+                    status="failed",
+                    assigned_model=self.model_name,
+                    error="Existing PR lookup returned no URL.",
+                    feedback=existing.feedback,
+                )
+            return AgentResult(
+                status="pr_created",
+                assigned_model=self.model_name,
+                feedback=existing.feedback,
+                pr_url=pr_url,
+            )
+
         summary = " ".join(task.split()) or "Implement the planned PRD items"
         title = f"feat: {summary}"
         if len(title) > 50:

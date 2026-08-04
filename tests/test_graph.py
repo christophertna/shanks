@@ -6,7 +6,13 @@ from langgraph.types import Command
 from graph import build_graph
 from workflow.adapters import StubAgentAdapter
 from workflow.contracts import AgentRequest, AgentResult
-from workflow.nodes import NodeDependencies, route_after_github, select_next_item
+from workflow.nodes import (
+    NodeDependencies,
+    commit_item,
+    github_node,
+    route_after_github,
+    select_next_item,
+)
 
 
 @dataclass
@@ -66,6 +72,35 @@ class RecordingRepository:
 
 
 class GraphRoutingTests(unittest.TestCase):
+    def test_commit_sha_is_a_resume_guard(self) -> None:
+        repository = RecordingRepository()
+        dependencies = _stub_dependencies(repository)
+
+        result = commit_item(
+            {
+                "current_item_id": "item-1",
+                "current_item_title": "First item",
+                "commit_sha": "sha-item-1",
+            },
+            dependencies,
+        )
+
+        self.assertEqual(result["status"], "committed")
+        self.assertEqual(result["commit_sha"], "sha-item-1")
+        self.assertEqual(repository.commits, [])
+
+    def test_pr_url_is_a_resume_guard(self) -> None:
+        repository = RecordingRepository()
+
+        result = github_node(
+            {"pr_url": "https://github.com/example/shanks/pull/1"},
+            _stub_dependencies(repository),
+        )
+
+        self.assertEqual(result["status"], "pr_created")
+        self.assertEqual(result["pr_url"], "https://github.com/example/shanks/pull/1")
+        self.assertEqual(repository.pull_requests, [])
+
     def test_default_graph_completes_an_item(self) -> None:
         result = build_graph(_stub_dependencies()).invoke(
             {
