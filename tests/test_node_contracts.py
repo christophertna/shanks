@@ -175,6 +175,9 @@ class NodeContractTests(unittest.TestCase):
                 args=(), returncode=0, stdout="pushed\n", stderr=""
             ),
             subprocess.CompletedProcess(
+                args=(), returncode=0, stdout="[]\n", stderr=""
+            ),
+            subprocess.CompletedProcess(
                 args=(),
                 returncode=0,
                 stdout="https://github.com/example/shanks/pull/1\n",
@@ -192,8 +195,51 @@ class NodeContractTests(unittest.TestCase):
             ("git", "push", "-u", "origin", "validation-node"),
         )
         self.assertEqual(
-            run.call_args_list[2].args[0][:5],
+            run.call_args_list[3].args[0][:5],
             ("gh", "pr", "create", "--base", "main"),
+        )
+
+    def test_github_adapter_reuses_an_existing_pr_for_the_branch(self) -> None:
+        adapter = GitHubAdapter(
+            Path("/tmp/shanks"),
+            initial_dirty_files=(),
+        )
+        responses = [
+            subprocess.CompletedProcess(
+                args=(), returncode=0, stdout="validation-node\n", stderr=""
+            ),
+            subprocess.CompletedProcess(
+                args=(), returncode=0, stdout="pushed\n", stderr=""
+            ),
+            subprocess.CompletedProcess(
+                args=(),
+                returncode=0,
+                stdout='[{"url":"https://github.com/example/shanks/pull/1"}]\n',
+                stderr="",
+            ),
+        ]
+
+        with patch("workflow.adapters.subprocess.run", side_effect=responses) as run:
+            result = adapter.publish_pr("Build the workflow")
+
+        self.assertEqual(result.status, "pr_created")
+        self.assertEqual(result.pr_url, "https://github.com/example/shanks/pull/1")
+        self.assertEqual(run.call_count, 3)
+        self.assertEqual(
+            run.call_args_list[2].args[0],
+            (
+                "gh",
+                "pr",
+                "list",
+                "--head",
+                "validation-node",
+                "--state",
+                "all",
+                "--json",
+                "url",
+                "--limit",
+                "1",
+            ),
         )
 
     def test_github_adapter_reports_commit_failure(self) -> None:
