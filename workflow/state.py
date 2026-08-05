@@ -6,7 +6,12 @@ from collections.abc import Callable, Mapping
 from typing import Any, Literal, TypedDict, cast
 
 
-CURRENT_STATE_SCHEMA_VERSION = 1
+CURRENT_STATE_SCHEMA_VERSION = 2
+DEFAULT_MAX_RUNTIME_SECONDS = 3600.0
+DEFAULT_MAX_ATTEMPTS = 3
+DEFAULT_MAX_TOTAL_ATTEMPTS = 20
+DEFAULT_MAX_TOKENS = 100_000
+DEFAULT_MAX_COST_USD = 0.0
 
 
 class PRDItem(TypedDict, total=False):
@@ -38,6 +43,21 @@ class WorkflowState(TypedDict, total=False):
     attempts_count: int
     attempts_by_item: dict[str, int]
     max_attempts: int
+    total_attempts: int
+    max_total_attempts: int
+    run_started_at: float
+    max_runtime_seconds: float
+    last_input_tokens: int
+    last_output_tokens: int
+    last_cost_usd: float
+    total_input_tokens: int
+    total_output_tokens: int
+    total_tokens: int
+    max_tokens: int
+    total_cost_usd: float
+    max_cost_usd: float
+    cancel_requested: bool
+    cancel_reason: str
     build_completed: bool
     last_error: str
     assigned_model: str
@@ -66,13 +86,45 @@ StateMigration = Callable[[dict[str, Any]], dict[str, Any]]
 def _migrate_v0_to_v1(state: dict[str, Any]) -> dict[str, Any]:
     """Mark an unversioned legacy state as the first supported schema."""
 
+    state["state_schema_version"] = 1
+    return state
+
+
+def _migrate_v1_to_v2(state: dict[str, Any]) -> dict[str, Any]:
+    """Add run budgets and clean-cancellation fields to persisted state."""
+
+    state.setdefault("max_attempts", DEFAULT_MAX_ATTEMPTS)
+    state.setdefault("max_total_attempts", DEFAULT_MAX_TOTAL_ATTEMPTS)
+    state.setdefault("max_runtime_seconds", DEFAULT_MAX_RUNTIME_SECONDS)
+    state.setdefault("max_tokens", DEFAULT_MAX_TOKENS)
+    state.setdefault("max_cost_usd", DEFAULT_MAX_COST_USD)
+    state.setdefault("total_attempts", 0)
+    state.setdefault("last_input_tokens", 0)
+    state.setdefault("last_output_tokens", 0)
+    state.setdefault("last_cost_usd", 0.0)
+    state.setdefault("total_input_tokens", 0)
+    state.setdefault("total_output_tokens", 0)
+    state.setdefault("total_tokens", 0)
+    state.setdefault("total_cost_usd", 0.0)
+    state.setdefault("cancel_requested", False)
+    state.setdefault("cancel_reason", "")
     state["state_schema_version"] = CURRENT_STATE_SCHEMA_VERSION
     return state
 
 
 _STATE_MIGRATIONS: dict[int, StateMigration] = {
     0: _migrate_v0_to_v1,
+    1: _migrate_v1_to_v2,
 }
+
+
+def cancel_run(reason: str = "Cancelled by user.") -> WorkflowState:
+    """Return a state update that asks the workflow to stop cleanly."""
+
+    return {
+        "cancel_requested": True,
+        "cancel_reason": reason.strip() or "Cancelled by user.",
+    }
 
 
 def migrate_state(state: Mapping[str, Any]) -> WorkflowState:

@@ -57,6 +57,28 @@ class NodeContractTests(unittest.TestCase):
         self.assertEqual(result.status, "completed")
         self.assertEqual(result.assigned_model, "test-cli")
         self.assertIn("adapter ok", result.feedback)
+        self.assertGreater(result.input_tokens, 0)
+        self.assertGreater(result.output_tokens, 0)
+
+    def test_subprocess_adapter_uses_remaining_runtime_budget(self) -> None:
+        adapter = SubprocessAgentAdapter(
+            command=(sys.executable, "-c", "print('adapter ok')"),
+            model_name="test-cli",
+        )
+        completed = subprocess.CompletedProcess(
+            args=adapter.command,
+            returncode=0,
+            stdout="ok",
+            stderr="",
+        )
+
+        with patch(
+            "workflow.adapters.subprocess.run",
+            return_value=completed,
+        ) as run:
+            adapter.run(AgentRequest(task="test task", timeout_seconds=2.5))
+
+        self.assertEqual(run.call_args.kwargs["timeout"], 2.5)
 
     def test_subprocess_adapter_rejects_unapproved_executables(self) -> None:
         adapter = SubprocessAgentAdapter(

@@ -116,40 +116,47 @@ def build_graph(
     builder.add_node("item_router", nodes["item_router"])
     builder.add_node("github_node", nodes["github_node"])
     builder.add_node("attempt_limit", nodes["attempt_limit"])
+    builder.add_node("stop_run", nodes["stop_run"])
 
     builder.add_edge(START, "intake")
     builder.add_conditional_edges(
         "intake",
         route_after_intake,
-        ["learning", "planning"],
+        ["learning", "planning", "stop_run"],
     )
     builder.add_edge("learning", "intake")
     builder.add_conditional_edges(
         "planning",
         route_after_planning,
-        ["building", "item_router"],
+        ["building", "item_router", "stop_run"],
     )
     builder.add_conditional_edges(
         "building",
         route_after_building,
-        ["critic_auditor", "validation", "attempt_limit", "failed_build"],
+        [
+            "critic_auditor",
+            "validation",
+            "attempt_limit",
+            "failed_build",
+            "stop_run",
+        ],
     )
     builder.add_edge("critic_auditor", "building")
     builder.add_conditional_edges(
         "validation",
         route_after_validation,
-        ["debugger", "commit_item"],
+        ["debugger", "commit_item", "stop_run"],
     )
     builder.add_conditional_edges(
         "commit_item",
         route_after_commit,
-        ["item_router", END],
+        ["item_router", "stop_run", END],
     )
     builder.add_edge("debugger", "planning")
     builder.add_conditional_edges(
         "item_router",
         route_after_item_router,
-        ["planning", "github_node"],
+        ["planning", "github_node", "stop_run"],
     )
     builder.add_conditional_edges(
         "github_node",
@@ -158,6 +165,7 @@ def build_graph(
     )
     builder.add_edge("attempt_limit", END)
     builder.add_edge("failed_build", END)
+    builder.add_edge("stop_run", END)
 
     return builder.compile(
         checkpointer=checkpointer if checkpointer is not None else shared_checkpointer()

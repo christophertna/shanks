@@ -47,9 +47,29 @@ are treated as v0 and migrated to the current schema when loaded; new checkpoint
 are written with the current version. Checkpoints from a newer unsupported version
 fail clearly instead of being interpreted incorrectly.
 
+Runs have persisted safety budgets: one hour of wall time, three build attempts
+per item, twenty total build attempts, and an estimated 100,000-token ceiling by
+default. Set `max_runtime_seconds`, `max_attempts`, `max_total_attempts`,
+`max_tokens`, or `max_cost_usd` in the initial state to override them. CLI
+adapters estimate token usage from their prompt and output; custom adapters can
+report exact `input_tokens`, `output_tokens`, and `cost_usd` in `AgentResult`.
+
+Stop a checkpointed run cleanly at its next safe boundary:
+
+```python
+from workflow.state import cancel_run
+
+graph.update_state(config, cancel_run("Operator stopped the run."))
+graph.invoke(None, config)
+```
+
+The run ends with `status="cancelled"` and records the reason instead of
+starting another backend or side-effecting node.
+
 The viewer's Live execution panel accepts the workflow's `thread_id` and polls
-the current node, PRD item, attempt count, last error, model, and checkpoint
-history. Use the same thread ID when starting the workflow and inspecting it.
+the current node, PRD item, attempt count, budget usage, last error, model, and
+checkpoint history. Use the same thread ID when starting the workflow and
+inspecting it.
 
 ## Interactive workflow
 

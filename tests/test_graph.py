@@ -1,5 +1,6 @@
-import unittest
 from dataclasses import dataclass, field
+import unittest
+from unittest.mock import patch
 
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.types import Command
@@ -14,6 +15,7 @@ from workflow.nodes import (
     route_after_github,
     select_next_item,
 )
+from workflow.state import cancel_run
 
 
 def build_graph(*args, **kwargs):
@@ -125,6 +127,133 @@ class GraphRoutingTests(unittest.TestCase):
         self.assertTrue(result["validation_passed"])
         self.assertTrue(result["prd_items"][0]["passes"])
         self.assertEqual(result["current_item_id"], "item-1")
+
+    def test_cancel_run_stops_before_builder(self) -> None:
+        builder = SequenceAdapter(
+            "builder",
+            [AgentResult(status="built", assigned_model="builder")],
+        )
+        dependencies = NodeDependencies(
+            planner=StubAgentAdapter("planner", "planner"),
+            builder=builder,
+            critic=StubAgentAdapter("critic", "critic"),
+            validator=StubAgentAdapter("validator", "validator"),
+            debugger=StubAgentAdapter("debugger", "debugger"),
+        )
+
+        result = build_graph(dependencies).invoke(
+            {**_initial_state(), **cancel_run("Operator stopped this run.")},
+            {"configurable": {"thread_id": "cancel-run"}},
+        )
+
+        self.assertEqual(result["status"], "cancelled")
+        self.assertEqual(result["last_error"], "Operator stopped this run.")
+        self.assertEqual(builder.calls, 0)
+
+    def test_checkpoint_cancellation_resumes_to_terminal_stop(self) -> None:
+        graph = build_graph(_stub_dependencies())
+        config = {"configurable": {"thread_id": "checkpoint-cancel"}}
+
+        paused = graph.invoke({"task": "Stop this run"}, config)
+        self.assertIn("__interrupt__", paused)
+
+        graph.update_state(config, cancel_run("User requested a stop."))
+        result = graph.invoke(None, config)
+
+        self.assertEqual(result["status"], "cancelled")
+        self.assertEqual(result["last_error"], "User requested a stop.")
+
+    def test_runtime_budget_stops_before_external_adapters(self) -> None:
+        builder = SequenceAdapter(
+            "builder",
+            [AgentResult(status="built", assigned_model="builder")],
+        )
+        dependencies = NodeDependencies(
+            planner=StubAgentAdapter("planner", "planner"),
+            builder=builder,
+            critic=StubAgentAdapter("critic", "critic"),
+            validator=StubAgentAdapter("validator", "validator"),
+            debugger=StubAgentAdapter("debugger", "debugger"),
+        )
+
+        with patch("workflow.nodes.time.time", return_value=100.0):
+            result = build_graph(dependencies).invoke(
+                {
+                    **_initial_state(),
+                    "run_started_at": 1.0,
+                    "max_runtime_seconds": 10.0,
+                },
+                {"configurable": {"thread_id": "runtime-budget"}},
+            )
+
+        self.assertEqual(result["status"], "budget_exceeded")
+        self.assertIn("Maximum runtime exceeded", result["last_error"])
+        self.assertEqual(builder.calls, 0)
+
+    def test_token_and_cost_budgets_accumulate_adapter_usage(self) -> None:
+        builder = SequenceAdapter(
+            "builder",
+            [
+                AgentResult(
+                    status="built",
+                    assigned_model="builder",
+                    input_tokens=3,
+                    output_tokens=4,
+                    cost_usd=0.25,
+                )
+            ],
+        )
+        critic = SequenceAdapter(
+            "critic",
+            [AgentResult(status="critic_audited", assigned_model="critic")],
+        )
+        dependencies = NodeDependencies(
+            planner=StubAgentAdapter("planner", "planner"),
+            builder=builder,
+            critic=critic,
+            validator=StubAgentAdapter("validator", "validator"),
+            debugger=StubAgentAdapter("debugger", "debugger"),
+        )
+
+        result = build_graph(dependencies).invoke(
+            {
+                **_initial_state(),
+                "max_tokens": 6,
+                "max_cost_usd": 0.20,
+            },
+            {"configurable": {"thread_id": "usage-budget"}},
+        )
+
+        self.assertEqual(result["status"], "budget_exceeded")
+        self.assertEqual(result["total_tokens"], 7)
+        self.assertEqual(result["total_cost_usd"], 0.25)
+        self.assertEqual(critic.calls, 0)
+
+    def test_total_attempt_budget_stops_before_critic(self) -> None:
+        builder = SequenceAdapter(
+            "builder",
+            [AgentResult(status="built", assigned_model="builder")],
+        )
+        critic = SequenceAdapter(
+            "critic",
+            [AgentResult(status="critic_audited", assigned_model="critic")],
+        )
+        dependencies = NodeDependencies(
+            planner=StubAgentAdapter("planner", "planner"),
+            builder=builder,
+            critic=critic,
+            validator=StubAgentAdapter("validator", "validator"),
+            debugger=StubAgentAdapter("debugger", "debugger"),
+        )
+
+        result = build_graph(dependencies).invoke(
+            {**_initial_state(), "max_total_attempts": 1},
+            {"configurable": {"thread_id": "total-attempt-budget"}},
+        )
+
+        self.assertEqual(result["status"], "budget_exceeded")
+        self.assertEqual(result["total_attempts"], 1)
+        self.assertEqual(critic.calls, 0)
 
     def test_failed_build_stops_before_critic_or_validation(self) -> None:
         builder = SequenceAdapter(

@@ -21,6 +21,7 @@ class AgentRequest:
     instructions: str = ""
     context: str = ""
     working_directory: Path | None = None
+    timeout_seconds: float | None = None
 
 
 @dataclass(slots=True)
@@ -42,6 +43,9 @@ class AgentResult:
     item_built: bool | None = None
     commit_sha: str = ""
     pr_url: str = ""
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cost_usd: float = 0.0
 
 
 class AgentAdapter(Protocol):
@@ -104,5 +108,11 @@ def state_update_from_result(result: AgentResult) -> WorkflowState:
         update["commit_sha"] = result.commit_sha
     if result.pr_url:
         update["pr_url"] = result.pr_url
+    if result.input_tokens:
+        update["last_input_tokens"] = result.input_tokens
+    if result.output_tokens:
+        update["last_output_tokens"] = result.output_tokens
+    if result.cost_usd:
+        update["last_cost_usd"] = result.cost_usd
 
     return update

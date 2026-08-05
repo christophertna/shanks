@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -30,6 +31,11 @@ from .contracts import (
 )
 from .state import (
     CURRENT_STATE_SCHEMA_VERSION,
+    DEFAULT_MAX_ATTEMPTS,
+    DEFAULT_MAX_COST_USD,
+    DEFAULT_MAX_RUNTIME_SECONDS,
+    DEFAULT_MAX_TOKENS,
+    DEFAULT_MAX_TOTAL_ATTEMPTS,
     PRDItem,
     WorkflowState,
     migrate_state,
@@ -129,16 +135,160 @@ def _item_complete(item: PRDItem) -> bool:
 
 
 def _versioned_node(node: NodeFunction) -> NodeFunction:
-    """Migrate resumed state before a node and stamp every new checkpoint."""
+    """Migrate state, enforce run budgets, and stamp every checkpoint."""
 
     def run(state: WorkflowState) -> WorkflowState:
-        update = node(migrate_state(state))
-        return {
-            **update,
-            "state_schema_version": CURRENT_STATE_SCHEMA_VERSION,
-        }
+        current = migrate_state(state)
+        started_at = current.get("run_started_at")
+        if (
+            isinstance(started_at, bool)
+            or not isinstance(started_at, (int, float))
+            or started_at <= 0
+        ):
+            started_at = time.time()
+        current = {**current, "run_started_at": float(started_at)}
+
+        reason = _stop_reason(current)
+        if reason:
+            return _stop_update(current, reason)
+
+        update = dict(node(current))
+        update["run_started_at"] = float(started_at)
+        update.update(_usage_totals(current, update))
+        merged = {**current, **update}
+        reason = _stop_reason(merged)
+        if reason:
+            update.update(_stop_update(merged, reason))
+        update["state_schema_version"] = CURRENT_STATE_SCHEMA_VERSION
+        return update
 
     return run
+
+
+_STOP_STATUSES = frozenset({"cancelled", "budget_exceeded"})
+
+
+def _stop_reason(state: WorkflowState) -> str | None:
+    """Return the first configured cancellation or budget stop reason."""
+
+    if state.get("cancel_requested"):
+        return state.get("cancel_reason", "").strip() or "Cancelled by user."
+
+    invalid = _invalid_budget(state)
+    if invalid:
+        return invalid
+
+    started_at = state.get("run_started_at")
+    runtime_limit = state.get("max_runtime_seconds", DEFAULT_MAX_RUNTIME_SECONDS)
+    if isinstance(started_at, (int, float)) and not isinstance(started_at, bool):
+        if time.time() - started_at >= runtime_limit:
+            return f"Maximum runtime exceeded ({runtime_limit:g} seconds)."
+
+    total_attempts = _nonnegative_int(state.get("total_attempts", 0))
+    attempt_limit = state.get(
+        "max_total_attempts",
+        DEFAULT_MAX_TOTAL_ATTEMPTS,
+    )
+    if total_attempts >= attempt_limit:
+        return f"Maximum total attempts reached ({attempt_limit})."
+
+    total_tokens = _nonnegative_int(state.get("total_tokens", 0))
+    token_limit = state.get("max_tokens", DEFAULT_MAX_TOKENS)
+    if total_tokens >= token_limit:
+        return f"Maximum token budget reached ({token_limit})."
+
+    total_cost = _nonnegative_float(state.get("total_cost_usd", 0.0))
+    cost_limit = state.get("max_cost_usd", DEFAULT_MAX_COST_USD)
+    if cost_limit > 0 and total_cost >= cost_limit:
+        return f"Maximum cost budget reached (${cost_limit:.2f})."
+    return None
+
+
+def _invalid_budget(state: WorkflowState) -> str | None:
+    """Reject malformed limits instead of silently running without guardrails."""
+
+    for key in (
+        "max_runtime_seconds",
+        "max_total_attempts",
+        "max_tokens",
+        "max_cost_usd",
+    ):
+        value = state.get(key)
+        if value is None:
+            continue
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return f"Invalid budget value for {key}."
+        if value < 0:
+            return f"Budget value for {key} cannot be negative."
+    return None
+
+
+def _stop_update(state: WorkflowState, reason: str) -> WorkflowState:
+    """Return a terminal state update without invoking another backend."""
+
+    return {
+        "status": "cancelled" if state.get("cancel_requested") else "budget_exceeded",
+        "last_error": reason,
+        "run_started_at": state.get("run_started_at", time.time()),
+        "state_schema_version": CURRENT_STATE_SCHEMA_VERSION,
+    }
+
+
+def _usage_totals(
+    state: WorkflowState,
+    update: WorkflowState,
+) -> WorkflowState:
+    """Accumulate usage deltas reported by one adapter invocation."""
+
+    input_tokens = _nonnegative_int(update.get("last_input_tokens", 0))
+    output_tokens = _nonnegative_int(update.get("last_output_tokens", 0))
+    cost_usd = _nonnegative_float(update.get("last_cost_usd", 0.0))
+    total_input = _nonnegative_int(state.get("total_input_tokens", 0)) + input_tokens
+    total_output = _nonnegative_int(state.get("total_output_tokens", 0)) + output_tokens
+    return {
+        "total_input_tokens": total_input,
+        "total_output_tokens": total_output,
+        "total_tokens": total_input + total_output,
+        "total_cost_usd": _nonnegative_float(state.get("total_cost_usd", 0.0))
+        + cost_usd,
+    }
+
+
+def _nonnegative_int(value: object) -> int:
+    return (
+        value
+        if isinstance(value, int) and not isinstance(value, bool) and value >= 0
+        else 0
+    )
+
+
+def _nonnegative_float(value: object) -> float:
+    return (
+        value
+        if isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and value >= 0
+        else 0.0
+    )
+
+
+def _run_stopped(state: WorkflowState) -> bool:
+    return state.get("status") in _STOP_STATUSES or _stop_reason(state) is not None
+
+
+def remaining_runtime_seconds(state: WorkflowState) -> float | None:
+    """Return the current run's remaining wall-clock budget for adapters."""
+
+    started_at = state.get("run_started_at")
+    limit = state.get("max_runtime_seconds", DEFAULT_MAX_RUNTIME_SECONDS)
+    if (
+        isinstance(started_at, (int, float))
+        and not isinstance(started_at, bool)
+        and isinstance(limit, (int, float))
+        and not isinstance(limit, bool)
+    ):
+        return max(0.0, limit - (time.time() - started_at))
+    return None
 
 
 def create_nodes(
@@ -161,6 +311,7 @@ def create_nodes(
         "github_node": lambda state: github_node(state, deps),
         "attempt_limit": attempt_limit,
         "failed_build": failed_build,
+        "stop_run": stop_run,
     }
     return {name: _versioned_node(node) for name, node in nodes.items()}
 
@@ -283,7 +434,17 @@ def planning(state: WorkflowState, dependencies: NodeDependencies) -> WorkflowSt
             "critic_passed": False,
             "critic_feedback": "",
             "validation_passed": False,
-            "max_attempts": state.get("max_attempts", 3),
+            "max_attempts": state.get("max_attempts", DEFAULT_MAX_ATTEMPTS),
+            "max_total_attempts": state.get(
+                "max_total_attempts",
+                DEFAULT_MAX_TOTAL_ATTEMPTS,
+            ),
+            "max_runtime_seconds": state.get(
+                "max_runtime_seconds",
+                DEFAULT_MAX_RUNTIME_SECONDS,
+            ),
+            "max_tokens": state.get("max_tokens", DEFAULT_MAX_TOKENS),
+            "max_cost_usd": state.get("max_cost_usd", DEFAULT_MAX_COST_USD),
         }
     )
     if prd_items_update is not None:
@@ -338,6 +499,7 @@ def building(state: WorkflowState, dependencies: NodeDependencies) -> WorkflowSt
     result = dependencies.builder.run(request)
     update = _merge_files(state, state_update_from_result(result))
     attempts_count = state.get("attempts_count", 0) + 1
+    total_attempts = state.get("total_attempts", 0) + 1
     item_id = state.get("current_item_id", "")
     attempts_by_item = dict(state.get("attempts_by_item", {}))
     if item_id:
@@ -365,6 +527,7 @@ def building(state: WorkflowState, dependencies: NodeDependencies) -> WorkflowSt
     update.update(
         {
             "attempts_count": attempts_count,
+            "total_attempts": total_attempts,
             "attempts_by_item": attempts_by_item,
             "critic_passed": False,
             "build_completed": result.status != "failed",
@@ -569,6 +732,15 @@ def failed_build(state: WorkflowState) -> WorkflowState:
     }
 
 
+def stop_run(state: WorkflowState) -> WorkflowState:
+    """Finish a cancelled or budget-exhausted run without side effects."""
+
+    return {
+        "status": state.get("status", "cancelled"),
+        "last_error": state.get("last_error", "Run stopped."),
+    }
+
+
 def build_error_handler(
     state: WorkflowState,
     error: NodeError,
@@ -587,9 +759,17 @@ def build_error_handler(
 
 def route_after_building(
     state: WorkflowState,
-) -> Literal["critic_auditor", "validation", "attempt_limit", "failed_build"]:
+) -> Literal[
+    "critic_auditor",
+    "validation",
+    "attempt_limit",
+    "failed_build",
+    "stop_run",
+]:
     """Route code to review, validation, retry limiting, or failed-build stop."""
 
+    if _run_stopped(state):
+        return "stop_run"
     if state.get("status") == "failed":
         return "failed_build"
     if state.get("critic_passed"):
@@ -604,9 +784,11 @@ def route_after_building(
 
 def route_after_planning(
     state: WorkflowState,
-) -> Literal["building", "item_router"]:
+) -> Literal["building", "item_router", "stop_run"]:
     """Start the next item or send an already-complete run to the router."""
 
+    if _run_stopped(state):
+        return "stop_run"
     if select_next_item(state) is None:
         return "item_router"
     return "building"
@@ -614,17 +796,21 @@ def route_after_planning(
 
 def route_after_intake(
     state: WorkflowState,
-) -> Literal["learning", "planning"]:
+) -> Literal["learning", "planning", "stop_run"]:
     """Route the selected top-level mode into its focused workflow."""
 
+    if _run_stopped(state):
+        return "stop_run"
     return "learning" if state.get("workflow_mode") == "learn" else "planning"
 
 
 def route_after_validation(
     state: WorkflowState,
-) -> Literal["debugger", "commit_item"]:
+) -> Literal["debugger", "commit_item", "stop_run"]:
     """Send failures to debugging and successes to the commit checkpoint."""
 
+    if _run_stopped(state):
+        return "stop_run"
     if not state.get("validation_passed"):
         return "debugger"
     return "commit_item"
@@ -632,9 +818,11 @@ def route_after_validation(
 
 def route_after_commit(
     state: WorkflowState,
-) -> Literal["item_router", "__end__"]:
+) -> Literal["item_router", "stop_run", "__end__"]:
     """Continue only when the validated item was committed or had no changes."""
 
+    if _run_stopped(state):
+        return "stop_run"
     return (
         "item_router"
         if state.get("status") in {"committed", "no_changes", "commit_skipped"}
@@ -644,9 +832,11 @@ def route_after_commit(
 
 def route_after_item_router(
     state: WorkflowState,
-) -> Literal["planning", "github_node"]:
+) -> Literal["planning", "github_node", "stop_run"]:
     """Start the next incomplete item or finish the workflow."""
 
+    if _run_stopped(state):
+        return "stop_run"
     return "planning" if select_next_item(state) is not None else "github_node"
 
 
@@ -752,6 +942,7 @@ def _request_for(
             else state.get("builder_instructions", "")
         ),
         context=state.get("root_cause", ""),
+        timeout_seconds=remaining_runtime_seconds(state),
     )
 
 
@@ -828,6 +1019,7 @@ __all__ = [
     "route_after_building",
     "route_after_commit",
     "route_after_github",
+    "stop_run",
     "route_after_item_router",
     "route_after_validation",
     "select_next_item",
