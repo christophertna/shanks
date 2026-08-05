@@ -9,6 +9,8 @@ from langgraph.checkpoint.memory import InMemorySaver
 
 from graph import build_graph as compile_graph
 from serve_graph import execution_state, structured_mermaid, style_mermaid
+from workflow.adapters import StubAgentAdapter
+from workflow.nodes import NodeDependencies
 
 
 def build_graph(*args, **kwargs):
@@ -16,6 +18,16 @@ def build_graph(*args, **kwargs):
 
     kwargs.setdefault("checkpointer", InMemorySaver())
     return compile_graph(*args, **kwargs)
+
+
+def stub_dependencies() -> NodeDependencies:
+    return NodeDependencies(
+        planner=StubAgentAdapter("planner", "planner"),
+        builder=StubAgentAdapter("builder", "builder"),
+        critic=StubAgentAdapter("critic", "critic"),
+        validator=StubAgentAdapter("validator", "validator"),
+        debugger=StubAgentAdapter("debugger", "debugger"),
+    )
 
 
 class GraphViewerTests(unittest.TestCase):
@@ -99,9 +111,9 @@ class GraphViewerTests(unittest.TestCase):
                 {"SHANKS_CHECKPOINT_DB": str(checkpoint_db)},
             ):
                 config = {"configurable": {"thread_id": "shared-thread"}}
-                first_graph = compile_graph()
+                first_graph = compile_graph(stub_dependencies())
                 first_graph.invoke({"task": "Shared state"}, config)
-                second_graph = compile_graph()
+                second_graph = compile_graph(stub_dependencies())
 
                 snapshot = second_graph.get_state(config)
                 history = list(second_graph.get_state_history(config))
@@ -122,6 +134,7 @@ class GraphViewerTests(unittest.TestCase):
         content = style_mermaid(drawable_graph.draw_mermaid(), decision_nodes)
 
         self.assertIn("graph LR;", content)
+        self.assertIn("preflight --> intake;", content)
         self.assertIn("validation{validation}", content)
         self.assertIn("planning --> building;", content)
         self.assertIn("building --> validation;", content)
@@ -154,6 +167,7 @@ class GraphViewerTests(unittest.TestCase):
 
         self.assertIn('planning["planning"]', content)
         self.assertIn('intake["Intake"]:::mainNode', content)
+        self.assertIn('preflight["Preflight"]:::mainNode', content)
         self.assertIn('learning["Learn codebase"]:::mainNode', content)
         self.assertIn('building["Build"]:::mainNode', content)
         self.assertIn('item_router{"more items"}', content)

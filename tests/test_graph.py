@@ -13,6 +13,7 @@ from workflow.nodes import (
     commit_item,
     github_node,
     route_after_github,
+    route_after_preflight,
     select_next_item,
 )
 from workflow.state import cancel_run
@@ -81,7 +82,65 @@ class RecordingRepository:
         )
 
 
+@dataclass
+class PreflightOnlyRepository:
+    result: AgentResult
+    calls: int = 0
+
+    def preflight(self) -> AgentResult:
+        self.calls += 1
+        return self.result
+
+
 class GraphRoutingTests(unittest.TestCase):
+    def test_preflight_routes_to_intake_only_after_success(self) -> None:
+        repository = PreflightOnlyRepository(
+            AgentResult(status="preflight_passed", assigned_model="github")
+        )
+        dependencies = NodeDependencies(
+            planner=StubAgentAdapter("planner", "planner"),
+            builder=StubAgentAdapter("builder", "builder"),
+            critic=StubAgentAdapter("critic", "critic"),
+            validator=StubAgentAdapter("validator", "validator"),
+            debugger=StubAgentAdapter("debugger", "debugger"),
+            repository=repository,
+        )
+
+        result = build_graph(dependencies).invoke(
+            {"task": "preflight first"},
+            {"configurable": {"thread_id": "preflight-success"}},
+        )
+
+        self.assertEqual(repository.calls, 1)
+        self.assertEqual(result["__interrupt__"][0].value["type"], "intake")
+        self.assertEqual(route_after_preflight({"status": "preflight_passed"}), "intake")
+
+    def test_preflight_failure_stops_before_intake(self) -> None:
+        repository = PreflightOnlyRepository(
+            AgentResult(
+                status="preflight_failed",
+                assigned_model="github",
+                error="not authenticated",
+            )
+        )
+        dependencies = NodeDependencies(
+            planner=StubAgentAdapter("planner", "planner"),
+            builder=StubAgentAdapter("builder", "builder"),
+            critic=StubAgentAdapter("critic", "critic"),
+            validator=StubAgentAdapter("validator", "validator"),
+            debugger=StubAgentAdapter("debugger", "debugger"),
+            repository=repository,
+        )
+
+        result = build_graph(dependencies).invoke(
+            {"task": "preflight first"},
+            {"configurable": {"thread_id": "preflight-failure"}},
+        )
+
+        self.assertEqual(result["status"], "preflight_failed")
+        self.assertNotIn("__interrupt__", result)
+        self.assertEqual(route_after_preflight(result), "__end__")
+
     def test_commit_sha_is_a_resume_guard(self) -> None:
         repository = RecordingRepository()
         dependencies = _stub_dependencies(repository)

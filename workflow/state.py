@@ -121,9 +121,12 @@ _STATE_MIGRATIONS: dict[int, StateMigration] = {
 def cancel_run(reason: str = "Cancelled by user.") -> WorkflowState:
     """Return a state update that asks the workflow to stop cleanly."""
 
+    message = reason.strip() or "Cancelled by user."
     return {
         "cancel_requested": True,
-        "cancel_reason": reason.strip() or "Cancelled by user.",
+        "cancel_reason": message,
+        "status": "cancelled",
+        "last_error": message,
     }
 
 

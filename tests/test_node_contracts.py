@@ -256,6 +256,48 @@ class NodeContractTests(unittest.TestCase):
         self.assertIn("unapproved Git or GitHub command", result.error)
         run.assert_not_called()
 
+    def test_github_preflight_checks_branch_auth_and_tests(self) -> None:
+        adapter = GitHubAdapter(Path("/tmp/shanks"), initial_dirty_files=())
+        responses = [
+            AgentResult(status="completed", assigned_model="github", feedback="feature"),
+            AgentResult(status="completed", assigned_model="github", feedback=""),
+            AgentResult(status="completed", assigned_model="github", feedback="auth ok"),
+        ]
+
+        with patch("workflow.adapters.shutil.which", return_value="/usr/bin/tool"), patch.object(
+            GitHubAdapter,
+            "_run",
+            side_effect=responses,
+        ) as run, patch.object(
+            LocalTestAdapter,
+            "run",
+            return_value=AgentResult(status="validated", assigned_model="local-tests"),
+        ) as tests:
+            result = adapter.preflight()
+
+        self.assertEqual(result.status, "preflight_passed")
+        self.assertEqual(run.call_count, 3)
+        tests.assert_called_once()
+
+    def test_github_preflight_rejects_dirty_worktree(self) -> None:
+        adapter = GitHubAdapter(Path("/tmp/shanks"), initial_dirty_files=())
+        responses = [
+            AgentResult(status="completed", assigned_model="github", feedback="feature"),
+            AgentResult(status="completed", assigned_model="github", feedback=" M README.md"),
+        ]
+
+        with patch("workflow.adapters.shutil.which", return_value="/usr/bin/tool"), patch.object(
+            GitHubAdapter,
+            "_run",
+            side_effect=responses,
+        ) as run, patch.object(LocalTestAdapter, "run") as tests:
+            result = adapter.preflight()
+
+        self.assertEqual(result.status, "preflight_failed")
+        self.assertIn("Working tree is not clean", result.error)
+        self.assertEqual(run.call_count, 2)
+        tests.assert_not_called()
+
     def test_github_adapter_redacts_pr_text_and_limits_environment(self) -> None:
         adapter = GitHubAdapter(Path("/tmp/shanks"), initial_dirty_files=())
         responses = [
