@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import sys
@@ -13,11 +14,14 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+from langgraph.checkpoint.memory import InMemorySaver
+
 PROJECT_DIR = Path(__file__).parent
 GRAPH_FILE = PROJECT_DIR / "graph.py"
 SERVER_FILE = Path(__file__).resolve()
 WORKFLOW_DIR = PROJECT_DIR / "workflow"
 GRAPH_CHECK_INTERVAL_SECONDS = 0.5
+EXECUTION_HISTORY_LIMIT = 20
 GRAPH_NODE_ORDER = {
     "__start__": 0,
     "intake": 1,
@@ -102,6 +106,10 @@ VIEW_EDGE = re.compile(
     re.MULTILINE,
 )
 
+_execution_graph = None
+_execution_graph_revision = None
+_execution_graph_lock = threading.Lock()
+
 
 def graph_source_files() -> tuple[Path, ...]:
     """Return graph.py and the Python modules that define its nodes."""
@@ -164,6 +172,92 @@ def load_graph_module() -> types.ModuleType:
     module.__file__ = str(GRAPH_FILE)
     exec(compile(source, str(GRAPH_FILE), "exec"), module.__dict__)
     return module
+
+
+def load_execution_graph():
+    """Return the cached compiled graph whose checkpointer holds viewer state."""
+
+    global _execution_graph, _execution_graph_revision
+
+    revision = graph_revision()
+    with _execution_graph_lock:
+        if _execution_graph is None or _execution_graph_revision != revision:
+            _execution_graph = load_graph_module().build_graph()
+            _execution_graph_revision = revision
+        return _execution_graph
+
+
+def _json_safe(value):
+    """Convert checkpoint values into JSON-safe viewer data."""
+
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, dict):
+        return {str(key): _json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(item) for item in value]
+    return str(value)
+
+
+def _current_item(values: dict) -> dict:
+    """Return the current item from state, including a safe empty fallback."""
+
+    index = values.get("current_item_index")
+    items = values.get("prd_items") or []
+    selected = {}
+    if isinstance(index, int) and 0 <= index < len(items):
+        selected = items[index] or {}
+
+    return {
+        "id": values.get("current_item_id") or selected.get("id", ""),
+        "title": values.get("current_item_title") or selected.get("title", ""),
+        "index": index,
+    }
+
+
+def _snapshot_summary(snapshot: object) -> dict:
+    """Flatten a LangGraph state snapshot into data the viewer can render."""
+
+    values = getattr(snapshot, "values", None) or {}
+    next_nodes = [str(node) for node in (getattr(snapshot, "next", None) or ())]
+    metadata = getattr(snapshot, "metadata", None) or {}
+    config = getattr(snapshot, "config", None) or {}
+    configurable = config.get("configurable", {}) if isinstance(config, dict) else {}
+    model = values.get("assigned_model", "")
+    if not model:
+        model = values.get("critic_model", "") or values.get("debugger_model", "")
+
+    return {
+        "checkpoint_id": configurable.get("checkpoint_id"),
+        "created_at": _json_safe(getattr(snapshot, "created_at", None)),
+        "step": metadata.get("step"),
+        "current_node": next_nodes[0] if next_nodes else None,
+        "next_nodes": next_nodes,
+        "item": _current_item(values),
+        "attempt_count": values.get("attempts_count", 0),
+        "attempts_count": values.get("attempts_count", 0),
+        "last_error": _json_safe(values.get("last_error", "")),
+        "model": _json_safe(model),
+        "status": _json_safe(values.get("status", "")),
+    }
+
+
+def execution_state(graph: object, thread_id: str, *, limit: int = EXECUTION_HISTORY_LIMIT) -> dict:
+    """Read the current state and recent checkpoint history for one thread."""
+
+    config = {"configurable": {"thread_id": thread_id}}
+    snapshot = graph.get_state(config)
+    history = [
+        _snapshot_summary(checkpoint)
+        for checkpoint in graph.get_state_history(config, limit=limit)
+    ]
+    current = _snapshot_summary(snapshot)
+    return {
+        "thread_id": thread_id,
+        "available": bool(current["checkpoint_id"] or history),
+        **current,
+        "checkpoint_history": history,
+    }
 
 
 def style_mermaid(content: str, decision_node_ids: set[str]) -> str:
@@ -336,6 +430,10 @@ class GraphRequestHandler(BaseHTTPRequestHandler):
             self._send_mermaid()
             return
 
+        if path == "/graph-state":
+            self._send_graph_state()
+            return
+
         if path == "/graph-events":
             self._send_graph_events()
             return
@@ -350,6 +448,40 @@ class GraphRequestHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(content)))
         self.end_headers()
         self.wfile.write(content)
+
+    def _send_json(self, payload: dict, status: int = 200) -> None:
+        content = json.dumps(payload).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", str(len(content)))
+        self.end_headers()
+        self.wfile.write(content)
+
+    def _send_graph_state(self) -> None:
+        query = parse_qs(urlparse(self.path).query)
+        thread_id = query.get("thread_id", [""])[0].strip()
+        if not thread_id:
+            self._send_json(
+                {"error": "thread_id query parameter is required"},
+                status=400,
+            )
+            return
+
+        try:
+            limit = int(query.get("limit", [str(EXECUTION_HISTORY_LIMIT)])[0])
+            limit = max(1, min(limit, 100))
+        except (TypeError, ValueError):
+            self._send_json({"error": "limit must be an integer"}, status=400)
+            return
+
+        try:
+            payload = execution_state(load_execution_graph(), thread_id, limit=limit)
+        except Exception as error:  # pragma: no cover - viewer error response
+            self._send_json({"error": str(error)}, status=500)
+            return
+
+        self._send_json(payload)
 
     def _send_graph_events(self) -> None:
         self.send_response(200)
@@ -381,7 +513,9 @@ class GraphRequestHandler(BaseHTTPRequestHandler):
 
     def _send_mermaid(self) -> None:
         try:
-            current_graph = load_graph_module().build_graph()
+            current_graph = load_graph_module().build_graph(
+                checkpointer=InMemorySaver()
+            )
             drawable_graph = current_graph.get_graph()
             decision_node_ids = {
                 node.id

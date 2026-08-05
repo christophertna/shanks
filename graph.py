@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import os
+import sqlite3
+from pathlib import Path
 from typing import Literal
 
-from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import RetryPolicy
 
@@ -22,6 +25,20 @@ from workflow.nodes import (
     route_after_validation,
 )
 from workflow.state import WorkflowState
+
+
+DEFAULT_CHECKPOINT_DB = Path(__file__).resolve().parent / ".shanks" / "checkpoints.sqlite"
+
+
+def shared_checkpointer() -> SqliteSaver:
+    """Open the SQLite checkpoint store shared by workflow and viewer processes."""
+
+    checkpoint_path = Path(
+        os.environ.get("SHANKS_CHECKPOINT_DB", str(DEFAULT_CHECKPOINT_DB))
+    )
+    checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(str(checkpoint_path), check_same_thread=False)
+    return SqliteSaver(connection)
 
 
 def build_graph(
@@ -98,7 +115,7 @@ def build_graph(
     builder.add_edge("failed_build", END)
 
     return builder.compile(
-        checkpointer=checkpointer if checkpointer is not None else InMemorySaver()
+        checkpointer=checkpointer if checkpointer is not None else shared_checkpointer()
     )
 
 

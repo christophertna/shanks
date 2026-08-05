@@ -144,12 +144,22 @@ Shows the graph in a browser.
 
 The nodes are white. Decision nodes are diamonds.
 
+It also has a Live execution panel. Enter a workflow `thread_id` to see the
+current node, PRD item, attempt count, last error, model, and recent
+checkpoints while the workflow runs.
+
 ### `serve_graph.py`
 
 Runs the local graph viewer.
 
 It reads `graph.py`, creates a Mermaid diagram, and sends it to `graph.html`.
-The browser updates when `graph.py` changes.
+The browser updates when `graph.py` changes. Its `/graph-state` endpoint reads
+`get_state()` and `get_state_history()` for the selected thread.
+
+The workflow and viewer share checkpoints through
+`.shanks/checkpoints.sqlite`, which allows separate Python processes to see
+the same run. Set `SHANKS_CHECKPOINT_DB` in both processes to use a different
+shared database path.
 
 ### `tests/`
 
@@ -273,3 +283,4 @@ Run the tests:
 - The graph does not yet call a real model by default.
 - Ralph, Codex, and Claude adapters are ready to be connected deliberately.
 - Git push and final human approval are not graph nodes yet.
+- Checkpoint/state schema versioning and migrations are not implemented yet.

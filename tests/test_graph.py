@@ -1,9 +1,10 @@
 import unittest
 from dataclasses import dataclass, field
 
+from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.types import Command
 
-from graph import build_graph
+from graph import build_graph as compile_graph
 from workflow.adapters import StubAgentAdapter
 from workflow.contracts import AgentRequest, AgentResult
 from workflow.nodes import (
@@ -13,6 +14,13 @@ from workflow.nodes import (
     route_after_github,
     select_next_item,
 )
+
+
+def build_graph(*args, **kwargs):
+    """Keep graph tests isolated from the shared production checkpoint store."""
+
+    kwargs.setdefault("checkpointer", InMemorySaver())
+    return compile_graph(*args, **kwargs)
 
 
 @dataclass
