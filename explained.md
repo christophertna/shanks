@@ -122,6 +122,7 @@ Think of the state as a shared notebook. It stores things like:
 - Whether each item passed building and validation.
 - The plan.
 - Files changed.
+- The state schema version used to read and resume checkpoints.
 - Whether each item passed building and validation.
 - Critic feedback.
 - Validation errors.
@@ -129,6 +130,16 @@ Think of the state as a shared notebook. It stores things like:
 - Genuine builder uncertainties, grouped by PRD item.
 - Attempt counts.
 - Which model was used.
+
+### Checkpoint compatibility
+
+The workflow stores state in `.shanks/checkpoints.sqlite`. Each state has a
+`state_schema_version` so the workflow can tell how to read persisted data.
+
+Older checkpoints without a version are treated as v0 and migrated to v1 when
+they are loaded. New checkpoints are stamped with the current version. If a
+checkpoint comes from a newer version than this code understands, the workflow
+stops with a clear error instead of guessing at the state shape.
 
 The authoritative validator currently runs the local unittest suite. The
 workflow tracks validation per PRD item, but item-specific acceptance criteria
@@ -334,4 +345,3 @@ Run the tests:
   not implemented yet.
 - Pull-request lifecycle management, such as updating existing PRs and
   assigning reviewers, is not implemented yet.
-- Checkpoint/state schema versioning and migrations are not implemented yet.

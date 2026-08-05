@@ -42,6 +42,11 @@ Workflow checkpoints are stored in `.shanks/checkpoints.sqlite`, so the viewer
 can inspect runs started by another process. Set `SHANKS_CHECKPOINT_DB` in both
 processes to use a different shared database path.
 
+Checkpoint state carries a `state_schema_version`. Older unversioned checkpoints
+are treated as v0 and migrated to the current schema when loaded; new checkpoints
+are written with the current version. Checkpoints from a newer unsupported version
+fail clearly instead of being interpreted incorrectly.
+
 The viewer's Live execution panel accepts the workflow's `thread_id` and polls
 the current node, PRD item, attempt count, last error, model, and checkpoint
 history. Use the same thread ID when starting the workflow and inspecting it.

@@ -24,13 +24,58 @@ from workflow.nodes import (
     route_after_planning,
     route_after_validation,
 )
-from workflow.state import WorkflowState
+from workflow.state import WorkflowState, migrate_state
 
 
 DEFAULT_CHECKPOINT_DB = Path(__file__).resolve().parent / ".shanks" / "checkpoints.sqlite"
 
 
-def shared_checkpointer() -> SqliteSaver:
+def _migrate_checkpoint_tuple(checkpoint_tuple):
+    """Return a checkpoint tuple whose state channels use the current schema."""
+
+    checkpoint = checkpoint_tuple.checkpoint
+    channel_values = checkpoint.get("channel_values", {})
+    migrated_values = migrate_state(channel_values)
+    if migrated_values == channel_values:
+        return checkpoint_tuple
+
+    migrated_checkpoint = dict(checkpoint)
+    migrated_checkpoint["channel_values"] = migrated_values
+    return checkpoint_tuple._replace(checkpoint=migrated_checkpoint)
+
+
+class VersionedSqliteSaver(SqliteSaver):
+    """SqliteSaver that migrates workflow state on reads and writes."""
+
+    def get_tuple(self, config):
+        checkpoint_tuple = super().get_tuple(config)
+        if checkpoint_tuple is None:
+            return None
+        return _migrate_checkpoint_tuple(checkpoint_tuple)
+
+    def list(self, config=None, *, filter=None, before=None, limit=None):
+        for checkpoint_tuple in super().list(
+            config,
+            filter=filter,
+            before=before,
+            limit=limit,
+        ):
+            yield _migrate_checkpoint_tuple(checkpoint_tuple)
+
+    def put(self, config, checkpoint, metadata, new_versions):
+        migrated_checkpoint = dict(checkpoint)
+        migrated_checkpoint["channel_values"] = migrate_state(
+            checkpoint.get("channel_values", {})
+        )
+        return super().put(
+            config,
+            migrated_checkpoint,
+            metadata,
+            new_versions,
+        )
+
+
+def shared_checkpointer() -> VersionedSqliteSaver:
     """Open the SQLite checkpoint store shared by workflow and viewer processes."""
 
     checkpoint_path = Path(
@@ -38,7 +83,7 @@ def shared_checkpointer() -> SqliteSaver:
     )
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(str(checkpoint_path), check_same_thread=False)
-    return SqliteSaver(connection)
+    return VersionedSqliteSaver(connection)
 
 
 def build_graph(
