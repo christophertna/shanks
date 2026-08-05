@@ -15,13 +15,13 @@
     "semantic_hash": ""
   },
   "tests/test_graph.py": {
-    "mtime": 1785969135.8195562,
+    "mtime": 1785969468.4626272,
     "ast_hash": "c86d069eee3c0a9dedbfefd1701ca8f1",
     "semantic_hash": ""
   },
   "tests/test_node_contracts.py": {
-    "mtime": 1785909035.7523692,
-    "ast_hash": "c9aaab848fb05e18e49186ff305585bb",
+    "mtime": 1785970296.96526,
+    "ast_hash": "e01cf1e5d9f024de42ee278854d6c4ae",
     "semantic_hash": ""
   },
   "workflow/__init__.py": {
@@ -30,8 +30,8 @@
     "semantic_hash": "bcb7e71a88ca2b19deb1c73912c8fca2"
   },
   "workflow/adapters.py": {
-    "mtime": 1785909035.7528155,
-    "ast_hash": "7698037c9702db99a7abb16b41c586d2",
+    "mtime": 1785970313.0504408,
+    "ast_hash": "727c6e3a165657beafa3691591088033",
     "semantic_hash": ""
   },
   "workflow/contracts.py": {
@@ -40,8 +40,8 @@
     "semantic_hash": ""
   },
   "workflow/nodes.py": {
-    "mtime": 1785969089.285668,
-    "ast_hash": "79294ad5ea6b0a19bd074cd9e9d08d16",
+    "mtime": 1785969823.9407501,
+    "ast_hash": "1f16de18456c108729cbeb5147592662",
     "semantic_hash": ""
   },
   "workflow/state.py": {
@@ -50,8 +50,8 @@
     "semantic_hash": ""
   },
   ".codex/hooks.json": {
-    "mtime": 1785643810.859003,
-    "ast_hash": "f6ca3e6dfd1177bf87d9c187e4ec6272",
+    "mtime": 1785970142.2478895,
+    "ast_hash": "f7279ba496651ca2a4ec24029e6ae9ea",
     "semantic_hash": ""
   },
   "AGENTS.md": {
@@ -110,8 +110,8 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1785969063.7482162,
-    "ast_hash": "4a9a99db2302c90f317443f817c82328",
+    "mtime": 1785970142.438931,
+    "ast_hash": "24534e17c4511c55086c0d88a80ccfbe",
     "semantic_hash": ""
   },
   ".agents/skills/github-commit-pr/SKILL.md": {
@@ -187,6 +187,21 @@
   "tests/test_state_schema.py": {
     "mtime": 1785968560.7339642,
     "ast_hash": "b17bb1848ad4e6bcf6bac0139619561a",
+    "semantic_hash": ""
+  },
+  "hooks/deny-dangerous.sh": {
+    "mtime": 1785970297.151412,
+    "ast_hash": "1da96c9ba4ccd8bd9ae940ee3e26de92",
+    "semantic_hash": ""
+  },
+  "hooks/test-guard.sh": {
+    "mtime": 1785970142.0553608,
+    "ast_hash": "c854912010949fcf85ac97a6c3a9589e",
+    "semantic_hash": ""
+  },
+  "hooks/dangerous-patterns.txt": {
+    "mtime": 1785970141.6596425,
+    "ast_hash": "a3725625f64211da180462dfe16f66a3",
     "semantic_hash": ""
   }
 }

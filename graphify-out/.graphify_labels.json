@@ -19,5 +19,6 @@
   "17": ".__init__",
   "18": "RepositoryAdapter",
   "19": "adapters.py",
-  "20": "skills/decisions/SKILL.md"
+  "20": "skills/decisions/SKILL.md",
+  "21": "test-guard.sh"
 }

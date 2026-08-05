@@ -173,6 +173,15 @@ reports test failures back to the graph as structured validation errors.
 `RalphAdapter` parses the builder's `RALPH_UNCERTAINTIES` section into the
 current item's uncertainty list.
 
+Security guardrails are enforced at the adapter boundary. Agent subprocesses
+use an executable allowlist and configured working-directory roots. The GitHub
+adapter resolves candidate files through the project root, rejects symlink or
+traversal escapes, allows only the Git and `gh` commands needed by the graph,
+passes a minimal GitHub environment, and redacts common credentials from output
+and PR text. The repo-local `hooks/deny-dangerous.sh` hook provides an
+additional denylist for catastrophic shell commands issued inside a CLI agent;
+`hooks/test-guard.sh` exercises its high-risk and ordinary cases.
+
 ### `workflow/nodes.py`
 
 Contains the work done by each graph node:

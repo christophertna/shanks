@@ -87,6 +87,13 @@ After the last item, they pause again before pushing the branch and opening a
 pull request. Resume an approval interrupt with `Command(resume="approve")` or
 end the run without the side effect with `Command(resume="reject")`.
 
+Security guardrails keep subprocesses on approved executables and configured
+directories, resolve GitHub file paths through the project root (including
+symlinks), redact common credentials from command output and PR text, and limit
+the GitHub adapter to the required read/commit/push/PR commands. The repo-local
+`hooks/deny-dangerous.sh` hook adds a denylist for catastrophic shell commands;
+run `hooks/test-guard.sh` to check it.
+
 Ralph records only genuinely uncertain implementation decisions reported by the
 builder. They are parsed from the `RALPH_UNCERTAINTIES` output section and stored
 per PRD item for later review.
