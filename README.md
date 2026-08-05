@@ -32,6 +32,14 @@ Start the graph viewer:
 
 Then open `http://127.0.0.1:8765/graph.html`.
 
+Workflow checkpoints are stored in `.shanks/checkpoints.sqlite`, so the viewer
+can inspect runs started by another process. Set `SHANKS_CHECKPOINT_DB` in both
+processes to use a different shared database path.
+
+The viewer's Live execution panel accepts the workflow's `thread_id` and polls
+the current node, PRD item, attempt count, last error, model, and checkpoint
+history. Use the same thread ID when starting the workflow and inspecting it.
+
 ## Interactive workflow
 
 The first graph invocation pauses at intake. Resume the same thread with the

@@ -1,8 +1,21 @@
 import unittest
+import os
+import tempfile
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
-from graph import build_graph
-from serve_graph import structured_mermaid, style_mermaid
+from langgraph.checkpoint.memory import InMemorySaver
+
+from graph import build_graph as compile_graph
+from serve_graph import execution_state, structured_mermaid, style_mermaid
+
+
+def build_graph(*args, **kwargs):
+    """Keep viewer topology tests isolated from the shared production store."""
+
+    kwargs.setdefault("checkpointer", InMemorySaver())
+    return compile_graph(*args, **kwargs)
 
 
 class GraphViewerTests(unittest.TestCase):
@@ -13,6 +26,78 @@ class GraphViewerTests(unittest.TestCase):
 
         self.assertIn('graphEvents.addEventListener("open"', content)
         self.assertIn('lastDefinition = "";', content)
+        self.assertIn('id="thread-id"', content)
+        self.assertIn('fetch(`/graph-state?', content)
+        self.assertIn("Checkpoint history", content)
+
+    def test_execution_state_reads_current_snapshot_and_history(self) -> None:
+        current = SimpleNamespace(
+            values={
+                "current_item_id": "item-2",
+                "current_item_title": "Second item",
+                "current_item_index": 1,
+                "prd_items": [{"id": "item-2", "title": "Second item"}],
+                "attempts_count": 2,
+                "last_error": "Validation failed",
+                "assigned_model": "ralph-model",
+                "status": "building",
+            },
+            next=("building",),
+            config={"configurable": {"checkpoint_id": "checkpoint-2"}},
+            metadata={"step": 4},
+            created_at="2026-08-05T00:00:00+00:00",
+        )
+        history = [
+            SimpleNamespace(
+                values={"attempts_count": 1, "status": "planning"},
+                next=("building",),
+                config={"configurable": {"checkpoint_id": "checkpoint-1"}},
+                metadata={"step": 3},
+                created_at="2026-08-05T00:00:00+00:00",
+            )
+        ]
+
+        class FakeGraph:
+            def get_state(self, config):
+                self.config = config
+                return current
+
+            def get_state_history(self, config, *, limit):
+                self.history_config = config
+                self.history_limit = limit
+                return iter(history)
+
+        graph = FakeGraph()
+        result = execution_state(graph, "thread-1", limit=5)
+
+        self.assertEqual(graph.config, {"configurable": {"thread_id": "thread-1"}})
+        self.assertEqual(graph.history_limit, 5)
+        self.assertEqual(result["current_node"], "building")
+        self.assertEqual(result["item"]["id"], "item-2")
+        self.assertEqual(result["attempt_count"], 2)
+        self.assertEqual(result["last_error"], "Validation failed")
+        self.assertEqual(result["model"], "ralph-model")
+        self.assertEqual(result["checkpoint_history"][0]["checkpoint_id"], "checkpoint-1")
+
+    def test_default_graphs_share_sqlite_checkpoints(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            checkpoint_db = Path(directory) / "checkpoints.sqlite"
+            with patch.dict(
+                os.environ,
+                {"SHANKS_CHECKPOINT_DB": str(checkpoint_db)},
+            ):
+                config = {"configurable": {"thread_id": "shared-thread"}}
+                first_graph = compile_graph()
+                first_graph.invoke({"task": "Shared state"}, config)
+                second_graph = compile_graph()
+
+                snapshot = second_graph.get_state(config)
+                history = list(second_graph.get_state_history(config))
+                first_graph.checkpointer.conn.close()
+                second_graph.checkpointer.conn.close()
+
+        self.assertEqual(snapshot.next, ("intake",))
+        self.assertGreaterEqual(len(history), 1)
 
     def test_viewer_keeps_forward_edges_solid_and_backward_edges_dashed(self) -> None:
         drawable_graph = build_graph().get_graph()

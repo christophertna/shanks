@@ -121,6 +121,171 @@
         box-shadow: 0 16px 40px rgb(15 23 42 / 7%);
       }
 
+      .execution-shell {
+        margin-bottom: 1rem;
+        padding: 1.25rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 1rem;
+        background: #ffffff;
+        box-shadow: 0 12px 32px rgb(15 23 42 / 6%);
+      }
+
+      .execution-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1rem;
+      }
+
+      .execution-header h2,
+      .history h3 {
+        margin: 0;
+        color: #0f172a;
+        font-size: 1.05rem;
+      }
+
+      .execution-header p {
+        margin: 0.35rem 0 0;
+        color: #64748b;
+        font-size: 0.82rem;
+      }
+
+      #execution-status {
+        margin: 0;
+        color: #64748b;
+        font-size: 0.78rem;
+        text-align: right;
+      }
+
+      .execution-controls {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        margin-bottom: 1rem;
+      }
+
+      .execution-controls label {
+        color: #334155;
+        font-size: 0.82rem;
+        font-weight: 650;
+      }
+
+      .execution-controls input {
+        min-width: 14rem;
+        flex: 1;
+        padding: 0.5rem 0.65rem;
+        border: 1px solid #cbd5e1;
+        border-radius: 0.5rem;
+        color: #0f172a;
+        font: inherit;
+        font-size: 0.84rem;
+      }
+
+      .execution-controls button {
+        padding: 0.52rem 0.8rem;
+        border: 0;
+        border-radius: 0.5rem;
+        background: #2563eb;
+        color: #ffffff;
+        cursor: pointer;
+        font: inherit;
+        font-size: 0.82rem;
+        font-weight: 700;
+      }
+
+      .execution-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 0.65rem;
+        margin-bottom: 1.25rem;
+      }
+
+      .metric {
+        min-width: 0;
+        padding: 0.75rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.65rem;
+        background: #f8fafc;
+      }
+
+      .metric-label {
+        display: block;
+        margin-bottom: 0.35rem;
+        color: #64748b;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .metric-value {
+        display: block;
+        overflow: hidden;
+        color: #0f172a;
+        font-size: 0.9rem;
+        font-weight: 700;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      #execution-error {
+        color: #b91c1c;
+        overflow-wrap: anywhere;
+        white-space: normal;
+      }
+
+      .history {
+        border-top: 1px solid #e2e8f0;
+        padding-top: 1rem;
+      }
+
+      #checkpoint-history {
+        display: grid;
+        gap: 0.5rem;
+        margin: 0.7rem 0 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .checkpoint {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.6rem 0.7rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.55rem;
+        background: #f8fafc;
+        font-size: 0.78rem;
+      }
+
+      .checkpoint-main {
+        min-width: 0;
+        color: #334155;
+      }
+
+      .checkpoint-main strong {
+        color: #0f172a;
+      }
+
+      .checkpoint-meta {
+        flex: 0 0 auto;
+        color: #64748b;
+        text-align: right;
+      }
+
+      .checkpoint-error {
+        margin-top: 0.25rem;
+        color: #b91c1c;
+        overflow-wrap: anywhere;
+      }
+
+      .empty-history {
+        color: #64748b;
+        font-size: 0.82rem;
+      }
+
       #diagram {
         overflow-x: auto;
         text-align: center;
@@ -179,13 +344,38 @@
         }
 
         header,
-        .toolbar {
+        .toolbar,
+        .execution-header,
+        .execution-controls {
           align-items: flex-start;
           flex-direction: column;
         }
 
         .legend {
           justify-content: flex-start;
+        }
+
+        #execution-status {
+          text-align: left;
+        }
+
+        .execution-controls input {
+          min-width: 0;
+          width: 100%;
+        }
+
+        .execution-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .checkpoint {
+          align-items: flex-start;
+          flex-direction: column;
+          gap: 0.25rem;
+        }
+
+        .checkpoint-meta {
+          text-align: left;
         }
       }
     </style>
@@ -211,6 +401,50 @@
         </div>
       </section>
 
+      <section class="execution-shell" aria-labelledby="execution-heading">
+        <div class="execution-header">
+          <div>
+            <h2 id="execution-heading">Live execution</h2>
+            <p>Inspect the latest state and checkpoints for a workflow thread.</p>
+          </div>
+          <p id="execution-status" role="status">Loading execution…</p>
+        </div>
+
+        <form id="execution-form" class="execution-controls">
+          <label for="thread-id">Thread ID</label>
+          <input id="thread-id" name="thread_id" type="text" value="session-1" />
+          <button type="submit">Inspect</button>
+        </form>
+
+        <div class="execution-grid" aria-live="polite">
+          <div class="metric">
+            <span class="metric-label">Current node</span>
+            <strong id="execution-node" class="metric-value">—</strong>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Item</span>
+            <strong id="execution-item" class="metric-value">—</strong>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Attempts</span>
+            <strong id="execution-attempts" class="metric-value">—</strong>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Last error</span>
+            <strong id="execution-error" class="metric-value">—</strong>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Model</span>
+            <strong id="execution-model" class="metric-value">—</strong>
+          </div>
+        </div>
+
+        <div class="history">
+          <h3>Checkpoint history</h3>
+          <ol id="checkpoint-history" aria-live="polite"></ol>
+        </div>
+      </section>
+
       <section class="graph-shell">
         <div id="diagram" aria-live="polite"></div>
       </section>
@@ -222,7 +456,17 @@
       const status = document.getElementById("status");
       const diagram = document.getElementById("diagram");
       const detailsToggle = document.getElementById("details-toggle");
+      const executionForm = document.getElementById("execution-form");
+      const threadIdInput = document.getElementById("thread-id");
+      const executionStatus = document.getElementById("execution-status");
+      const executionNode = document.getElementById("execution-node");
+      const executionItem = document.getElementById("execution-item");
+      const executionAttempts = document.getElementById("execution-attempts");
+      const executionError = document.getElementById("execution-error");
+      const executionModel = document.getElementById("execution-model");
+      const checkpointHistory = document.getElementById("checkpoint-history");
       let lastDefinition = "";
+      let executionRequest = 0;
 
       mermaid.initialize({
         startOnLoad: false,
@@ -245,6 +489,110 @@
           textColor: "#111827",
         },
       });
+
+      function displayValue(value, fallback = "—") {
+        return value === null || value === undefined || value === ""
+          ? fallback
+          : String(value);
+      }
+
+      function renderCheckpointHistory(history) {
+        checkpointHistory.replaceChildren();
+        if (!history.length) {
+          const empty = document.createElement("li");
+          empty.className = "empty-history";
+          empty.textContent = "No checkpoints for this thread.";
+          checkpointHistory.append(empty);
+          return;
+        }
+
+        for (const checkpoint of history) {
+          const entry = document.createElement("li");
+          entry.className = "checkpoint";
+
+          const main = document.createElement("div");
+          main.className = "checkpoint-main";
+          const node = document.createElement("strong");
+          node.textContent = displayValue(checkpoint.current_node, "Complete");
+          main.append(node);
+          const item = checkpoint.item?.title || checkpoint.item?.id;
+          main.append(` · ${displayValue(item, "No item")}`);
+
+          if (checkpoint.last_error) {
+            const error = document.createElement("div");
+            error.className = "checkpoint-error";
+            error.textContent = checkpoint.last_error;
+            main.append(error);
+          }
+
+          const meta = document.createElement("div");
+          meta.className = "checkpoint-meta";
+          meta.textContent = [
+            checkpoint.step === null || checkpoint.step === undefined
+              ? ""
+              : `step ${checkpoint.step}`,
+            checkpoint.status,
+            checkpoint.created_at
+              ? new Date(checkpoint.created_at).toLocaleTimeString()
+              : "",
+          ]
+            .filter(Boolean)
+            .join(" · ");
+
+          entry.append(main, meta);
+          checkpointHistory.append(entry);
+        }
+      }
+
+      function renderExecution(data) {
+        const item = data.item || {};
+        executionNode.textContent = displayValue(data.current_node, "Complete");
+        executionItem.textContent = displayValue(item.title || item.id);
+        executionAttempts.textContent = displayValue(data.attempt_count, "0");
+        executionError.textContent = displayValue(data.last_error, "None");
+        executionModel.textContent = displayValue(data.model);
+        renderCheckpointHistory(data.checkpoint_history || []);
+        executionStatus.textContent = data.available
+          ? `Thread ${data.thread_id} · updated ${new Date().toLocaleTimeString()}`
+          : data.thread_id
+            ? `No checkpoints for ${data.thread_id}`
+            : "Enter a thread ID to inspect execution.";
+      }
+
+      async function refreshExecution() {
+        const threadId = threadIdInput.value.trim();
+        if (!threadId) {
+          executionStatus.textContent = "Enter a thread ID to inspect execution.";
+          renderExecution({
+            available: false,
+            thread_id: "",
+            item: {},
+            checkpoint_history: [],
+          });
+          return;
+        }
+
+        const requestId = ++executionRequest;
+        try {
+          const query = new URLSearchParams({
+            thread_id: threadId,
+            limit: "20",
+            ts: String(Date.now()),
+          });
+          const response = await fetch(`/graph-state?${query}`);
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.error || "Unable to load execution state");
+          }
+          if (requestId === executionRequest) {
+            renderExecution(data);
+          }
+        } catch (error) {
+          if (requestId === executionRequest) {
+            executionStatus.textContent = `Could not load execution: ${error.message}`;
+          }
+        }
+      }
 
       async function refreshGraph() {
         try {
@@ -289,7 +637,22 @@
         refreshGraph();
       });
 
+      executionForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const url = new URL(window.location.href);
+        url.searchParams.set("thread_id", threadIdInput.value.trim());
+        window.history.replaceState({}, "", url);
+        refreshExecution();
+      });
+
+      const initialThreadId = new URLSearchParams(window.location.search).get("thread_id");
+      if (initialThreadId) {
+        threadIdInput.value = initialThreadId;
+      }
+
       refreshGraph();
+      refreshExecution();
+      window.setInterval(refreshExecution, 2000);
     </script>
   </body>
 </html>
