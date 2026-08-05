@@ -44,6 +44,8 @@ back to normal file inspection. After changing code, run `graphify update .`.
 8. Leave only files created or changed by this story in the working tree. Leave files that were already dirty at iteration start, unrelated files, and unrelated generated files untouched. Do not commit or push; the graph commits this item only after `validation` passes.
 9. Do not edit the PRD’s `passes` or `validation` flags; the runner and graph own those values.
 10. Append the iteration’s work and learnings to `$RALPH_BASE_DIR/scripts/ralph/progress.txt`.
+11. Track only genuinely uncertain implementation decisions that you actually implemented. Do not list routine or confident choices.
+12. Before your final response, print a `RALPH_UNCERTAINTIES:` section with one concise bullet per uncertain decision, or `RALPH_UNCERTAINTIES: none` when there are none. Then print exactly one `RALPH_ERROR: ...` line. Use `RALPH_ERROR: none` when the story and checks completed successfully; otherwise summarize the latest failure in one line.
 
 ## Progress Report Format
 
@@ -53,6 +55,7 @@ Append this structure to `$RALPH_BASE_DIR/scripts/ralph/progress.txt`; never rep
 ## [Date/Time] - [Story ID]
 - What was implemented
 - Files changed
+- **Uncertainties:** Genuine uncertain implementation decisions, or `None`
 - **Learnings for future iterations:**
   - Patterns discovered
   - Gotchas encountered

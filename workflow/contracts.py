@@ -30,6 +30,7 @@ class AgentResult:
     status: str
     assigned_model: str
     files_touched: list[str] = field(default_factory=list)
+    uncertainties: list[str] = field(default_factory=list)
     error: str | None = None
     feedback: str = ""
     approved: bool | None = None

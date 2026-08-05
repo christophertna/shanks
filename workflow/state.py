@@ -29,6 +29,7 @@ class WorkflowState(TypedDict, total=False):
     builder_instructions: str
     files_touched: list[str]
     files_touched_by_item: dict[str, list[str]]
+    uncertainties_by_item: dict[str, list[str]]
     attempts_count: int
     attempts_by_item: dict[str, int]
     max_attempts: int

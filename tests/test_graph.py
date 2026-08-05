@@ -176,6 +176,35 @@ class GraphRoutingTests(unittest.TestCase):
         self.assertEqual(critic.calls, 0)
         self.assertEqual(validator.calls, 0)
 
+    def test_builder_uncertainties_are_stored_by_item(self) -> None:
+        builder = SequenceAdapter(
+            "ralph",
+            [
+                AgentResult(
+                    status="built",
+                    assigned_model="ralph",
+                    uncertainties=["Kept the fallback behavior."],
+                )
+            ],
+        )
+        dependencies = NodeDependencies(
+            planner=StubAgentAdapter("planner", "planner"),
+            builder=builder,
+            critic=StubAgentAdapter("critic", "critic"),
+            validator=StubAgentAdapter("validator", "validator"),
+            debugger=StubAgentAdapter("debugger", "debugger"),
+        )
+
+        result = build_graph(dependencies).invoke(
+            _initial_state(),
+            {"configurable": {"thread_id": "uncertainties-by-item"}},
+        )
+
+        self.assertEqual(
+            result["uncertainties_by_item"],
+            {"item-1": ["Kept the fallback behavior."]},
+        )
+
     def test_exhausted_build_node_error_uses_failed_build_route(self) -> None:
         class FailingBuilder:
             model_name = "failing-builder"

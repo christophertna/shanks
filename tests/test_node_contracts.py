@@ -446,12 +446,23 @@ class NodeContractTests(unittest.TestCase):
         completed = subprocess.CompletedProcess(
             args=adapter.command,
             returncode=0,
-            stdout="fixed\n<promise>ITEM_BUILT</promise>\n",
+            stdout=(
+                "fixed\n"
+                "RALPH_UNCERTAINTIES:\n"
+                "- Chose a fallback when the requirement was ambiguous.\n"
+                "RALPH_ERROR: none\n"
+                "<promise>ITEM_BUILT</promise>\n"
+            ),
             stderr="",
         )
 
         with patch("workflow.adapters.subprocess.run", return_value=completed) as run:
-            adapter.run(request)
+            result = adapter.run(request)
+
+        self.assertEqual(
+            result.uncertainties,
+            ["Chose a fallback when the requirement was ambiguous."],
+        )
 
         command = run.call_args.args[0]
         self.assertEqual(command[-4:-2], ("--graph-item-id", "item-1"))
