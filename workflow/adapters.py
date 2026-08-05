@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+import re
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -19,6 +21,35 @@ CRITIC_OUTPUT_SCHEMA_PATH = Path(__file__).with_name("critic_output.schema.json"
 DEBUGGER_OUTPUT_SCHEMA_PATH = Path(__file__).with_name("debugger_output.schema.json")
 ITEM_BUILT_MARKER = "<promise>ITEM_BUILT</promise>"
 UNCERTAINTIES_MARKER = "RALPH_UNCERTAINTIES:"
+ALLOWED_AGENT_EXECUTABLES = frozenset(
+    {"bash", "claude", "codex", "python", "python3"}
+)
+GITHUB_ENVIRONMENT_KEYS = frozenset(
+    {
+        "GH_HOST",
+        "GH_TOKEN",
+        "GITHUB_TOKEN",
+        "HOME",
+        "LANG",
+        "LC_ALL",
+        "PATH",
+    }
+)
+_SECRET_PATTERNS = (
+    re.compile(
+        r"-----BEGIN [^-]+ PRIVATE KEY-----.*?-----END [^-]+ PRIVATE KEY-----",
+        re.IGNORECASE | re.DOTALL,
+    ),
+    re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]+)\b"),
+    re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
+    re.compile(r"\b(?:sk-[A-Za-z0-9_-]{16,}|AIza[0-9A-Za-z_-]{20,})\b"),
+    re.compile(
+        r"(?i)(\b(?:api[_-]?key|access[_-]?token|refresh[_-]?token|"
+        r"authorization|password|secret)\b\s*[:=]\s*)(?:bearer\s+)?"
+        r"[^\s,;]+"
+    ),
+    re.compile(r"(?i)(\bbearer\s+)[^\s,;]+"),
+)
 
 
 @dataclass(slots=True)
@@ -83,14 +114,23 @@ class SubprocessAgentAdapter:
     model_name: str
     working_directory: Path | None = None
     timeout_seconds: int = 3600
+    allowed_directories: tuple[Path, ...] = ()
 
     def run(self, request: AgentRequest) -> AgentResult:
         prompt = _format_request(request)
         cwd = request.working_directory or self.working_directory
+        command = self._command_for(request)
+        guardrail_error = self._validate_execution(command, cwd)
+        if guardrail_error:
+            return AgentResult(
+                status="failed",
+                assigned_model=self.model_name,
+                error=guardrail_error,
+            )
 
         try:
             completed = subprocess.run(
-                self._command_for(request),
+                command,
                 cwd=cwd,
                 input=prompt,
                 text=True,
@@ -102,11 +142,16 @@ class SubprocessAgentAdapter:
             return AgentResult(
                 status="failed",
                 assigned_model=self.model_name,
-                error=str(error),
+                error=redact_secrets(str(error)),
             )
 
         output = "\n".join(
-            part for part in (completed.stdout.strip(), completed.stderr.strip()) if part
+            part
+            for part in (
+                redact_secrets((completed.stdout or "").strip()),
+                redact_secrets((completed.stderr or "").strip()),
+            )
+            if part
         )
         if completed.returncode != 0:
             return AgentResult(
@@ -125,6 +170,33 @@ class SubprocessAgentAdapter:
     def _command_for(self, request: AgentRequest) -> tuple[str, ...]:
         return self.command
 
+    def _validate_execution(
+        self,
+        command: tuple[str, ...],
+        cwd: Path | None,
+    ) -> str | None:
+        if not command:
+            return "Refusing to run an empty command."
+        executable = Path(command[0]).name
+        if executable not in ALLOWED_AGENT_EXECUTABLES:
+            return f"Refusing to run unapproved executable: {executable}."
+
+        roots = self.allowed_directories or (
+            (self.working_directory,) if self.working_directory else ()
+        )
+        if cwd is not None:
+            resolved_cwd = _resolve_path(cwd)
+            if not roots or not _path_within_any(resolved_cwd, roots):
+                return "Refusing to run outside the configured working directories."
+
+        for raw_path in _command_path_arguments(command):
+            path = Path(raw_path)
+            if not path.is_absolute() and cwd is not None:
+                path = Path(cwd) / path
+            if not roots or not _path_within_any(_resolve_path(path), roots):
+                return "Refusing to use a command path outside the configured directories."
+        return None
+
 
 class RalphAdapter(SubprocessAgentAdapter):
     """Adapter for the project-local Ralph runner."""
@@ -138,6 +210,16 @@ class RalphAdapter(SubprocessAgentAdapter):
         skill_name: str = "ponytail",
         max_iterations: int = 1,
     ) -> None:
+        if tool not in {"claude", "codex"}:
+            raise ValueError("tool must be 'claude' or 'codex'")
+        if skill_name and not re.fullmatch(r"[A-Za-z0-9_-]+", skill_name):
+            raise ValueError("skill_name contains unsupported characters")
+        if (
+            isinstance(max_iterations, bool)
+            or not isinstance(max_iterations, int)
+            or max_iterations < 1
+        ):
+            raise ValueError("max_iterations must be a positive integer")
         base_directory = base_directory or project_directory
         script = base_directory / "scripts" / "ralph" / "ralph.sh"
         super().__init__(
@@ -154,6 +236,7 @@ class RalphAdapter(SubprocessAgentAdapter):
             ),
             model_name=f"ralph:{tool}",
             working_directory=base_directory,
+            allowed_directories=(project_directory, base_directory),
         )
 
     def run(self, request: AgentRequest) -> AgentResult:
@@ -231,6 +314,7 @@ class LocalTestAdapter(SubprocessAgentAdapter):
             command=(sys.executable, "-m", "unittest", "discover", "-s", "tests"),
             model_name="local-tests",
             working_directory=project_directory,
+            allowed_directories=(project_directory,),
         )
 
     def run(self, request: AgentRequest) -> AgentResult:
@@ -299,6 +383,7 @@ class DebuggerAdapter(SubprocessAgentAdapter):
             model_name=model_name or f"{tool}-debugger",
             working_directory=project_directory,
             timeout_seconds=timeout_seconds,
+            allowed_directories=(project_directory, DEBUGGER_OUTPUT_SCHEMA_PATH.parent),
         )
 
     def run(self, request: AgentRequest) -> AgentResult:
@@ -322,6 +407,7 @@ class GitHubAdapter:
     model_name = "github"
 
     def __post_init__(self) -> None:
+        self.project_directory = self.project_directory.resolve()
         if self.initial_dirty_files is None:
             self.initial_dirty_files = tuple(self._status_files())
 
@@ -331,6 +417,15 @@ class GitHubAdapter:
         item_title: str,
         files_touched: list[str],
     ) -> AgentResult:
+        invalid_files = [
+            file for file in files_touched if self._normalize_file(file) is None
+        ]
+        if invalid_files:
+            return AgentResult(
+                status="failed",
+                assigned_model=self.model_name,
+                error="Refusing to commit a path outside the project directory.",
+            )
         files = self._candidate_files(files_touched)
         if not files:
             return AgentResult(status="no_changes", assigned_model=self.model_name)
@@ -428,7 +523,9 @@ class GitHubAdapter:
                 pr_url=pr_url,
             )
 
-        summary = " ".join(task.split()) or "Implement the planned PRD items"
+        summary = redact_secrets(" ".join(task.split())) or (
+            "Implement the planned PRD items"
+        )
         title = f"feat: {summary}"
         if len(title) > 50:
             title = f"{title[:47].rstrip()}..."
@@ -472,8 +569,17 @@ class GitHubAdapter:
 
     def _candidate_files(self, files_touched: list[str]) -> list[str]:
         current = self._status_files()
-        baseline = set(self.initial_dirty_files or ())
-        fresh = [path for path in current if path not in baseline]
+        baseline = {
+            normalized
+            for file in (self.initial_dirty_files or ())
+            if (normalized := self._normalize_file(file)) is not None
+        }
+        fresh = [
+            normalized
+            for path in current
+            if (normalized := self._normalize_file(path)) is not None
+            and normalized not in baseline
+        ]
         requested = {
             normalized
             for file in files_touched
@@ -495,21 +601,27 @@ class GitHubAdapter:
         return files
 
     def _normalize_file(self, file: str) -> str | None:
-        path = Path(file)
+        if not isinstance(file, str) or not file.strip():
+            return None
         root = self.project_directory.resolve()
+        path = Path(file)
+        candidate = _resolve_path(path if path.is_absolute() else root / path)
         try:
-            relative = (
-                path.resolve().relative_to(root)
-                if path.is_absolute()
-                else path
-            )
+            relative = candidate.relative_to(root)
         except ValueError:
             return None
-        if ".." in relative.parts:
+        if not relative.parts:
             return None
         return relative.as_posix()
 
     def _run(self, command: tuple[str, ...]) -> AgentResult:
+        guardrail_error = self._validate_command(command)
+        if guardrail_error:
+            return AgentResult(
+                status="failed",
+                assigned_model=self.model_name,
+                error=guardrail_error,
+            )
         try:
             completed = subprocess.run(
                 command,
@@ -518,16 +630,22 @@ class GitHubAdapter:
                 capture_output=True,
                 timeout=self.timeout_seconds,
                 check=False,
+                env=self._github_environment(command),
             )
         except (OSError, subprocess.TimeoutExpired) as error:
             return AgentResult(
                 status="failed",
                 assigned_model=self.model_name,
-                error=str(error),
+                error=redact_secrets(str(error)),
             )
 
         output = "\n".join(
-            part for part in (completed.stdout.strip(), completed.stderr.strip()) if part
+            part
+            for part in (
+                redact_secrets((completed.stdout or "").strip()),
+                redact_secrets((completed.stderr or "").strip()),
+            )
+            if part
         )
         if completed.returncode != 0:
             return AgentResult(
@@ -541,6 +659,125 @@ class GitHubAdapter:
             assigned_model=self.model_name,
             feedback=output,
         )
+
+    def _validate_command(self, command: tuple[str, ...]) -> str | None:
+        if command == ("git", "status", "--short", "--untracked-files=all"):
+            return None
+        if command == ("git", "branch", "--show-current"):
+            return None
+        if command == ("git", "rev-parse", "HEAD"):
+            return None
+        if command == ("gh", "auth", "status"):
+            return None
+        if command[:3] == ("git", "add", "--") and self._safe_files(command[3:]):
+            return None
+        if (
+            len(command) >= 7
+            and command[:4] == ("git", "commit", "--only", "-m")
+            and command[4]
+            and command[5] == "--"
+            and self._safe_files(command[6:])
+        ):
+            return None
+        if (
+            len(command) == 5
+            and command[:3] == ("git", "push", "-u")
+            and self._safe_ref(command[3])
+            and self._safe_ref(command[4])
+        ):
+            return None
+        if (
+            len(command) == 11
+            and command[:4] == ("gh", "pr", "list", "--head")
+            and self._safe_ref(command[4])
+            and command[5:] == (
+                "--state",
+                "all",
+                "--json",
+                "url",
+                "--limit",
+                "1",
+            )
+        ):
+            return None
+        if (
+            len(command) == 11
+            and command[:4] == ("gh", "pr", "create", "--base")
+            and self._safe_ref(command[4])
+            and command[5] == "--head"
+            and self._safe_ref(command[6])
+            and command[7] == "--title"
+            and isinstance(command[8], str)
+            and command[9] == "--body"
+            and isinstance(command[10], str)
+        ):
+            return None
+        return "Refusing to run an unapproved Git or GitHub command."
+
+    def _safe_files(self, files: tuple[str, ...]) -> bool:
+        return bool(files) and all(self._normalize_file(file) is not None for file in files)
+
+    @staticmethod
+    def _safe_ref(value: str) -> bool:
+        return bool(
+            value
+            and not value.startswith("-")
+            and ".." not in value
+            and "@{" not in value
+            and re.fullmatch(r"[A-Za-z0-9._/-]+", value)
+        )
+
+    @staticmethod
+    def _github_environment(command: tuple[str, ...]) -> dict[str, str]:
+        keys = {"HOME", "LANG", "LC_ALL", "PATH"}
+        if command and command[0] == "gh":
+            keys.update({"GH_HOST", "GH_TOKEN", "GITHUB_TOKEN"})
+        environment = {
+            key: value
+            for key, value in os.environ.items()
+            if key in keys and key in GITHUB_ENVIRONMENT_KEYS
+        }
+        environment["GIT_TERMINAL_PROMPT"] = "0"
+        return environment
+
+
+def _resolve_path(path: Path) -> Path:
+    return path.expanduser().resolve(strict=False)
+
+
+def _path_within_any(path: Path, roots: tuple[Path, ...]) -> bool:
+    for root in roots:
+        try:
+            path.relative_to(_resolve_path(root))
+        except ValueError:
+            continue
+        return True
+    return False
+
+
+def _command_path_arguments(command: tuple[str, ...]) -> tuple[str, ...]:
+    paths: list[str] = []
+    if Path(command[0]).name == "bash" and len(command) > 1:
+        if not command[1].startswith("-"):
+            paths.append(command[1])
+    for flag in ("--cd", "--project-dir", "--output-schema"):
+        if flag in command:
+            index = command.index(flag) + 1
+            if index < len(command):
+                paths.append(command[index])
+    return tuple(paths)
+
+
+def redact_secrets(value: str) -> str:
+    """Remove common credentials before command output enters workflow state."""
+
+    redacted = value
+    for pattern in _SECRET_PATTERNS:
+        if pattern.groups:
+            redacted = pattern.sub(lambda match: f"{match.group(1)}[REDACTED]", redacted)
+        else:
+            redacted = pattern.sub("[REDACTED]", redacted)
+    return redacted
 
 
 class CodexAdapter(SubprocessAgentAdapter):
@@ -563,6 +800,7 @@ class CodexAdapter(SubprocessAgentAdapter):
             ),
             model_name="codex",
             working_directory=project_directory,
+            allowed_directories=(project_directory,),
         )
 
 
@@ -592,6 +830,7 @@ class ClaudeAdapter(SubprocessAgentAdapter):
             command=command,
             model_name="claude",
             working_directory=project_directory,
+            allowed_directories=(project_directory,),
         )
 
 
@@ -638,6 +877,7 @@ class GPT56LunaCriticAdapter(StructuredCriticAdapter):
             model_name=model_name,
             working_directory=project_directory,
             timeout_seconds=timeout_seconds,
+            allowed_directories=(project_directory, CRITIC_OUTPUT_SCHEMA_PATH.parent),
         )
         self.reasoning_effort = reasoning_effort
 
@@ -677,6 +917,7 @@ class ClaudeOpus48CriticAdapter(StructuredCriticAdapter):
             model_name=model_name,
             working_directory=project_directory,
             timeout_seconds=timeout_seconds,
+            allowed_directories=(project_directory,),
         )
         self.effort = effort
 
@@ -899,6 +1140,7 @@ __all__ = [
     "ITEM_BUILT_MARKER",
     "LocalTestAdapter",
     "RalphAdapter",
+    "redact_secrets",
     "StubAgentAdapter",
     "StructuredCriticAdapter",
     "SubprocessAgentAdapter",

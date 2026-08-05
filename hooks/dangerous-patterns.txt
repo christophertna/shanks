@@ -1,0 +1,22 @@
+# Shanks command guard. One POSIX-ERE pattern per line; comments and blanks are ignored.
+# This is a denylist for catastrophic shell actions, not a replacement for path allowlists.
+
+# Root, home, and whole-user-tree deletion.
+(^|[;&|[:space:]])rm[[:space:]]+([^;&|]*[[:space:]])*(/|/\*|~|\$HOME|\$\{HOME\})([[:space:]]|$|[;&|])
+(^|[;&|[:space:]])sudo[[:space:]]+([^;&|]*[[:space:]])*rm([[:space:]]|$)
+--no-preserve-root
+
+# Disk destruction and fork bombs.
+(^|[;&|[:space:]])(dd|mkfs([.][A-Za-z0-9]+)?|diskutil[[:space:]]+(erase|partitionDisk|zeroDisk|secureErase))([[:space:]]|$)
+:[[:space:]]*[(][)][[:space:]]*[{][^}]*[|][^}]*}[[:space:]]*;
+
+# Downloading a script directly into a shell.
+(^|[;&|[:space:]])(curl|wget)[^;&|]*[|][[:space:]]*(sudo[[:space:]]+)?(ba|z|da)?sh([[:space:]]|$)
+
+# Destructive or history-rewriting Git/GitHub operations.
+(^|[;&|[:space:]])git[[:space:]]+push[^;&|]*([[:space:]]|^)(-f|--force)([[:space:]]|$)
+(^|[;&|[:space:]])git[[:space:]]+push[^;&|]*([[:space:]]|^)(--delete|-d|[+][^;&|[:space:]])([[:space:]]|$)
+(^|[;&|[:space:]])git[[:space:]]+(gc[^;&|]*--prune|reflog[[:space:]]+expire[^;&|]*--expire[^;&|]*now)
+(^|[;&|[:space:]])gh[[:space:]]+(repo[[:space:]]+delete|release[[:space:]]+delete|secret[[:space:]]+delete|ssh-key[[:space:]]+delete|gpg-key[[:space:]]+delete)([[:space:]]|$)
+(^|[;&|[:space:]])gh[[:space:]]+api[^;&|]*(--method|-X)(=|[[:space:]])[[:space:]]*DELETE([[:space:]]|$)
+(^|[;&|[:space:]])gh[[:space:]]+auth[[:space:]]+token([[:space:]]|$)

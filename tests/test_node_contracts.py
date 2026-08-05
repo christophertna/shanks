@@ -58,6 +58,55 @@ class NodeContractTests(unittest.TestCase):
         self.assertEqual(result.assigned_model, "test-cli")
         self.assertIn("adapter ok", result.feedback)
 
+    def test_subprocess_adapter_rejects_unapproved_executables(self) -> None:
+        adapter = SubprocessAgentAdapter(
+            command=("sh", "-c", "echo unsafe"),
+            model_name="unsafe-cli",
+        )
+
+        with patch("workflow.adapters.subprocess.run") as run:
+            result = adapter.run(AgentRequest(task="test task"))
+
+        self.assertEqual(result.status, "failed")
+        self.assertIn("unapproved executable", result.error)
+        run.assert_not_called()
+
+    def test_subprocess_adapter_rejects_working_directory_escape(self) -> None:
+        adapter = SubprocessAgentAdapter(
+            command=(sys.executable, "-c", "print('adapter ok')"),
+            model_name="test-cli",
+            working_directory=Path("/tmp/shanks"),
+            allowed_directories=(Path("/tmp/shanks"),),
+        )
+
+        with patch("workflow.adapters.subprocess.run") as run:
+            result = adapter.run(
+                AgentRequest(task="test task", working_directory=Path("/tmp"))
+            )
+
+        self.assertEqual(result.status, "failed")
+        self.assertIn("outside the configured working directories", result.error)
+        run.assert_not_called()
+
+    def test_subprocess_adapter_redacts_credentials_from_output(self) -> None:
+        adapter = SubprocessAgentAdapter(
+            command=(sys.executable, "-c", "print('adapter ok')"),
+            model_name="test-cli",
+        )
+        completed = subprocess.CompletedProcess(
+            args=adapter.command,
+            returncode=0,
+            stdout="ghp_test_secret_123456 api_key=private-value",
+            stderr="",
+        )
+
+        with patch("workflow.adapters.subprocess.run", return_value=completed):
+            result = adapter.run(AgentRequest(task="test task"))
+
+        self.assertNotIn("ghp_test_secret_123456", result.feedback)
+        self.assertNotIn("private-value", result.feedback)
+        self.assertIn("[REDACTED]", result.feedback)
+
     def test_local_test_adapter_maps_a_failed_suite(self) -> None:
         adapter = LocalTestAdapter(Path("/tmp/shanks"))
         completed = subprocess.CompletedProcess(
@@ -161,6 +210,64 @@ class NodeContractTests(unittest.TestCase):
                 "new.py",
             ),
         )
+
+    def test_github_adapter_rejects_paths_outside_the_project(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory) / "project"
+            outside = Path(directory) / "outside.py"
+            root.mkdir()
+            outside.write_text("outside", encoding="utf-8")
+            (root / "link.py").symlink_to(outside)
+            adapter = GitHubAdapter(root, initial_dirty_files=())
+
+            self.assertIsNone(adapter._normalize_file("../outside.py"))
+            self.assertIsNone(adapter._normalize_file("link.py"))
+            self.assertEqual(adapter._normalize_file("inside.py"), "inside.py")
+
+    def test_github_adapter_rejects_unapproved_commands(self) -> None:
+        adapter = GitHubAdapter(Path("/tmp/shanks"), initial_dirty_files=())
+
+        with patch("workflow.adapters.subprocess.run") as run:
+            result = adapter._run(("gh", "auth", "token"))
+
+        self.assertEqual(result.status, "failed")
+        self.assertIn("unapproved Git or GitHub command", result.error)
+        run.assert_not_called()
+
+    def test_github_adapter_redacts_pr_text_and_limits_environment(self) -> None:
+        adapter = GitHubAdapter(Path("/tmp/shanks"), initial_dirty_files=())
+        responses = [
+            subprocess.CompletedProcess(args=(), returncode=0, stdout="branch", stderr=""),
+            subprocess.CompletedProcess(args=(), returncode=0, stdout="pushed", stderr=""),
+            subprocess.CompletedProcess(args=(), returncode=0, stdout="[]", stderr=""),
+            subprocess.CompletedProcess(
+                args=(),
+                returncode=0,
+                stdout="https://github.com/example/shanks/pull/1",
+                stderr="",
+            ),
+        ]
+
+        with patch.dict(
+            "os.environ",
+            {"GH_TOKEN": "ghp_test_secret_123456", "UNRELATED_SECRET": "do-not-pass"},
+            clear=True,
+        ), patch(
+            "workflow.adapters.subprocess.run",
+            side_effect=responses,
+        ) as run:
+            result = adapter.publish_pr("Ship ghp_test_secret_123456")
+
+        self.assertEqual(result.status, "pr_created")
+        git_environment = run.call_args_list[0].kwargs["env"]
+        github_environment = run.call_args_list[2].kwargs["env"]
+        self.assertEqual(git_environment["GIT_TERMINAL_PROMPT"], "0")
+        self.assertNotIn("GH_TOKEN", git_environment)
+        self.assertEqual(github_environment["GH_TOKEN"], "ghp_test_secret_123456")
+        self.assertNotIn("UNRELATED_SECRET", github_environment)
+        create_command = run.call_args_list[-1].args[0]
+        self.assertNotIn("ghp_test_secret_123456", create_command[-1])
+        self.assertIn("[REDACTED]", create_command[-1])
 
     def test_github_adapter_pushes_then_creates_a_pr(self) -> None:
         adapter = GitHubAdapter(

@@ -7,6 +7,10 @@
           {
             "type": "command",
             "command": "/Users/christophertan/.pyenv/shims/graphify hook-check"
+          },
+          {
+            "type": "command",
+            "command": "bash hooks/deny-dangerous.sh"
           }
         ]
       }

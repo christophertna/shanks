@@ -18,6 +18,7 @@ from .adapters import (
     GitHubAdapter,
     LocalTestAdapter,
     RalphAdapter,
+    redact_secrets,
 )
 from .contracts import (
     AgentAdapter,
@@ -538,7 +539,7 @@ def github_node(
         question="Approve pushing the branch and opening a pull request?",
         details={
             "operations": ["push", "open_pull_request"],
-            "task": state.get("task", ""),
+            "task": redact_secrets(state.get("task", "")),
         },
     ):
         return _approval_denied("push or open a pull request")
