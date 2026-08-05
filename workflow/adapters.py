@@ -18,6 +18,7 @@ CLAUDE_OPUS_48_EFFORT = "medium"
 CRITIC_OUTPUT_SCHEMA_PATH = Path(__file__).with_name("critic_output.schema.json")
 DEBUGGER_OUTPUT_SCHEMA_PATH = Path(__file__).with_name("debugger_output.schema.json")
 ITEM_BUILT_MARKER = "<promise>ITEM_BUILT</promise>"
+UNCERTAINTIES_MARKER = "RALPH_UNCERTAINTIES:"
 
 
 @dataclass(slots=True)
@@ -167,6 +168,7 @@ class RalphAdapter(SubprocessAgentAdapter):
         result = super().run(request)
         if result.status == "failed":
             return result
+        result.uncertainties = _parse_uncertainties(result.feedback)
         if ITEM_BUILT_MARKER not in result.feedback:
             return AgentResult(
                 status="failed",
@@ -707,6 +709,37 @@ def _parse_json_object(output: str) -> dict[str, object]:
     if not isinstance(payload, dict):
         raise ValueError("expected a JSON object")
     return payload
+
+
+def _parse_uncertainties(output: str) -> list[str]:
+    """Extract the builder's concise uncertainty bullets from Ralph output."""
+
+    lines = output.splitlines()
+    for index, raw_line in enumerate(lines):
+        line = raw_line.strip()
+        if not line.startswith(UNCERTAINTIES_MARKER):
+            continue
+
+        inline = line[len(UNCERTAINTIES_MARKER) :].strip()
+        if inline:
+            return [] if inline.lower() == "none" else [inline]
+
+        entries: list[str] = []
+        for raw_entry in lines[index + 1 :]:
+            entry = raw_entry.strip()
+            if not entry:
+                continue
+            if entry.startswith("RALPH_") or entry.startswith("<promise>"):
+                break
+            if entry.startswith(("- ", "* ")):
+                entry = entry[2:].strip()
+            else:
+                continue
+            if entry and entry.lower() != "none":
+                entries.append(entry)
+        return list(dict.fromkeys(entries))
+
+    return []
 
 
 def _critic_request(request: AgentRequest) -> AgentRequest:

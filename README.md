@@ -4,6 +4,9 @@ Shanks is a small LangGraph-based workflow project for running Ralph-style agent
 It turns a task plan into a repeatable workflow that can plan work, build or revise it,
 ask a critic for feedback, validate the result, and move on to the next item.
 Runs begin with an intake choice: learn the codebase or implement a feature.
+The learn branch records reusable codebase context and returns to intake; the
+implement branch continues through planning, building, review, validation, and
+the next unfinished item.
 
 The repository also includes a lightweight Mermaid viewer for seeing the main workflow
 and its recovery paths.
@@ -14,6 +17,8 @@ and its recovery paths.
 - `graph.py` assembles the executable LangGraph workflow.
 - `serve_graph.py` serves the live graph viewer.
 - `scripts/ralph/` contains Ralph-oriented supporting instructions and examples.
+- `.agents/skills/` contains reusable domain-modeling, planning, and GitHub PR skills.
+- `.github/workflows/tests.yml` runs the unittest suite on pushes and pull requests.
 - `tests/` covers graph routing, node contracts, and viewer output.
 
 ## Quick start
@@ -60,6 +65,10 @@ Use `"learn"` to run the documentation branch; it returns to intake afterward.
 Choose `tool="codex"` or `tool="claude"` when building the graph to use that
 CLI throughout the agent workflow.
 
+Critic feedback is included in the next builder attempt when a review rejects
+an item. A failed build follows the explicit failed-build terminal route and
+does not proceed to critic or validation.
+
 When validation fails, the read-only debugger analyzes the failure, records its
 root cause and repair instructions in the current PRD item, then planning sends
 the enriched requirement to the builder.
@@ -69,5 +78,6 @@ means the graph’s authoritative test gate passed.
 
 For implement runs, each validated item is committed locally. After the last
 item passes, the final GitHub handoff pushes the current non-`main` branch and
-creates a pull request with the GitHub CLI (`gh`); authenticate `gh` before
-starting the run.
+creates a pull request with the GitHub CLI (`gh`). Persisted commit and PR IDs
+make commit and pull-request handoff safe to resume without duplicating those
+side effects; authenticate `gh` before starting the run.

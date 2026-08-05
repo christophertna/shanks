@@ -10,30 +10,40 @@ as prompt context, and Graphify excludes it from the code map.
 ## The main flow
 
 ```text
+intake
+   ├─ learn ──→ learning ──→ intake
+   └─ implement
+          ↓
 planning
    ↓
 building
    ↓
 critic_auditor
-   ↓
-building again
-   ↓
+   ├─ reject ──→ building again with critic feedback
+   └─ approve
+          ↓
 validation
-   ↓
+   ├─ fail ──→ debugger ──→ planning for the same item
+   └─ pass
+          ↓
 more items? ──→ Complete
    └──────────→ planning
 ```
 
+- `intake` asks whether the run should learn the codebase or implement a feature.
+- `learning` records reusable codebase context and returns to `intake`.
 - `planning` picks the next unfinished PRD item.
 - `building` writes or changes code.
 - `critic_auditor` checks the code with the configured critic adapter.
-- If the critic rejects it, the code goes back to `building`.
+- If the critic rejects it, its feedback is passed into the next `building` attempt.
 - If the critic approves it, the code goes to `validation`.
 - If validation fails, `debugger` studies the problem.
 - The problem then goes back to `planning` for the same PRD item.
 - If validation passes, the `more items` decision sends the next PRD item to
   `planning`.
 - When no items remain, `more items` sends the graph to `Complete`.
+- Failed builds use an explicit terminal `failed_build` route and do not run
+  critic or validation.
 
 There is a limit on build attempts. This helps stop endless loops.
 
@@ -76,6 +86,15 @@ from workflow.nodes import claude_opus_4_8_dependencies
 graph = build_graph(claude_opus_4_8_dependencies(Path.cwd()))
 ```
 
+## Project skills
+
+The project keeps reusable skills under `.agents/skills/`:
+
+- `domain-modeling` records shared terminology, context, and architecture decisions.
+- `grilling` stress-tests plans and decisions before implementation.
+- `github-commit-pr` provides shared commit and pull-request conventions for
+  Codex and Claude.
+
 ## Important files
 
 ### `graph.py`
@@ -85,7 +104,8 @@ Builds the LangGraph flow.
 It connects the nodes and controls where each step goes next.
 
 `validation` and `more items` are shown as diamonds in the viewer because they
-are decision steps.
+are decision steps. The default graph uses a shared SQLite checkpoint store at
+`.shanks/checkpoints.sqlite`; set `SHANKS_CHECKPOINT_DB` to override the path.
 
 ### `workflow/state.py`
 
@@ -93,7 +113,9 @@ Defines the shared state.
 
 Think of the state as a shared notebook. It stores things like:
 
+- The selected learn or implement mode.
 - The current PRD item.
+- Whether each item passed building and validation.
 - The plan.
 - Files changed.
 - Critic feedback.
@@ -101,6 +123,10 @@ Think of the state as a shared notebook. It stores things like:
 - Debugger findings.
 - Attempt counts.
 - Which model was used.
+
+The authoritative validator currently runs the local unittest suite. The
+workflow tracks validation per PRD item, but item-specific acceptance criteria
+and validation commands are future work.
 
 ### `workflow/contracts.py`
 
@@ -124,6 +150,9 @@ There are adapters for:
 
 The default graph uses fake agents. They do not call an outside AI service.
 Real agents must be passed into `build_graph()` on purpose.
+
+`LocalTestAdapter` is the default validation adapter for real project runs and
+reports test failures back to the graph as structured validation errors.
 
 ### `workflow/nodes.py`
 
@@ -161,11 +190,18 @@ The workflow and viewer share checkpoints through
 the same run. Set `SHANKS_CHECKPOINT_DB` in both processes to use a different
 shared database path.
 
+Validated items are committed by `commit_item`. The final `github_node` pushes
+the branch and opens the pull request. Persisted commit and PR IDs act as
+replay guards when a run resumes after a failure.
+
 ### `tests/`
 
 Checks that the graph works.
 
-The tests cover retries, validation failures, item progress, attempt limits, and agent adapters.
+The tests cover retries, validation failures, item progress, attempt limits,
+failed-build routing, idempotent GitHub handoff, viewer state inspection, and
+agent adapters. GitHub Actions runs the unittest suite on pushes and pull
+requests.
 
 ### `graphify-out/`
 
@@ -282,5 +318,8 @@ Run the tests:
 - The default agents are fake test agents.
 - The graph does not yet call a real model by default.
 - Ralph, Codex, and Claude adapters are ready to be connected deliberately.
-- Git push and final human approval are not graph nodes yet.
+- Human approval gates before commit, push, and pull-request side effects are
+  not implemented yet.
 - Checkpoint/state schema versioning and migrations are not implemented yet.
+- Pull-request lifecycle management, such as updating existing PRs and
+  assigning reviewers, is not implemented yet.

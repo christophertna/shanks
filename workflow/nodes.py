@@ -332,6 +332,16 @@ def building(state: WorkflowState, dependencies: NodeDependencies) -> WorkflowSt
                 ]
             )
         )
+    uncertainties_by_item = dict(state.get("uncertainties_by_item", {}))
+    if item_id and (item_id in uncertainties_by_item or result.uncertainties):
+        uncertainties_by_item[item_id] = list(
+            dict.fromkeys(
+                [
+                    *uncertainties_by_item.get(item_id, []),
+                    *result.uncertainties,
+                ]
+            )
+        )
     update.update(
         {
             "attempts_count": attempts_count,
@@ -340,6 +350,7 @@ def building(state: WorkflowState, dependencies: NodeDependencies) -> WorkflowSt
             "build_completed": result.status != "failed",
             "status": result.status or "built",
             "files_touched_by_item": files_touched_by_item,
+            "uncertainties_by_item": uncertainties_by_item,
         }
     )
     if result.item_built is not False and result.status != "failed":
