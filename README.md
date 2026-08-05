@@ -17,7 +17,8 @@ and its recovery paths.
 - `graph.py` assembles the executable LangGraph workflow.
 - `serve_graph.py` serves the live graph viewer.
 - `scripts/ralph/` contains Ralph-oriented supporting instructions and examples.
-- `.agents/skills/` contains reusable domain-modeling, planning, and GitHub PR skills.
+- `skills/` contains shared skill sources; `.agents/skills/` and `.claude/skills/`
+  expose project-scoped Codex and Claude entrypoints.
 - `.github/workflows/tests.yml` runs the unittest suite on pushes and pull requests.
 - `tests/` covers graph routing, node contracts, and viewer output.
 
@@ -75,6 +76,10 @@ the enriched requirement to the builder.
 
 In each PRD item, `passes` means Ralph finished the build and `validation`
 means the graph’s authoritative test gate passed.
+
+Ralph records only genuinely uncertain implementation decisions reported by the
+builder. They are parsed from the `RALPH_UNCERTAINTIES` output section and stored
+per PRD item for later review.
 
 For implement runs, each validated item is committed locally. After the last
 item passes, the final GitHub handoff pushes the current non-`main` branch and

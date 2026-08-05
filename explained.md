@@ -92,9 +92,13 @@ The project keeps reusable skills under `.agents/skills/`:
 
 - `domain-modeling` records shared terminology, context, and architecture decisions.
 - `grilling` stress-tests plans and decisions before implementation.
+- `decisions` lists genuinely uncertain choices made during the current work;
+  it is invoked manually.
 - `github-commit-pr` provides shared commit and pull-request conventions for
   Codex and Claude.
 
+The shared `decisions` skill source lives in `skills/decisions/` and is exposed
+through symlinked project entrypoints under `.agents/skills/` and `.claude/skills/`.
 ## Important files
 
 ### `graph.py`
@@ -118,9 +122,11 @@ Think of the state as a shared notebook. It stores things like:
 - Whether each item passed building and validation.
 - The plan.
 - Files changed.
+- Whether each item passed building and validation.
 - Critic feedback.
 - Validation errors.
 - Debugger findings.
+- Genuine builder uncertainties, grouped by PRD item.
 - Attempt counts.
 - Which model was used.
 
@@ -153,6 +159,8 @@ Real agents must be passed into `build_graph()` on purpose.
 
 `LocalTestAdapter` is the default validation adapter for real project runs and
 reports test failures back to the graph as structured validation errors.
+`RalphAdapter` parses the builder's `RALPH_UNCERTAINTIES` section into the
+current item's uncertainty list.
 
 ### `workflow/nodes.py`
 
@@ -264,6 +272,10 @@ directory for backward compatibility, so this agent repository's Git tracking
 also remains at the base directory. A separately supplied target uses its own
 Git repository when it is a different repository.
 
+Each builder iteration reports only real uncertainty about an implemented
+choice. The runner stores those bullets by PRD item and omits routine or
+confident decisions.
+
 Ralph now loads the project-local `ponytail` skill by default and prepends its
 instructions to every iteration:
 
@@ -320,6 +332,6 @@ Run the tests:
 - Ralph, Codex, and Claude adapters are ready to be connected deliberately.
 - Human approval gates before commit, push, and pull-request side effects are
   not implemented yet.
-- Checkpoint/state schema versioning and migrations are not implemented yet.
 - Pull-request lifecycle management, such as updating existing PRs and
   assigning reviewers, is not implemented yet.
+- Checkpoint/state schema versioning and migrations are not implemented yet.
