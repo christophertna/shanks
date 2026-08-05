@@ -717,14 +717,16 @@ class GitHubAdapter:
                 error=redact_secrets(str(error)),
             )
 
-        output = "\n".join(
-            part
-            for part in (
-                redact_secrets((completed.stdout or "").strip()),
-                redact_secrets((completed.stderr or "").strip()),
-            )
-            if part
-        )
+        stdout = redact_secrets((completed.stdout or "").strip())
+        stderr = redact_secrets((completed.stderr or "").strip())
+        if completed.returncode == 0 and command in {
+            ("git", "status", "--short", "--untracked-files=all"),
+            ("git", "branch", "--show-current"),
+            ("git", "rev-parse", "HEAD"),
+        }:
+            output = stdout
+        else:
+            output = "\n".join(part for part in (stdout, stderr) if part)
         if completed.returncode != 0:
             return AgentResult(
                 status="failed",
