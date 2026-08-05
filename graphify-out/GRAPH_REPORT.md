@@ -1,16 +1,16 @@
 # Graph Report - shanks  (2026-08-05)
 
 ## Corpus Check
-- 30 files · ~18,711 words
+- 30 files · ~19,134 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 418 nodes · 955 edges · 20 communities (18 shown, 2 thin omitted)
-- Extraction: 88% EXTRACTED · 12% INFERRED · 0% AMBIGUOUS · INFERRED: 114 edges (avg confidence: 0.55)
+- 425 nodes · 986 edges · 21 communities (19 shown, 2 thin omitted)
+- Extraction: 88% EXTRACTED · 12% INFERRED · 0% AMBIGUOUS · INFERRED: 118 edges (avg confidence: 0.56)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `f8ebb3a8`
+- Built from commit: `db050046`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -31,16 +31,17 @@
 - NodeContractTests
 - GitHub Commits and PRs
 - .__init__
+- RepositoryAdapter
 - adapters.py
 
 ## God Nodes (most connected - your core abstractions)
 1. `AgentResult` - 52 edges
 2. `AgentRequest` - 51 edges
 3. `NodeDependencies` - 48 edges
-4. `WorkflowState` - 42 edges
+4. `WorkflowState` - 43 edges
 5. `NodeContractTests` - 37 edges
-6. `StubAgentAdapter` - 25 edges
-7. `GraphRoutingTests` - 24 edges
+6. `GraphRoutingTests` - 27 edges
+7. `StubAgentAdapter` - 25 edges
 8. `GitHubAdapter` - 23 edges
 9. `AgentAdapter` - 23 edges
 10. `default_dependencies()` - 23 edges
@@ -52,19 +53,19 @@
   graph.py → workflow/state.py
 - `SequenceAdapter` --uses--> `AgentRequest`  [INFERRED]
   tests/test_graph.py → workflow/contracts.py
-- `RecordingRepository` --uses--> `AgentRequest`  [INFERRED]
+- `SequenceAdapter` --uses--> `AgentResult`  [INFERRED]
   tests/test_graph.py → workflow/contracts.py
-- `GraphRoutingTests` --uses--> `AgentRequest`  [INFERRED]
+- `RecordingRepository` --uses--> `AgentRequest`  [INFERRED]
   tests/test_graph.py → workflow/contracts.py
 
 ## Import Cycles
 - None detected.
 
-## Communities (20 total, 2 thin omitted)
+## Communities (21 total, 2 thin omitted)
 
 ### Community 0 - "NodeDependencies"
-Cohesion: 0.15
-Nodes (16): Command, build_graph(), GraphRoutingTests, _initial_state(), Keep graph tests isolated from the shared production checkpoint store., RecordingRepository, SequenceAdapter, _stub_dependencies() (+8 more)
+Cohesion: 0.18
+Nodes (13): Command, build_graph(), GraphRoutingTests, _initial_state(), invoke_with_approvals(), Keep graph tests isolated from the shared production checkpoint store., RecordingRepository, SequenceAdapter (+5 more)
 
 ### Community 1 - "GraphRequestHandler"
 Cohesion: 0.06
@@ -72,7 +73,7 @@ Nodes (38): BaseHTTPRequestHandler, ModuleType, _current_item(), execution_state
 
 ### Community 2 - "nodes.py"
 Cohesion: 0.06
-Nodes (75): build_graph(), LangGraph workflow assembled from standardized agent nodes., Open the SQLite checkpoint store shared by workflow and viewer processes., Build the workflow with optional adapters or a Claude/Codex choice., shared_checkpointer(), NodeError, NodeFunction, TypedDict (+67 more)
+Nodes (76): build_graph(), LangGraph workflow assembled from standardized agent nodes., Open the SQLite checkpoint store shared by workflow and viewer processes., Build the workflow with optional adapters or a Claude/Codex choice., shared_checkpointer(), NodeError, NodeFunction, TypedDict (+68 more)
 
 ### Community 3 - "Shanks"
 Cohesion: 0.40
@@ -118,9 +119,13 @@ Nodes (6): Commit, push, and PR checks, Commit subject, GitHub Commits and PRs, 
 Cohesion: 0.12
 Nodes (15): builder_instructions, root_cause, additionalProperties, minLength, type, type, properties, builder_instructions (+7 more)
 
+### Community 18 - "RepositoryAdapter"
+Cohesion: 0.29
+Nodes (5): Protocol, Interface for local commits and the final GitHub handoff., Commit one validated item's intended files., Push the branch and create its pull request., RepositoryAdapter
+
 ### Community 19 - "adapters.py"
 Cohesion: 0.06
-Nodes (52): Protocol, NodeContractTests, ValueError, CheapCriticAdapter, ClaudeAdapter, ClaudeOpus48CriticAdapter, CodexAdapter, _critic_request() (+44 more)
+Nodes (54): NodeContractTests, ValueError, CheapCriticAdapter, ClaudeAdapter, ClaudeOpus48CriticAdapter, CodexAdapter, _critic_request(), _critic_result() (+46 more)
 
 ## Knowledge Gaps
 - **71 isolated node(s):** `RALPH_BASE_DIR`, `RALPH_PROJECT_DIR`, `$schema`, `type`, `additionalProperties` (+66 more)
@@ -130,11 +135,11 @@ Nodes (52): Protocol, NodeContractTests, ValueError, CheapCriticAdapter, ClaudeA
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `NodeDependencies` connect `NodeDependencies` to `nodes.py`, `adapters.py`, `GitHubAdapter`, `VersionedSqliteSaver`?**
+- **Why does `NodeDependencies` connect `NodeDependencies` to `RepositoryAdapter`, `nodes.py`, `adapters.py`, `VersionedSqliteSaver`?**
   _High betweenness centrality (0.087) - this node is a cross-community bridge._
 - **Why does `build_graph()` connect `nodes.py` to `NodeDependencies`, `GraphRequestHandler`, `adapters.py`, `VersionedSqliteSaver`?**
   _High betweenness centrality (0.072) - this node is a cross-community bridge._
-- **Why does `AgentRequest` connect `adapters.py` to `NodeDependencies`, `nodes.py`, `GitHubAdapter`?**
+- **Why does `AgentRequest` connect `adapters.py` to `NodeDependencies`, `nodes.py`?**
   _High betweenness centrality (0.064) - this node is a cross-community bridge._
 - **Are the 19 inferred relationships involving `AgentResult` (e.g. with `GraphRoutingTests` and `RecordingRepository`) actually correct?**
   _`AgentResult` has 19 INFERRED edges - model-reasoned connections that need verification._

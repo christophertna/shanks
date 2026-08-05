@@ -82,6 +82,11 @@ the enriched requirement to the builder.
 In each PRD item, `passes` means Ralph finished the build and `validation`
 means the graph’s authoritative test gate passed.
 
+Validated implement runs pause for human approval before committing each item.
+After the last item, they pause again before pushing the branch and opening a
+pull request. Resume an approval interrupt with `Command(resume="approve")` or
+end the run without the side effect with `Command(resume="reject")`.
+
 Ralph records only genuinely uncertain implementation decisions reported by the
 builder. They are parsed from the `RALPH_UNCERTAINTIES` output section and stored
 per PRD item for later review.

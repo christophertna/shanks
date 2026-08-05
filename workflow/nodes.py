@@ -499,6 +499,17 @@ def commit_item(
         return {"status": "commit_skipped"}
 
     item_id = state.get("current_item_id", "")
+    if not _request_approval(
+        action="commit",
+        question="Approve committing this validated item?",
+        details={
+            "item_id": item_id,
+            "item_title": state.get("current_item_title", ""),
+            "files": list(state.get("files_touched_by_item", {}).get(item_id, [])),
+        },
+    ):
+        return _approval_denied("commit")
+
     result = repository.commit_item(
         item_id,
         state.get("current_item_title", ""),
@@ -521,6 +532,16 @@ def github_node(
         }
     if repository is None:
         return {"status": "complete"}
+
+    if not _request_approval(
+        action="publish_pr",
+        question="Approve pushing the branch and opening a pull request?",
+        details={
+            "operations": ["push", "open_pull_request"],
+            "task": state.get("task", ""),
+        },
+    ):
+        return _approval_denied("push or open a pull request")
 
     return state_update_from_result(repository.publish_pr(state.get("task", "")))
 
@@ -613,7 +634,11 @@ def route_after_commit(
 ) -> Literal["item_router", "__end__"]:
     """Continue only when the validated item was committed or had no changes."""
 
-    return "__end__" if state.get("status") == "failed" else "item_router"
+    return (
+        "item_router"
+        if state.get("status") in {"committed", "no_changes", "commit_skipped"}
+        else "__end__"
+    )
 
 
 def route_after_item_router(
@@ -656,6 +681,55 @@ def _debugger_details(
     if builder_instructions:
         details.append(f"Repair instructions: {builder_instructions}")
     return "\n".join(details)
+
+
+def _request_approval(
+    *,
+    action: str,
+    question: str,
+    details: dict[str, object],
+) -> bool:
+    """Pause until a human explicitly approves or rejects a side effect."""
+
+    prompt: dict[str, object] = {
+        "type": "approval",
+        "action": action,
+        "question": question,
+        "options": [
+            {"value": "approve", "label": "Approve"},
+            {"value": "reject", "label": "Reject"},
+        ],
+        **details,
+    }
+    while True:
+        answer = interrupt(prompt)
+        if isinstance(answer, dict):
+            answer = next(
+                (
+                    answer[key]
+                    for key in ("choice", "approval", "decision", "approved")
+                    if key in answer
+                ),
+                None,
+            )
+        if answer is True:
+            return True
+        if answer is False:
+            return False
+        if isinstance(answer, str):
+            answer = answer.strip().lower()
+            if answer in {"approve", "approved", "yes", "y"}:
+                return True
+            if answer in {"reject", "rejected", "deny", "denied", "no", "n"}:
+                return False
+        prompt = {**prompt, "error": "Choose approve or reject."}
+
+
+def _approval_denied(action: str) -> WorkflowState:
+    return {
+        "status": "approval_denied",
+        "last_error": f"Human approval denied before {action}.",
+    }
 
 
 def _request_for(

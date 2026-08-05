@@ -237,7 +237,10 @@ class GraphRoutingTests(unittest.TestCase):
 
     def test_graph_advances_through_all_incomplete_items(self) -> None:
         repository = RecordingRepository()
-        result = build_graph(_stub_dependencies(repository)).invoke(
+        graph = build_graph(_stub_dependencies(repository))
+        config = {"configurable": {"thread_id": "advances-items"}}
+        result = invoke_with_approvals(
+            graph,
             {
                 "task": "Build the workflow",
                 "workflow_mode": "implement",
@@ -246,7 +249,7 @@ class GraphRoutingTests(unittest.TestCase):
                     {"id": "item-2", "title": "Second item", "passes": False},
                 ],
             },
-            {"configurable": {"thread_id": "advances-items"}},
+            config,
         )
 
         self.assertTrue(all(item["passes"] for item in result["prd_items"]))
@@ -436,7 +439,8 @@ class GraphRoutingTests(unittest.TestCase):
             repository=repository,
         )
 
-        result = build_graph(dependencies).invoke(
+        result = invoke_with_approvals(
+            build_graph(dependencies),
             _initial_state(),
             {"configurable": {"thread_id": "validation-retry"}},
         )
@@ -481,7 +485,8 @@ class GraphRoutingTests(unittest.TestCase):
     def test_failed_item_commit_stops_before_the_pull_request(self) -> None:
         repository = RecordingRepository(fail_commit=True)
 
-        result = build_graph(_stub_dependencies(repository)).invoke(
+        result = invoke_with_approvals(
+            build_graph(_stub_dependencies(repository)),
             _initial_state(),
             {"configurable": {"thread_id": "commit-failure"}},
         )
@@ -497,9 +502,8 @@ class GraphRoutingTests(unittest.TestCase):
             [AgentResult(status="debugged", assigned_model="debugger")],
         )
 
-        result = build_graph(
-            _stub_dependencies(repository, debugger=debugger)
-        ).invoke(
+        result = invoke_with_approvals(
+            build_graph(_stub_dependencies(repository, debugger=debugger)),
             _initial_state(),
             {"configurable": {"thread_id": "github-failure"}},
         )
@@ -602,6 +606,65 @@ class GraphRoutingTests(unittest.TestCase):
         self.assertEqual(route_after_github({"status": "failed"}), "__end__")
         self.assertEqual(route_after_github({"status": "complete"}), "__end__")
 
+    def test_commit_requires_approval_before_side_effect(self) -> None:
+        repository = RecordingRepository()
+        graph = build_graph(_stub_dependencies(repository))
+        config = {"configurable": {"thread_id": "commit-approval"}}
+
+        paused = graph.invoke(_initial_state(), config)
+        approval = paused["__interrupt__"][0].value
+        self.assertEqual(approval["type"], "approval")
+        self.assertEqual(approval["action"], "commit")
+        self.assertEqual(repository.commits, [])
+
+        paused = graph.invoke(Command(resume="approve"), config)
+
+        self.assertEqual(repository.commits, ["item-1"])
+        self.assertEqual(
+            paused["__interrupt__"][0].value["action"],
+            "publish_pr",
+        )
+
+        result = graph.invoke(Command(resume="approve"), config)
+
+        self.assertEqual(result["status"], "pr_created")
+
+    def test_rejected_commit_ends_without_commit_or_pull_request(self) -> None:
+        repository = RecordingRepository()
+        graph = build_graph(_stub_dependencies(repository))
+        config = {"configurable": {"thread_id": "commit-rejection"}}
+
+        result = graph.invoke(_initial_state(), config)
+        self.assertEqual(result["__interrupt__"][0].value["action"], "commit")
+        result = graph.invoke(Command(resume="reject"), config)
+
+        self.assertEqual(result["status"], "approval_denied")
+        self.assertEqual(repository.commits, [])
+        self.assertEqual(repository.pull_requests, [])
+
+    def test_rejected_publish_ends_without_push_or_pull_request(self) -> None:
+        repository = RecordingRepository()
+        graph = build_graph(_stub_dependencies(repository))
+        config = {"configurable": {"thread_id": "publish-rejection"}}
+
+        result = graph.invoke(
+            {
+                "task": "Already complete",
+                "workflow_mode": "implement",
+                "prd_items": [{"id": "done", "passes": True}],
+            },
+            config,
+        )
+        self.assertEqual(
+            result["__interrupt__"][0].value["operations"],
+            ["push", "open_pull_request"],
+        )
+
+        result = graph.invoke(Command(resume="reject"), config)
+
+        self.assertEqual(result["status"], "approval_denied")
+        self.assertEqual(repository.pull_requests, [])
+
 
 def _initial_state() -> dict[str, object]:
     return {
@@ -630,6 +693,13 @@ def _stub_dependencies(
         debugger=debugger or StubAgentAdapter("debugger", "debugger"),
         repository=repository,
     )
+
+
+def invoke_with_approvals(graph, input_state, config):
+    result = graph.invoke(input_state, config)
+    while "__interrupt__" in result:
+        result = graph.invoke(Command(resume="approve"), config)
+    return result
 
 
 if __name__ == "__main__":
