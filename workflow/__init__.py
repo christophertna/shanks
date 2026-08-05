@@ -2,7 +2,7 @@
 
 from .contracts import AgentAdapter, AgentRequest, AgentResult, NodeFunction
 from .nodes import NodeDependencies, create_nodes, default_dependencies
-from .state import PRDItem, WorkflowState
+from .state import PRDItem, WorkflowState, cancel_run
 
 __all__ = [
     "AgentAdapter",
@@ -12,6 +12,7 @@ __all__ = [
     "NodeDependencies",
     "PRDItem",
     "WorkflowState",
+    "cancel_run",
     "create_nodes",
     "default_dependencies",
 ]

@@ -430,6 +430,10 @@
             <strong id="execution-attempts" class="metric-value">—</strong>
           </div>
           <div class="metric">
+            <span class="metric-label">Budget</span>
+            <strong id="execution-budget" class="metric-value">—</strong>
+          </div>
+          <div class="metric">
             <span class="metric-label">Last error</span>
             <strong id="execution-error" class="metric-value">—</strong>
           </div>
@@ -462,6 +466,7 @@
       const executionNode = document.getElementById("execution-node");
       const executionItem = document.getElementById("execution-item");
       const executionAttempts = document.getElementById("execution-attempts");
+      const executionBudget = document.getElementById("execution-budget");
       const executionError = document.getElementById("execution-error");
       const executionModel = document.getElementById("execution-model");
       const checkpointHistory = document.getElementById("checkpoint-history");
@@ -549,6 +554,13 @@
         executionNode.textContent = displayValue(data.current_node, "Complete");
         executionItem.textContent = displayValue(item.title || item.id);
         executionAttempts.textContent = displayValue(data.attempt_count, "0");
+        const maxCost = Number(data.max_cost_usd || 0);
+        const cost = Number(data.total_cost_usd || 0);
+        executionBudget.textContent = [
+          `${displayValue(data.total_attempts, "0")}/${displayValue(data.max_total_attempts, "∞")} attempts`,
+          `${displayValue(data.total_tokens, "0")}/${displayValue(data.max_tokens, "∞")} tokens`,
+          maxCost > 0 ? `$${cost.toFixed(2)}/$${maxCost.toFixed(2)}` : `$${cost.toFixed(2)}`,
+        ].join(" · ");
         executionError.textContent = displayValue(data.last_error, "None");
         executionModel.textContent = displayValue(data.model);
         renderCheckpointHistory(data.checkpoint_history || []);

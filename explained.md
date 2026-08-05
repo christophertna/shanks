@@ -45,7 +45,10 @@ more items? ──→ Complete
 - Failed builds use an explicit terminal `failed_build` route and do not run
   critic or validation.
 
-There is a limit on build attempts. This helps stop endless loops.
+There are per-item and whole-run attempt limits. The workflow also tracks a
+wall-clock deadline, estimated token usage, and reported cost. When a limit is
+reached, or when `cancel_run(...)` is applied to a checkpoint, the graph takes
+the terminal `stop_run` path without invoking another backend.
 
 ## Critic
 
@@ -129,6 +132,9 @@ Think of the state as a shared notebook. It stores things like:
 - Debugger findings.
 - Genuine builder uncertainties, grouped by PRD item.
 - Attempt counts.
+- Run time, total-attempt, token, and cost budgets.
+- Cumulative adapter usage.
+- A cancellation request and its reason.
 - Which model was used.
 
 ### Checkpoint compatibility
@@ -136,10 +142,11 @@ Think of the state as a shared notebook. It stores things like:
 The workflow stores state in `.shanks/checkpoints.sqlite`. Each state has a
 `state_schema_version` so the workflow can tell how to read persisted data.
 
-Older checkpoints without a version are treated as v0 and migrated to v1 when
-they are loaded. New checkpoints are stamped with the current version. If a
-checkpoint comes from a newer version than this code understands, the workflow
-stops with a clear error instead of guessing at the state shape.
+Older checkpoints without a version are treated as v0 and migrated through the
+supported versions when they are loaded. New checkpoints are stamped with the
+current version. If a checkpoint comes from a newer version than this code
+understands, the workflow stops with a clear error instead of guessing at the
+state shape.
 
 The authoritative validator currently runs the local unittest suite. The
 workflow tracks validation per PRD item, but item-specific acceptance criteria
@@ -152,6 +159,10 @@ Defines the common shape for agents.
 Every agent gets an `AgentRequest` and returns an `AgentResult`.
 
 This lets different agents fit into the same graph.
+
+`AgentRequest` carries the remaining run timeout. `AgentResult` can report input
+tokens, output tokens, and cost; CLI adapters estimate tokens from text when a
+provider does not expose usage directly.
 
 ### `workflow/adapters.py`
 
@@ -195,6 +206,10 @@ Contains the work done by each graph node:
 
 It also selects the next unfinished PRD item and handles retries.
 
+The `_versioned_node` wrapper starts the run clock, accumulates usage, checks
+budgets before and after each node, and routes cancellation or budget exhaustion
+to `stop_run`.
+
 ### `graph.html`
 
 Shows the graph in a browser.
@@ -202,8 +217,8 @@ Shows the graph in a browser.
 The nodes are white. Decision nodes are diamonds.
 
 It also has a Live execution panel. Enter a workflow `thread_id` to see the
-current node, PRD item, attempt count, last error, model, and recent
-checkpoints while the workflow runs.
+current node, PRD item, attempt count, run budgets, usage totals, last error,
+model, and recent checkpoints while the workflow runs.
 
 ### `serve_graph.py`
 

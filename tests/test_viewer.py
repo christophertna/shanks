@@ -27,6 +27,7 @@ class GraphViewerTests(unittest.TestCase):
         self.assertIn('graphEvents.addEventListener("open"', content)
         self.assertIn('lastDefinition = "";', content)
         self.assertIn('id="thread-id"', content)
+        self.assertIn('id="execution-budget"', content)
         self.assertIn('fetch(`/graph-state?', content)
         self.assertIn("Checkpoint history", content)
 
@@ -38,6 +39,14 @@ class GraphViewerTests(unittest.TestCase):
                 "current_item_index": 1,
                 "prd_items": [{"id": "item-2", "title": "Second item"}],
                 "attempts_count": 2,
+                "total_attempts": 3,
+                "max_total_attempts": 20,
+                "total_tokens": 120,
+                "max_tokens": 1000,
+                "total_cost_usd": 0.25,
+                "max_cost_usd": 2.0,
+                "max_runtime_seconds": 3600,
+                "cancel_requested": False,
                 "last_error": "Validation failed",
                 "assigned_model": "ralph-model",
                 "status": "building",
@@ -75,6 +84,9 @@ class GraphViewerTests(unittest.TestCase):
         self.assertEqual(result["current_node"], "building")
         self.assertEqual(result["item"]["id"], "item-2")
         self.assertEqual(result["attempt_count"], 2)
+        self.assertEqual(result["total_attempts"], 3)
+        self.assertEqual(result["total_tokens"], 120)
+        self.assertEqual(result["total_cost_usd"], 0.25)
         self.assertEqual(result["last_error"], "Validation failed")
         self.assertEqual(result["model"], "ralph-model")
         self.assertEqual(result["checkpoint_history"][0]["checkpoint_id"], "checkpoint-1")

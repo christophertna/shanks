@@ -33,12 +33,25 @@ class StateSchemaTests(unittest.TestCase):
         self.assertEqual(migrated["state_schema_version"], CURRENT_STATE_SCHEMA_VERSION)
         self.assertNotIn("state_schema_version", legacy)
         self.assertEqual(migrated["task"], "resume this run")
+        self.assertEqual(migrated["max_total_attempts"], 20)
 
     def test_newer_state_schema_is_rejected(self) -> None:
         with self.assertRaises(StateSchemaError):
             migrate_state(
                 {"state_schema_version": CURRENT_STATE_SCHEMA_VERSION + 1}
             )
+
+    def test_v1_state_migrates_run_budget_defaults(self) -> None:
+        migrated = migrate_state({"state_schema_version": 1})
+
+        self.assertEqual(
+            migrated["state_schema_version"],
+            CURRENT_STATE_SCHEMA_VERSION,
+        )
+        self.assertEqual(migrated["max_total_attempts"], 20)
+        self.assertEqual(migrated["max_tokens"], 100_000)
+        self.assertEqual(migrated["total_tokens"], 0)
+        self.assertFalse(migrated["cancel_requested"])
 
     def test_sqlite_saver_migrates_legacy_checkpoint_on_read(self) -> None:
         connection = sqlite3.connect(":memory:", check_same_thread=False)

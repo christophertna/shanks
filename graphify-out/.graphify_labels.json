@@ -20,5 +20,13 @@
   "18": "RepositoryAdapter",
   "19": "adapters.py",
   "20": "skills/decisions/SKILL.md",
-  "21": "test-guard.sh"
+  "21": "test-guard.sh",
+  "22": "GitHubAdapter",
+  "23": "WorkflowState",
+  "24": "nodes.py",
+  "25": "create_nodes",
+  "26": "PRDItem",
+  "27": "RepositoryAdapter",
+  "28": "github_node",
+  "29": "Any"
 }

@@ -128,6 +128,16 @@ class SubprocessAgentAdapter:
                 error=guardrail_error,
             )
 
+        timeout = self.timeout_seconds
+        if request.timeout_seconds is not None:
+            timeout = min(timeout, request.timeout_seconds)
+        if timeout <= 0:
+            return AgentResult(
+                status="failed",
+                assigned_model=self.model_name,
+                error="CLI deadline has elapsed.",
+            )
+
         try:
             completed = subprocess.run(
                 command,
@@ -135,7 +145,7 @@ class SubprocessAgentAdapter:
                 input=prompt,
                 text=True,
                 capture_output=True,
-                timeout=self.timeout_seconds,
+                timeout=timeout,
                 check=False,
             )
         except (OSError, subprocess.TimeoutExpired) as error:
@@ -143,6 +153,7 @@ class SubprocessAgentAdapter:
                 status="failed",
                 assigned_model=self.model_name,
                 error=redact_secrets(str(error)),
+                input_tokens=_estimate_tokens(prompt),
             )
 
         output = "\n".join(
@@ -159,12 +170,16 @@ class SubprocessAgentAdapter:
                 assigned_model=self.model_name,
                 error=output or f"CLI exited with status {completed.returncode}",
                 feedback=output,
+                input_tokens=_estimate_tokens(prompt),
+                output_tokens=_estimate_tokens(output),
             )
 
         return AgentResult(
             status="completed",
             assigned_model=self.model_name,
             feedback=output,
+            input_tokens=_estimate_tokens(prompt),
+            output_tokens=_estimate_tokens(output),
         )
 
     def _command_for(self, request: AgentRequest) -> tuple[str, ...]:
@@ -328,12 +343,18 @@ class LocalTestAdapter(SubprocessAgentAdapter):
                 feedback=result.feedback,
                 validation_passed=False,
                 validation_errors=output.splitlines(),
+                input_tokens=result.input_tokens,
+                output_tokens=result.output_tokens,
+                cost_usd=result.cost_usd,
             )
         return AgentResult(
             status="validated",
             assigned_model=self.model_name,
             feedback=result.feedback,
             validation_passed=True,
+            input_tokens=result.input_tokens,
+            output_tokens=result.output_tokens,
+            cost_usd=result.cost_usd,
         )
 
 
@@ -1009,6 +1030,7 @@ def _critic_request(request: AgentRequest) -> AgentRequest:
         ),
         context=request.context,
         working_directory=request.working_directory,
+        timeout_seconds=request.timeout_seconds,
     )
 
 
@@ -1039,6 +1061,7 @@ def _debugger_request(request: AgentRequest) -> AgentRequest:
         ),
         context=request.context,
         working_directory=request.working_directory,
+        timeout_seconds=request.timeout_seconds,
     )
 
 
@@ -1060,6 +1083,9 @@ def _critic_result(
             assigned_model=adapter.model_name,
             error=f"Critic returned invalid structured output: {error}",
             feedback=raw_result.feedback,
+            input_tokens=raw_result.input_tokens,
+            output_tokens=raw_result.output_tokens,
+            cost_usd=raw_result.cost_usd,
         )
 
     return AgentResult(
@@ -1067,6 +1093,9 @@ def _critic_result(
         assigned_model=adapter.model_name,
         approved=approved,
         feedback=feedback,
+        input_tokens=raw_result.input_tokens,
+        output_tokens=raw_result.output_tokens,
+        cost_usd=raw_result.cost_usd,
     )
 
 
@@ -1097,6 +1126,9 @@ def _debugger_result(
             assigned_model=adapter.model_name,
             error=f"Debugger returned invalid structured output: {error}",
             feedback=raw_result.feedback,
+            input_tokens=raw_result.input_tokens,
+            output_tokens=raw_result.output_tokens,
+            cost_usd=raw_result.cost_usd,
         )
 
     return AgentResult(
@@ -1105,6 +1137,9 @@ def _debugger_result(
         root_cause=root_cause,
         builder_instructions=builder_instructions,
         feedback=feedback,
+        input_tokens=raw_result.input_tokens,
+        output_tokens=raw_result.output_tokens,
+        cost_usd=raw_result.cost_usd,
     )
 
 
@@ -1121,6 +1156,12 @@ def _format_request(request: AgentRequest) -> str:
             f"Context: {request.context}",
         ]
     )
+
+
+def _estimate_tokens(value: str) -> int:
+    """Use a conservative four-characters-per-token estimate for CLI text."""
+
+    return (len(value) + 3) // 4
 
 
 __all__ = [
