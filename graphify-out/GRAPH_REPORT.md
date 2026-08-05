@@ -1,16 +1,16 @@
 # Graph Report - shanks  (2026-08-05)
 
 ## Corpus Check
-- 29 files · ~18,088 words
+- 30 files · ~18,711 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 393 nodes · 885 edges · 19 communities (17 shown, 2 thin omitted)
-- Extraction: 89% EXTRACTED · 11% INFERRED · 0% AMBIGUOUS · INFERRED: 99 edges (avg confidence: 0.53)
+- 418 nodes · 955 edges · 20 communities (18 shown, 2 thin omitted)
+- Extraction: 88% EXTRACTED · 12% INFERRED · 0% AMBIGUOUS · INFERRED: 114 edges (avg confidence: 0.55)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `7b75a165`
+- Built from commit: `f8ebb3a8`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -20,46 +20,47 @@
 - nodes.py
 - Shanks
 - ralph.sh
+- VersionedSqliteSaver
 - Ralph Agent Instructions
 - GitHub Commits and PRs
 - Ralph Agent Instructions (Codex)
 - AGENTS.md
 - CLAUDE.md
 - critic_output.schema.json
+- GitHubAdapter
 - NodeContractTests
 - GitHub Commits and PRs
-- .__init__
 - .__init__
 - adapters.py
 
 ## God Nodes (most connected - your core abstractions)
 1. `AgentResult` - 52 edges
 2. `AgentRequest` - 51 edges
-3. `NodeDependencies` - 44 edges
-4. `WorkflowState` - 40 edges
+3. `NodeDependencies` - 48 edges
+4. `WorkflowState` - 42 edges
 5. `NodeContractTests` - 37 edges
-6. `GraphRoutingTests` - 24 edges
-7. `GitHubAdapter` - 23 edges
-8. `AgentAdapter` - 23 edges
-9. `StubAgentAdapter` - 22 edges
-10. `default_dependencies()` - 22 edges
+6. `StubAgentAdapter` - 25 edges
+7. `GraphRoutingTests` - 24 edges
+8. `GitHubAdapter` - 23 edges
+9. `AgentAdapter` - 23 edges
+10. `default_dependencies()` - 23 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `VersionedSqliteSaver` --uses--> `NodeDependencies`  [INFERRED]
+  graph.py → workflow/nodes.py
+- `VersionedSqliteSaver` --uses--> `WorkflowState`  [INFERRED]
+  graph.py → workflow/state.py
 - `SequenceAdapter` --uses--> `AgentRequest`  [INFERRED]
   tests/test_graph.py → workflow/contracts.py
 - `RecordingRepository` --uses--> `AgentRequest`  [INFERRED]
   tests/test_graph.py → workflow/contracts.py
 - `GraphRoutingTests` --uses--> `AgentRequest`  [INFERRED]
   tests/test_graph.py → workflow/contracts.py
-- `NodeContractTests` --uses--> `StubAgentAdapter`  [INFERRED]
-  tests/test_node_contracts.py → workflow/adapters.py
-- `NodeContractTests` --uses--> `AgentResult`  [INFERRED]
-  tests/test_node_contracts.py → workflow/contracts.py
 
 ## Import Cycles
 - None detected.
 
-## Communities (19 total, 2 thin omitted)
+## Communities (20 total, 2 thin omitted)
 
 ### Community 0 - "NodeDependencies"
 Cohesion: 0.15
@@ -71,7 +72,7 @@ Nodes (38): BaseHTTPRequestHandler, ModuleType, _current_item(), execution_state
 
 ### Community 2 - "nodes.py"
 Cohesion: 0.06
-Nodes (76): build_graph(), LangGraph workflow assembled from standardized agent nodes., Open the SQLite checkpoint store shared by workflow and viewer processes., Build the workflow with optional adapters or a Claude/Codex choice., shared_checkpointer(), NodeError, NodeFunction, Protocol (+68 more)
+Nodes (75): build_graph(), LangGraph workflow assembled from standardized agent nodes., Open the SQLite checkpoint store shared by workflow and viewer processes., Build the workflow with optional adapters or a Claude/Codex choice., shared_checkpointer(), NodeError, NodeFunction, TypedDict (+67 more)
 
 ### Community 3 - "Shanks"
 Cohesion: 0.40
@@ -80,6 +81,10 @@ Nodes (4): Interactive workflow, Main pieces, Quick start, Shanks
 ### Community 4 - "ralph.sh"
 Cohesion: 0.18
 Nodes (6): initialize_metadata_file(), mark_item_built(), RALPH_BASE_DIR, RALPH_PROJECT_DIR, ralph.sh script, upsert_metadata()
+
+### Community 5 - "VersionedSqliteSaver"
+Cohesion: 0.14
+Nodes (14): Any, _migrate_checkpoint_tuple(), Return a checkpoint tuple whose state channels use the current schema., SqliteSaver that migrates workflow state on reads and writes., VersionedSqliteSaver, SqliteSaver, StateSchemaTests, migrate_state() (+6 more)
 
 ### Community 6 - "Ralph Agent Instructions"
 Cohesion: 0.17
@@ -114,8 +119,8 @@ Cohesion: 0.12
 Nodes (15): builder_instructions, root_cause, additionalProperties, minLength, type, type, properties, builder_instructions (+7 more)
 
 ### Community 19 - "adapters.py"
-Cohesion: 0.05
-Nodes (51): NodeContractTests, CheapCriticAdapter, ClaudeAdapter, ClaudeOpus48CriticAdapter, CodexAdapter, _critic_request(), _critic_result(), _debugger_request() (+43 more)
+Cohesion: 0.06
+Nodes (52): Protocol, NodeContractTests, ValueError, CheapCriticAdapter, ClaudeAdapter, ClaudeOpus48CriticAdapter, CodexAdapter, _critic_request() (+44 more)
 
 ## Knowledge Gaps
 - **71 isolated node(s):** `RALPH_BASE_DIR`, `RALPH_PROJECT_DIR`, `$schema`, `type`, `additionalProperties` (+66 more)
@@ -125,17 +130,17 @@ Nodes (51): NodeContractTests, CheapCriticAdapter, ClaudeAdapter, ClaudeOpus48Cr
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `NodeDependencies` connect `NodeDependencies` to `nodes.py`, `adapters.py`?**
-  _High betweenness centrality (0.078) - this node is a cross-community bridge._
-- **Why does `build_graph()` connect `nodes.py` to `NodeDependencies`, `GraphRequestHandler`, `adapters.py`?**
-  _High betweenness centrality (0.075) - this node is a cross-community bridge._
-- **Why does `AgentRequest` connect `adapters.py` to `NodeDependencies`, `nodes.py`?**
-  _High betweenness centrality (0.067) - this node is a cross-community bridge._
+- **Why does `NodeDependencies` connect `NodeDependencies` to `nodes.py`, `adapters.py`, `GitHubAdapter`, `VersionedSqliteSaver`?**
+  _High betweenness centrality (0.087) - this node is a cross-community bridge._
+- **Why does `build_graph()` connect `nodes.py` to `NodeDependencies`, `GraphRequestHandler`, `adapters.py`, `VersionedSqliteSaver`?**
+  _High betweenness centrality (0.072) - this node is a cross-community bridge._
+- **Why does `AgentRequest` connect `adapters.py` to `NodeDependencies`, `nodes.py`, `GitHubAdapter`?**
+  _High betweenness centrality (0.064) - this node is a cross-community bridge._
 - **Are the 19 inferred relationships involving `AgentResult` (e.g. with `GraphRoutingTests` and `RecordingRepository`) actually correct?**
   _`AgentResult` has 19 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 19 inferred relationships involving `AgentRequest` (e.g. with `GraphRoutingTests` and `RecordingRepository`) actually correct?**
   _`AgentRequest` has 19 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 17 inferred relationships involving `NodeDependencies` (e.g. with `GraphRoutingTests` and `RecordingRepository`) actually correct?**
-  _`NodeDependencies` has 17 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 5 inferred relationships involving `WorkflowState` (e.g. with `AgentAdapter` and `AgentRequest`) actually correct?**
-  _`WorkflowState` has 5 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 19 inferred relationships involving `NodeDependencies` (e.g. with `VersionedSqliteSaver` and `GraphRoutingTests`) actually correct?**
+  _`NodeDependencies` has 19 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 6 inferred relationships involving `WorkflowState` (e.g. with `VersionedSqliteSaver` and `AgentAdapter`) actually correct?**
+  _`WorkflowState` has 6 INFERRED edges - model-reasoned connections that need verification._

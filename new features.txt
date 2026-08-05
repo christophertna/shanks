@@ -1,0 +1,52 @@
+Shanks feature roadmap
+
+Priority 1 - Safety and reliability
+
+1- Human approval gates.
+    Require approval before committing, pushing, or opening a pull request.
+
+2- Security guardrails.
+    Restrict allowed paths and commands, redact secrets, and use least-privilege
+    GitHub access.
+
+3- Budgets and cancellation.
+    Add maximum runtime, attempts, cost/tokens, and a clean stop mechanism.
+
+4- Preflight checks.
+    Check GitHub authentication, required tools, clean branches, and the test
+    environment before starting a run.
+
+Priority 2 - Observability and quality
+
+5- Run manifests and audit history.
+    Record prompts, model versions, commands, diffs, test output, commits, and
+    pull request IDs.
+
+6- Item-scoped validation.
+    Add acceptance criteria and per-item validation commands, with the full
+    test suite as a fallback.
+
+7- Failure classification and targeted retries.
+    Classify failures and use targeted retry policies with backoff instead of
+    retrying every error identically.
+
+8- Stronger quality gates.
+    Add formatting, typing, linting, dependency/security scans, and diff-size
+    checks.
+
+9- Fault-injection tests.
+     Exercise Git, GitHub, validation, checkpoint, and agent failures.
+
+Priority 3 - Scale and workflow operations
+
+10- Branch and worktree isolation.
+     Prevent concurrent runs from modifying the same working tree.
+
+11- Pull request lifecycle management.
+     Update existing PRs, detect stale branches, assign reviewers, and apply
+     labels automatically.
+
+Deferred
+
+- Parallelism and additional agent roles. Reliability and observability should
+  come first.

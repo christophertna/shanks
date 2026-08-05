@@ -27,7 +27,12 @@ from .contracts import (
     RepositoryAdapter,
     state_update_from_result,
 )
-from .state import PRDItem, WorkflowState
+from .state import (
+    CURRENT_STATE_SCHEMA_VERSION,
+    PRDItem,
+    WorkflowState,
+    migrate_state,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -122,6 +127,19 @@ def _item_complete(item: PRDItem) -> bool:
     return item.get("validation", True)
 
 
+def _versioned_node(node: NodeFunction) -> NodeFunction:
+    """Migrate resumed state before a node and stamp every new checkpoint."""
+
+    def run(state: WorkflowState) -> WorkflowState:
+        update = node(migrate_state(state))
+        return {
+            **update,
+            "state_schema_version": CURRENT_STATE_SCHEMA_VERSION,
+        }
+
+    return run
+
+
 def create_nodes(
     dependencies: NodeDependencies | None = None,
 ) -> dict[str, NodeFunction]:
@@ -129,7 +147,7 @@ def create_nodes(
 
     deps = dependencies or default_dependencies()
 
-    return {
+    nodes = {
         "intake": intake,
         "learning": lambda state: learning(state, deps),
         "planning": lambda state: planning(state, deps),
@@ -143,6 +161,7 @@ def create_nodes(
         "attempt_limit": attempt_limit,
         "failed_build": failed_build,
     }
+    return {name: _versioned_node(node) for name, node in nodes.items()}
 
 
 def intake(state: WorkflowState) -> WorkflowState:
