@@ -15,8 +15,10 @@ Priority 1 - Observability and quality
     checks. CI, GitHub preflight, and staged commits now run the shared quality
     runner; source diffs are limited to 50 files and 1,000 changed lines.
 
-4- Fault-injection tests.
-     Exercise Git, GitHub, validation, checkpoint, and agent failures.
+4- Fault-injection tests. [implemented; awaiting merge]
+     Exercise Git, GitHub, validation, checkpoint, and agent failures. The
+     dedicated suite injects process errors, PR failures, validation timeouts,
+     agent crashes/timeouts, and checkpoint read/write failures.
 
 Priority 2 - Scale and workflow operations
 
