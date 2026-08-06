@@ -38,6 +38,7 @@ from .state import (
     DEFAULT_MAX_TOTAL_ATTEMPTS,
     PRDItem,
     WorkflowState,
+    append_run_manifest,
     migrate_state,
 )
 
@@ -327,7 +328,10 @@ def preflight(
     check = getattr(repository, "preflight", None)
     if check is None:
         return {"status": "preflight_skipped"}
-    return state_update_from_result(check())
+    result = check()
+    update = state_update_from_result(result)
+    update.update(_audit_result(state, "preflight", result))
+    return update
 
 
 def intake(state: WorkflowState) -> WorkflowState:
@@ -385,6 +389,7 @@ def learning(state: WorkflowState, dependencies: NodeDependencies) -> WorkflowSt
     )
     result = dependencies.planner.run(request)
     update = state_update_from_result(result)
+    update.update(_audit_result(state, "learning", result, request))
     update.update(
         {
             "workflow_mode": None,
@@ -436,6 +441,7 @@ def planning(state: WorkflowState, dependencies: NodeDependencies) -> WorkflowSt
     request = _request_for(state, item, item_id, instructions=instructions)
     result = dependencies.planner.run(request)
     update = state_update_from_result(result)
+    update.update(_audit_result(state, "planning", result, request))
     update.update(
         {
             "current_item_index": item_index,
@@ -512,6 +518,7 @@ def building(state: WorkflowState, dependencies: NodeDependencies) -> WorkflowSt
     )
     result = dependencies.builder.run(request)
     update = _merge_files(state, state_update_from_result(result))
+    update.update(_audit_result(state, "building", result, request))
     attempts_count = state.get("attempts_count", 0) + 1
     total_attempts = state.get("total_attempts", 0) + 1
     item_id = state.get("current_item_id", "")
@@ -562,15 +569,15 @@ def critic_auditor(
     """Review the current item with the configured low-cost critic."""
 
     item = _current_item(state)
-    result = dependencies.critic.run(
-        _request_for(
-            state,
-            item,
-            state.get("current_item_id", ""),
-            instructions=state.get("builder_instructions", ""),
-        )
+    request = _request_for(
+        state,
+        item,
+        state.get("current_item_id", ""),
+        instructions=state.get("builder_instructions", ""),
     )
+    result = dependencies.critic.run(request)
     update = state_update_from_result(result)
+    update.update(_audit_result(state, "critic_auditor", result, request))
     update.update(
         {
             "critic_model": result.assigned_model,
@@ -589,16 +596,16 @@ def validation(
     """Run authoritative validation and mark the current item when it passes."""
 
     item = _current_item(state)
-    result = dependencies.validator.run(
-        _request_for(
-            state,
-            item,
-            state.get("current_item_id", ""),
-            instructions=state.get("builder_instructions", ""),
-        )
+    request = _request_for(
+        state,
+        item,
+        state.get("current_item_id", ""),
+        instructions=state.get("builder_instructions", ""),
     )
+    result = dependencies.validator.run(request)
     passed = bool(result.validation_passed)
     update = state_update_from_result(result)
+    update.update(_audit_result(state, "validation", result, request))
     update.update(
         {
             "validation_passed": passed,
@@ -628,15 +635,15 @@ def debugger(
         failure_message = state.get("last_error", "").strip()
     if not failure_message:
         failure_message = "Validation failed without a reported message."
-    result = dependencies.debugger.run(
-        _request_for(
-            state,
-            item,
-            state.get("current_item_id", ""),
-            instructions=f"Validation failure:\n{failure_message}",
-        )
+    request = _request_for(
+        state,
+        item,
+        state.get("current_item_id", ""),
+        instructions=f"Validation failure:\n{failure_message}",
     )
+    result = dependencies.debugger.run(request)
     update = state_update_from_result(result)
+    update.update(_audit_result(state, "debugger", result, request))
     update.update(
         {
             "debugger_model": result.assigned_model,
@@ -693,7 +700,9 @@ def commit_item(
         state.get("current_item_title", ""),
         list(state.get("files_touched_by_item", {}).get(item_id, [])),
     )
-    return state_update_from_result(result)
+    update = state_update_from_result(result)
+    update.update(_audit_result(state, "commit_item", result))
+    return update
 
 
 def github_node(
@@ -721,7 +730,10 @@ def github_node(
     ):
         return _approval_denied("push or open a pull request")
 
-    return state_update_from_result(repository.publish_pr(state.get("task", "")))
+    result = repository.publish_pr(state.get("task", ""))
+    update = state_update_from_result(result)
+    update.update(_audit_result(state, "github_node", result))
+    return update
 
 
 def attempt_limit(state: WorkflowState) -> WorkflowState:
@@ -968,6 +980,84 @@ def _request_for(
         context=state.get("root_cause", ""),
         timeout_seconds=remaining_runtime_seconds(state),
     )
+
+
+def _audit_result(
+    state: WorkflowState,
+    node: str,
+    result: AgentResult,
+    request: AgentRequest | None = None,
+) -> WorkflowState:
+    """Capture one redacted agent or repository operation in the run manifest."""
+
+    details: dict[str, object] = {
+        "node": node,
+        "status": result.status,
+        "model": result.assigned_model,
+    }
+    if request is not None:
+        details["prompt"] = (
+            redact_secrets(result.prompt)
+            if result.prompt
+            else _redact_manifest_value(
+                {
+                    "task": request.task,
+                    "item_id": request.item_id,
+                    "item_title": request.item_title,
+                    "item_description": request.item_description,
+                    "prd_items": request.prd_items,
+                    "instructions": request.instructions,
+                    "context": request.context,
+                    "timeout_seconds": request.timeout_seconds,
+                }
+            )
+        )
+    if result.commands:
+        details["commands"] = _redact_manifest_value(result.commands)
+    if result.feedback:
+        output = redact_secrets(result.feedback)
+        details["output"] = output
+        if node in {"preflight", "validation"}:
+            details["test_output"] = output
+    if result.test_output:
+        details["test_output"] = redact_secrets(result.test_output)
+    if result.error:
+        details["error"] = redact_secrets(result.error)
+    if result.validation_errors:
+        details["validation_errors"] = [
+            redact_secrets(error) for error in result.validation_errors
+        ]
+    if result.files_touched:
+        details["files_touched"] = list(result.files_touched)
+    if result.diff:
+        details["diff"] = redact_secrets(result.diff)
+    if result.commit_sha:
+        details["commit_sha"] = result.commit_sha
+    if result.pr_url:
+        details["pull_request_url"] = redact_secrets(result.pr_url)
+        details["pull_request_id"] = _pull_request_id(result.pr_url)
+    return append_run_manifest(state, "agent" if request else "repository", **details)
+
+
+def _pull_request_id(url: str) -> str:
+    """Extract the numeric or opaque ID at the end of a pull-request URL."""
+
+    return url.rstrip("/").rsplit("/", 1)[-1] if "/pull/" in url else ""
+
+
+def _redact_manifest_value(value: object) -> object:
+    """Redact strings recursively before they enter persisted state."""
+
+    if isinstance(value, str):
+        return redact_secrets(value)
+    if isinstance(value, dict):
+        return {
+            str(key): _redact_manifest_value(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, (list, tuple)):
+        return [_redact_manifest_value(item) for item in value]
+    return value
 
 
 def _current_item(state: WorkflowState) -> PRDItem:

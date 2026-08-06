@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+from datetime import datetime, timezone
 from typing import Any, Literal, TypedDict, cast
 
 
-CURRENT_STATE_SCHEMA_VERSION = 2
+CURRENT_STATE_SCHEMA_VERSION = 3
 DEFAULT_MAX_RUNTIME_SECONDS = 3600.0
 DEFAULT_MAX_ATTEMPTS = 3
 DEFAULT_MAX_TOTAL_ATTEMPTS = 20
@@ -58,6 +59,7 @@ class WorkflowState(TypedDict, total=False):
     max_cost_usd: float
     cancel_requested: bool
     cancel_reason: str
+    run_manifest: list[dict[str, Any]]
     build_completed: bool
     last_error: str
     assigned_model: str
@@ -108,6 +110,14 @@ def _migrate_v1_to_v2(state: dict[str, Any]) -> dict[str, Any]:
     state.setdefault("total_cost_usd", 0.0)
     state.setdefault("cancel_requested", False)
     state.setdefault("cancel_reason", "")
+    state["state_schema_version"] = 2
+    return state
+
+
+def _migrate_v2_to_v3(state: dict[str, Any]) -> dict[str, Any]:
+    """Add the persisted run manifest and audit history."""
+
+    state.setdefault("run_manifest", [])
     state["state_schema_version"] = CURRENT_STATE_SCHEMA_VERSION
     return state
 
@@ -115,7 +125,28 @@ def _migrate_v1_to_v2(state: dict[str, Any]) -> dict[str, Any]:
 _STATE_MIGRATIONS: dict[int, StateMigration] = {
     0: _migrate_v0_to_v1,
     1: _migrate_v1_to_v2,
+    2: _migrate_v2_to_v3,
 }
+
+
+def append_run_manifest(
+    state: WorkflowState,
+    event_type: str,
+    **details: Any,
+) -> WorkflowState:
+    """Append one timestamped, persisted audit event to the current run."""
+
+    event = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "type": event_type,
+        **details,
+    }
+    return {
+        "run_manifest": [
+            *state.get("run_manifest", []),
+            event,
+        ]
+    }
 
 
 def cancel_run(reason: str = "Cancelled by user.") -> WorkflowState:
@@ -163,4 +194,5 @@ def migrate_state(state: Mapping[str, Any]) -> WorkflowState:
             )
         version = next_version
 
+    migrated.setdefault("run_manifest", [])
     return cast(WorkflowState, migrated)

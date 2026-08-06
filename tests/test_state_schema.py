@@ -53,6 +53,15 @@ class StateSchemaTests(unittest.TestCase):
         self.assertEqual(migrated["total_tokens"], 0)
         self.assertFalse(migrated["cancel_requested"])
 
+    def test_v2_state_migrates_run_manifest(self) -> None:
+        migrated = migrate_state({"state_schema_version": 2})
+
+        self.assertEqual(
+            migrated["state_schema_version"],
+            CURRENT_STATE_SCHEMA_VERSION,
+        )
+        self.assertEqual(migrated["run_manifest"], [])
+
     def test_sqlite_saver_migrates_legacy_checkpoint_on_read(self) -> None:
         connection = sqlite3.connect(":memory:", check_same_thread=False)
         legacy_saver = SqliteSaver(connection)

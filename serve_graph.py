@@ -229,7 +229,7 @@ def _current_item(values: dict) -> dict:
     }
 
 
-def _snapshot_summary(snapshot: object) -> dict:
+def _snapshot_summary(snapshot: object, *, include_manifest: bool = True) -> dict:
     """Flatten a LangGraph state snapshot into data the viewer can render."""
 
     values = getattr(snapshot, "values", None) or {}
@@ -241,7 +241,7 @@ def _snapshot_summary(snapshot: object) -> dict:
     if not model:
         model = values.get("critic_model", "") or values.get("debugger_model", "")
 
-    return {
+    summary = {
         "checkpoint_id": configurable.get("checkpoint_id"),
         "created_at": _json_safe(getattr(snapshot, "created_at", None)),
         "step": metadata.get("step"),
@@ -262,6 +262,9 @@ def _snapshot_summary(snapshot: object) -> dict:
         "model": _json_safe(model),
         "status": _json_safe(values.get("status", "")),
     }
+    if include_manifest:
+        summary["run_manifest"] = _json_safe(values.get("run_manifest", []))
+    return summary
 
 
 def execution_state(graph: object, thread_id: str, *, limit: int = EXECUTION_HISTORY_LIMIT) -> dict:
@@ -270,7 +273,7 @@ def execution_state(graph: object, thread_id: str, *, limit: int = EXECUTION_HIS
     config = {"configurable": {"thread_id": thread_id}}
     snapshot = graph.get_state(config)
     history = [
-        _snapshot_summary(checkpoint)
+        _snapshot_summary(checkpoint, include_manifest=False)
         for checkpoint in graph.get_state_history(config, limit=limit)
     ]
     current = _snapshot_summary(snapshot)

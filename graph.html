@@ -281,6 +281,28 @@
         overflow-wrap: anywhere;
       }
 
+      .checkpoint details {
+        margin-top: 0.45rem;
+      }
+
+      .checkpoint summary {
+        color: #2563eb;
+        cursor: pointer;
+        font-size: 0.74rem;
+      }
+
+      .checkpoint pre {
+        max-height: 18rem;
+        margin: 0.45rem 0 0;
+        overflow: auto;
+        padding: 0.6rem;
+        background: #ffffff;
+        color: #334155;
+        font: 0.7rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+
       .empty-history {
         color: #64748b;
         font-size: 0.82rem;
@@ -447,6 +469,11 @@
           <h3>Checkpoint history</h3>
           <ol id="checkpoint-history" aria-live="polite"></ol>
         </div>
+
+        <div class="history">
+          <h3>Run manifest</h3>
+          <ol id="run-manifest" aria-live="polite"></ol>
+        </div>
       </section>
 
       <section class="graph-shell">
@@ -470,6 +497,7 @@
       const executionError = document.getElementById("execution-error");
       const executionModel = document.getElementById("execution-model");
       const checkpointHistory = document.getElementById("checkpoint-history");
+      const runManifest = document.getElementById("run-manifest");
       let lastDefinition = "";
       let executionRequest = 0;
 
@@ -549,6 +577,66 @@
         }
       }
 
+      function renderRunManifest(manifest) {
+        runManifest.replaceChildren();
+        if (!manifest.length) {
+          const empty = document.createElement("li");
+          empty.className = "empty-history";
+          empty.textContent = "No audit events for this thread.";
+          runManifest.append(empty);
+          return;
+        }
+
+        for (const event of manifest) {
+          const entry = document.createElement("li");
+          entry.className = "checkpoint";
+
+          const main = document.createElement("div");
+          main.className = "checkpoint-main";
+          const title = document.createElement("strong");
+          title.textContent = displayValue(event.node || event.type, "event");
+          main.append(title);
+          main.append(` · ${displayValue(event.status, "completed")}`);
+
+          if (event.commit_sha || event.pull_request_id) {
+            const handoff = document.createElement("div");
+            handoff.className = "checkpoint-error";
+            handoff.style.color = "#166534";
+            handoff.textContent = [
+              event.commit_sha ? `commit ${event.commit_sha}` : "",
+              event.pull_request_id ? `PR #${event.pull_request_id}` : "",
+            ]
+              .filter(Boolean)
+              .join(" · ");
+            main.append(handoff);
+          }
+
+          if (event.error) {
+            const error = document.createElement("div");
+            error.className = "checkpoint-error";
+            error.textContent = event.error;
+            main.append(error);
+          }
+
+          const details = document.createElement("details");
+          const summary = document.createElement("summary");
+          summary.textContent = "Inspect event";
+          const content = document.createElement("pre");
+          content.textContent = JSON.stringify(event, null, 2);
+          details.append(summary, content);
+          main.append(details);
+
+          const meta = document.createElement("div");
+          meta.className = "checkpoint-meta";
+          meta.textContent = event.timestamp
+            ? new Date(event.timestamp).toLocaleTimeString()
+            : "";
+
+          entry.append(main, meta);
+          runManifest.append(entry);
+        }
+      }
+
       function renderExecution(data) {
         const item = data.item || {};
         executionNode.textContent = displayValue(data.current_node, "Complete");
@@ -564,6 +652,7 @@
         executionError.textContent = displayValue(data.last_error, "None");
         executionModel.textContent = displayValue(data.model);
         renderCheckpointHistory(data.checkpoint_history || []);
+        renderRunManifest(data.run_manifest || []);
         executionStatus.textContent = data.available
           ? `Thread ${data.thread_id} · updated ${new Date().toLocaleTimeString()}`
           : data.thread_id
@@ -580,6 +669,7 @@
             thread_id: "",
             item: {},
             checkpoint_history: [],
+            run_manifest: [],
           });
           return;
         }

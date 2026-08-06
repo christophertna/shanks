@@ -187,6 +187,26 @@ class GraphRoutingTests(unittest.TestCase):
         self.assertTrue(result["prd_items"][0]["passes"])
         self.assertEqual(result["current_item_id"], "item-1")
 
+    def test_run_manifest_records_prompts_models_and_pull_request_id(self) -> None:
+        repository = RecordingRepository()
+
+        result = invoke_with_approvals(
+            build_graph(_stub_dependencies(repository)),
+            _initial_state(),
+            {"configurable": {"thread_id": "run-manifest"}},
+        )
+
+        planning_event = next(
+            event for event in result["run_manifest"] if event["node"] == "planning"
+        )
+        github_event = next(
+            event for event in result["run_manifest"] if event["node"] == "github_node"
+        )
+        self.assertEqual(planning_event["type"], "agent")
+        self.assertEqual(planning_event["model"], "planner")
+        self.assertEqual(planning_event["prompt"]["item_id"], "item-1")
+        self.assertEqual(github_event["pull_request_id"], "1")
+
     def test_cancel_run_stops_before_builder(self) -> None:
         builder = SequenceAdapter(
             "builder",

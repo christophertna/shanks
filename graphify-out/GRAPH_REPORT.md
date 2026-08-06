@@ -1,16 +1,16 @@
 # Graph Report - shanks  (2026-08-05)
 
 ## Corpus Check
-- 32 files · ~22,407 words
+- 32 files · ~23,403 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 492 nodes · 1190 edges · 33 communities (30 shown, 3 thin omitted)
-- Extraction: 89% EXTRACTED · 11% INFERRED · 0% AMBIGUOUS · INFERRED: 128 edges (avg confidence: 0.56)
+- 508 nodes · 1239 edges · 27 communities (24 shown, 3 thin omitted)
+- Extraction: 90% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 129 edges (avg confidence: 0.56)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `e63abe38`
+- Built from commit: `f1c46ebf`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -36,26 +36,20 @@
 - test-guard.sh
 - GitHubAdapter
 - WorkflowState
-- nodes.py
-- create_nodes
-- PRDItem
 - RepositoryAdapter
-- github_node
 - Any
 - RalphAdapter
-- LocalTestAdapter
-- AgentAdapter
 
 ## God Nodes (most connected - your core abstractions)
-1. `AgentResult` - 65 edges
+1. `AgentResult` - 67 edges
 2. `NodeDependencies` - 59 edges
-3. `AgentRequest` - 57 edges
-4. `WorkflowState` - 53 edges
+3. `AgentRequest` - 58 edges
+4. `WorkflowState` - 55 edges
 5. `NodeContractTests` - 46 edges
-6. `StubAgentAdapter` - 35 edges
-7. `GraphRoutingTests` - 34 edges
+6. `GraphRoutingTests` - 35 edges
+7. `StubAgentAdapter` - 35 edges
 8. `GitHubAdapter` - 33 edges
-9. `build_graph()` - 27 edges
+9. `build_graph()` - 28 edges
 10. `SubprocessAgentAdapter` - 23 edges
 
 ## Surprising Connections (you probably didn't know these)
@@ -73,19 +67,19 @@
 ## Import Cycles
 - None detected.
 
-## Communities (33 total, 3 thin omitted)
+## Communities (27 total, 3 thin omitted)
 
 ### Community 0 - "NodeDependencies"
-Cohesion: 0.14
-Nodes (19): Command, build_graph(), GraphRoutingTests, _initial_state(), invoke_with_approvals(), PreflightOnlyRepository, Keep graph tests isolated from the shared production checkpoint store., RecordingRepository (+11 more)
+Cohesion: 0.15
+Nodes (16): Command, build_graph(), GraphRoutingTests, _initial_state(), invoke_with_approvals(), PreflightOnlyRepository, Keep graph tests isolated from the shared production checkpoint store., RecordingRepository (+8 more)
 
 ### Community 1 - "GraphRequestHandler"
 Cohesion: 0.06
-Nodes (38): BaseHTTPRequestHandler, ModuleType, _current_item(), execution_state(), graph_revision(), graph_source_files(), GraphRequestHandler, _json_safe() (+30 more)
+Nodes (39): BaseHTTPRequestHandler, ModuleType, _current_item(), execution_state(), graph_revision(), graph_source_files(), GraphRequestHandler, _json_safe() (+31 more)
 
 ### Community 2 - "nodes.py"
-Cohesion: 0.13
-Nodes (25): build_graph(), LangGraph workflow assembled from standardized agent nodes., Open the SQLite checkpoint store shared by workflow and viewer processes., Build the workflow with optional adapters or a Claude/Codex choice., shared_checkpointer(), NodeError, build_error_handler(), Route an exhausted native build-node failure to the terminal path. (+17 more)
+Cohesion: 0.07
+Nodes (35): build_graph(), _migrate_checkpoint_tuple(), LangGraph workflow assembled from standardized agent nodes., Return a checkpoint tuple whose state channels use the current schema., SqliteSaver that migrates workflow state on reads and writes., Open the SQLite checkpoint store shared by workflow and viewer processes., Build the workflow with optional adapters or a Claude/Codex choice., shared_checkpointer() (+27 more)
 
 ### Community 3 - "Shanks"
 Cohesion: 0.33
@@ -96,8 +90,8 @@ Cohesion: 0.18
 Nodes (6): initialize_metadata_file(), mark_item_built(), RALPH_BASE_DIR, RALPH_PROJECT_DIR, ralph.sh script, upsert_metadata()
 
 ### Community 5 - "VersionedSqliteSaver"
-Cohesion: 0.13
-Nodes (16): Any, _migrate_checkpoint_tuple(), Return a checkpoint tuple whose state channels use the current schema., SqliteSaver that migrates workflow state on reads and writes., VersionedSqliteSaver, SqliteSaver, StateSchemaTests, migrate_state() (+8 more)
+Cohesion: 0.24
+Nodes (8): _audit_command(), _estimate_tokens(), _format_request(), Create a stable prompt envelope for CLI-backed adapters., Use a conservative four-characters-per-token estimate for CLI text., Remove common credentials before command output enters workflow state., Return a redacted command suitable for the persisted run manifest., redact_secrets()
 
 ### Community 6 - "Ralph Agent Instructions"
 Cohesion: 0.17
@@ -120,8 +114,8 @@ Cohesion: 0.17
 Nodes (11): approved, feedback, additionalProperties, type, type, properties, approved, feedback (+3 more)
 
 ### Community 12 - "GitHubAdapter"
-Cohesion: 0.14
-Nodes (16): ValueError, ClaudeAdapter, CodexAdapter, _command_path_arguments(), _critic_result(), _debugger_result(), _parse_json_object(), _path_within_any() (+8 more)
+Cohesion: 0.12
+Nodes (18): ValueError, CheapCriticAdapter, ClaudeAdapter, CodexAdapter, _command_path_arguments(), _critic_result(), _debugger_result(), _parse_json_object() (+10 more)
 
 ### Community 13 - "NodeContractTests"
 Cohesion: 0.22
@@ -137,51 +131,27 @@ Nodes (15): builder_instructions, root_cause, additionalProperties, minLength, t
 
 ### Community 19 - "adapters.py"
 Cohesion: 0.13
-Nodes (13): ClaudeOpus48CriticAdapter, GPT56LunaCriticAdapter, Normalize a read-only CLI critic into the common agent result shape., Run the critic_auditor as a read-only GPT-5.6 Luna Codex subagent., Run the critic_auditor as a read-only Claude Opus 4.8 subagent., StructuredCriticAdapter, claude_opus_4_8_dependencies(), default_dependencies() (+5 more)
+Nodes (15): ClaudeOpus48CriticAdapter, GPT56LunaCriticAdapter, Normalize a read-only CLI critic into the common agent result shape., Run the critic_auditor as a read-only GPT-5.6 Luna Codex subagent., Run the critic_auditor as a read-only Claude Opus 4.8 subagent., StructuredCriticAdapter, AgentAdapter, Interface implemented by Ralph, model CLIs, and test doubles. (+7 more)
 
 ### Community 22 - "GitHubAdapter"
 Cohesion: 0.15
-Nodes (5): NodeContractTests, GitHubAdapter, Commit validated items, then push the branch and open its PR., Remove common credentials before command output enters workflow state., redact_secrets()
+Nodes (5): NodeContractTests, _attach_commands(), GitHubAdapter, Commit validated items, then push the branch and open its PR., Keep the full command trail when a multi-command operation fails.
 
 ### Community 23 - "WorkflowState"
-Cohesion: 0.19
-Nodes (21): Translate common agent output into shared workflow state fields., state_update_from_result(), building(), critic_auditor(), _current_item(), debugger(), learning(), _mark_current_item_built() (+13 more)
-
-### Community 24 - "nodes.py"
-Cohesion: 0.17
-Nodes (16): _debugger_details(), _default_plan(), _invalid_budget(), _nonnegative_float(), _nonnegative_int(), planning(), Standardized LangGraph node implementations., Return the first configured cancellation or budget stop reason. (+8 more)
-
-### Community 25 - "create_nodes"
-Cohesion: 0.14
-Nodes (15): NodeFunction, attempt_limit(), create_nodes(), failed_build(), intake(), preflight(), Migrate state, enforce run budgets, and stamp every checkpoint., Create state-only node callables with injected agent backends. (+7 more)
-
-### Community 26 - "PRDItem"
-Cohesion: 0.18
-Nodes (11): TypedDict, Common interfaces shared by agent adapters and graph nodes., Reusable workflow state, agent contracts, adapters, and nodes., _item_complete(), item_router(), Select the first item that is not both built and validated., Treat legacy passes-only items as complete while honoring validation., Prepare the decision to start another item or finish the workflow. (+3 more)
+Cohesion: 0.05
+Nodes (88): Any, NodeFunction, TypedDict, Common interfaces shared by agent adapters and graph nodes., Translate common agent output into shared workflow state fields., state_update_from_result(), Reusable workflow state, agent contracts, adapters, and nodes., _approval_denied() (+80 more)
 
 ### Community 27 - "RepositoryAdapter"
 Cohesion: 0.22
 Nodes (6): Protocol, Interface for local commits and the final GitHub handoff., Check the repository and execution environment before intake., Commit one validated item's intended files., Push the branch and create its pull request., RepositoryAdapter
 
-### Community 28 - "github_node"
-Cohesion: 0.33
-Nodes (7): _approval_denied(), commit_item(), github_node(), Commit the validated current item before selecting the next one., Push the completed branch and create its pull request., Pause until a human explicitly approves or rejects a side effect., _request_approval()
-
 ### Community 29 - "Any"
-Cohesion: 0.14
-Nodes (12): _debugger_request(), DebuggerAdapter, _estimate_tokens(), _format_request(), Give the debugger failure evidence and a read-only analysis mandate., Run a configured CLI backend through the common adapter contract., Create a stable prompt envelope for CLI-backed adapters., Use a conservative four-characters-per-token estimate for CLI text. (+4 more)
+Cohesion: 0.11
+Nodes (15): _critic_request(), _debugger_request(), DebuggerAdapter, LocalTestAdapter, _preflight_failure(), Run a configured CLI backend through the common adapter contract., Add the shared read-only audit instructions to a critic request., Give the debugger failure evidence and a read-only analysis mandate. (+7 more)
 
 ### Community 30 - "RalphAdapter"
 Cohesion: 0.20
 Nodes (5): _parse_uncertainties(), RalphAdapter, Extract the builder's concise uncertainty bullets from Ralph output., Adapter for the project-local Ralph runner., Persist the graph's full PRD before Ralph reads its next story.
-
-### Community 31 - "LocalTestAdapter"
-Cohesion: 0.22
-Nodes (6): _critic_request(), LocalTestAdapter, _preflight_failure(), Add the shared read-only audit instructions to a critic request., Run the target project's local unittest suite for validation., Check tools, branch state, GitHub auth, and the test environment.
-
-### Community 32 - "AgentAdapter"
-Cohesion: 0.29
-Nodes (5): CheapCriticAdapter, Deterministic low-cost critic used by the default graph., AgentAdapter, Interface implemented by Ralph, model CLIs, and test doubles., Run the backend for one workflow node invocation.
 
 ## Knowledge Gaps
 - **72 isolated node(s):** `RALPH_BASE_DIR`, `RALPH_PROJECT_DIR`, `$schema`, `type`, `additionalProperties` (+67 more)
@@ -191,11 +161,11 @@ Nodes (5): CheapCriticAdapter, Deterministic low-cost critic used by the default
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `NodeDependencies` connect `NodeDependencies` to `AgentAdapter`, `GraphRequestHandler`, `nodes.py`, `VersionedSqliteSaver`, `GitHubAdapter`, `adapters.py`, `GitHubAdapter`, `WorkflowState`, `nodes.py`, `create_nodes`, `PRDItem`, `RepositoryAdapter`, `github_node`, `Any`, `RalphAdapter`, `LocalTestAdapter`?**
-  _High betweenness centrality (0.093) - this node is a cross-community bridge._
-- **Why does `AgentResult` connect `NodeDependencies` to `AgentAdapter`, `GitHubAdapter`, `adapters.py`, `GitHubAdapter`, `WorkflowState`, `nodes.py`, `PRDItem`, `RepositoryAdapter`, `Any`, `RalphAdapter`, `LocalTestAdapter`?**
-  _High betweenness centrality (0.073) - this node is a cross-community bridge._
-- **Why does `AgentRequest` connect `Any` to `NodeDependencies`, `AgentAdapter`, `GitHubAdapter`, `adapters.py`, `GitHubAdapter`, `WorkflowState`, `nodes.py`, `PRDItem`, `RalphAdapter`, `LocalTestAdapter`?**
+- **Why does `NodeDependencies` connect `NodeDependencies` to `GraphRequestHandler`, `nodes.py`, `GitHubAdapter`, `adapters.py`, `GitHubAdapter`, `WorkflowState`, `RepositoryAdapter`, `Any`, `RalphAdapter`?**
+  _High betweenness centrality (0.089) - this node is a cross-community bridge._
+- **Why does `AgentResult` connect `NodeDependencies` to `VersionedSqliteSaver`, `GitHubAdapter`, `adapters.py`, `GitHubAdapter`, `WorkflowState`, `RepositoryAdapter`, `Any`, `RalphAdapter`?**
+  _High betweenness centrality (0.077) - this node is a cross-community bridge._
+- **Why does `AgentRequest` connect `Any` to `NodeDependencies`, `VersionedSqliteSaver`, `GitHubAdapter`, `adapters.py`, `GitHubAdapter`, `WorkflowState`, `RalphAdapter`?**
   _High betweenness centrality (0.064) - this node is a cross-community bridge._
 - **Are the 20 inferred relationships involving `AgentResult` (e.g. with `GraphRoutingTests` and `PreflightOnlyRepository`) actually correct?**
   _`AgentResult` has 20 INFERRED edges - model-reasoned connections that need verification._

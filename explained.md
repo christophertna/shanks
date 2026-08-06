@@ -55,6 +55,12 @@ wall-clock deadline, estimated token usage, and reported cost. When a limit is
 reached, or when `cancel_run(...)` is applied to a checkpoint, the graph takes
 the terminal `stop_run` path without invoking another backend.
 
+Every checkpoint also carries a `run_manifest`, which is the run's append-only
+audit history. Events are redacted before persistence and include the agent
+prompt and model, commands, validation/test output, staged diffs, commit SHA,
+and pull-request URL/ID when those operations occur. This keeps execution
+history with the same SQLite checkpoint that supports resume.
+
 ## LIMITS
 
 These defaults are defined in `workflow/state.py` and apply to new or migrated
@@ -161,6 +167,7 @@ Think of the state as a shared notebook. It stores things like:
 - Cumulative adapter usage.
 - A cancellation request and its reason.
 - Which model was used.
+- The persisted run manifest and audit history.
 
 ### Checkpoint compatibility
 
@@ -186,8 +193,9 @@ Every agent gets an `AgentRequest` and returns an `AgentResult`.
 This lets different agents fit into the same graph.
 
 `AgentRequest` carries the remaining run timeout. `AgentResult` can report input
-tokens, output tokens, and cost; CLI adapters estimate tokens from text when a
-provider does not expose usage directly.
+tokens, output tokens, cost, the redacted prompt, executed commands, and a
+staged diff; CLI adapters estimate tokens from text when a provider does not
+expose usage directly.
 
 ### `workflow/adapters.py`
 
@@ -211,6 +219,11 @@ current item's uncertainty list.
 `GitHubAdapter.preflight()` checks required tools, the current branch and
 working tree, GitHub CLI authentication, and the local unittest suite before
 intake.
+
+GitHub commit operations capture the staged diff and command trail before the
+commit. Pull-request handoff events retain the commit/PR metadata, including a
+pull-request ID extracted from its URL. Local validation output is recorded as
+test output in the manifest.
 
 Security guardrails are enforced at the adapter boundary. Agent subprocesses
 use an executable allowlist and configured working-directory roots. The GitHub
@@ -247,7 +260,8 @@ The nodes are white. Decision nodes are diamonds.
 
 It also has a Live execution panel. Enter a workflow `thread_id` to see the
 current node, PRD item, attempt count, run budgets, usage totals, last error,
-model, and recent checkpoints while the workflow runs.
+model, recent checkpoints, and the persisted run manifest while the workflow
+runs. Manifest entries can be expanded to inspect their recorded details.
 
 ### `serve_graph.py`
 
@@ -256,6 +270,7 @@ Runs the local graph viewer.
 It reads `graph.py`, creates a Mermaid diagram, and sends it to `graph.html`.
 The browser updates when `graph.py` changes. Its `/graph-state` endpoint reads
 `get_state()` and `get_state_history()` for the selected thread.
+The `/graph-state` response also includes the current `run_manifest`.
 
 The workflow and viewer share checkpoints through
 `.shanks/checkpoints.sqlite`, which allows separate Python processes to see
@@ -264,7 +279,8 @@ shared database path.
 
 Validated items are committed by `commit_item`. The final `github_node` pushes
 the branch and opens the pull request. Persisted commit and PR IDs act as
-replay guards when a run resumes after a failure.
+replay guards when a run resumes after a failure, and each operation appends an
+audit event to the run manifest.
 
 ### `tests/`
 
