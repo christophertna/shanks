@@ -1,0 +1,32 @@
+Shanks feature roadmap
+
+Priority 1 - Observability and quality
+
+1- Item-scoped validation. [completed]
+    Add acceptance criteria and per-item validation commands, with the full
+    test suite as a fallback.
+
+2- Failure classification and targeted retries. [completed]
+    Classify failures and use targeted retry policies with backoff instead of
+    retrying every error identically.
+
+3- Stronger quality gates.
+    Add formatting, typing, linting, dependency/security scans, and diff-size
+    checks.
+
+4- Fault-injection tests.
+     Exercise Git, GitHub, validation, checkpoint, and agent failures.
+
+Priority 2 - Scale and workflow operations
+
+5- Branch and worktree isolation.
+     Prevent concurrent runs from modifying the same working tree.
+
+6- Pull request lifecycle management.
+     Update existing PRs, detect stale branches, assign reviewers, and apply
+     labels automatically.
+
+Deferred
+
+- Parallelism and additional agent roles. Reliability and observability should
+  come first.

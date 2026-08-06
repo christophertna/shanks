@@ -43,6 +43,7 @@ from .state import (
     migrate_state,
     validation_command_for_item,
 )
+from .retries import classify_failure, retry_delay, retryable_failure
 
 
 @dataclass(frozen=True, slots=True)
@@ -294,6 +295,77 @@ def remaining_runtime_seconds(state: WorkflowState) -> float | None:
     return None
 
 
+_RETRYABLE_NODES = frozenset(
+    {
+        "preflight",
+        "learning",
+        "planning",
+        "building",
+        "critic_auditor",
+        "validation",
+        "debugger",
+    }
+)
+
+
+def _apply_failure_policy(
+    state: WorkflowState,
+    node: str,
+    result: AgentResult,
+    update: WorkflowState,
+) -> WorkflowState:
+    """Record a failure and schedule only safe transient retries."""
+
+    if not result.failure_class:
+        return update
+
+    effective_state = {**state, **update}
+    retry_counts = dict(effective_state.get("retry_counts", {}))
+    retry_number = retry_counts.get(node, 0) + 1
+    retry_counts[node] = retry_number
+    update.update(
+        {
+            "failure_node": node,
+            "retry_counts": retry_counts,
+        }
+    )
+    max_attempts = effective_state.get("max_attempts", DEFAULT_MAX_ATTEMPTS)
+    attempts = effective_state.get("attempts_count", 0)
+    attempts_available = (
+        attempts < max_attempts if node == "building" else retry_number < max_attempts
+    )
+    if (
+        node in _RETRYABLE_NODES
+        and retryable_failure(result.failure_class)
+        and attempts_available
+    ):
+        delay = retry_delay(retry_number)
+        update.update(
+            {
+                "status": "retry_scheduled",
+                "retry_target": node,
+                "retry_delay_seconds": delay,
+            }
+        )
+        update.update(
+            append_run_manifest(
+                {**state, **update},
+                "retry",
+                node=node,
+                failure_class=result.failure_class,
+                retry_number=retry_number,
+                delay_seconds=delay,
+            )
+        )
+    return update
+
+
+def _exception_failure_class(error: BaseException) -> str:
+    """Classify the original exception carried by LangGraph's NodeError."""
+
+    return classify_failure(error=error)
+
+
 def create_nodes(
     dependencies: NodeDependencies | None = None,
 ) -> dict[str, NodeFunction]:
@@ -313,8 +385,10 @@ def create_nodes(
         "debugger": lambda state: debugger(state, deps),
         "item_router": item_router,
         "github_node": lambda state: github_node(state, deps),
+        "retry_backoff": retry_backoff,
         "attempt_limit": attempt_limit,
         "failed_build": failed_build,
+        "failed_run": failed_run,
         "stop_run": stop_run,
     }
     return {name: _versioned_node(node) for name, node in nodes.items()}
@@ -333,7 +407,7 @@ def preflight(
     result = check()
     update = state_update_from_result(result)
     update.update(_audit_result(state, "preflight", result))
-    return update
+    return _apply_failure_policy(state, "preflight", result, update)
 
 
 def intake(state: WorkflowState) -> WorkflowState:
@@ -399,7 +473,7 @@ def learning(state: WorkflowState, dependencies: NodeDependencies) -> WorkflowSt
             "status": "learned" if result.status != "failed" else "learning_failed",
         }
     )
-    return update
+    return _apply_failure_policy(state, "learning", result, update)
 
 
 def planning(state: WorkflowState, dependencies: NodeDependencies) -> WorkflowState:
@@ -478,9 +552,12 @@ def planning(state: WorkflowState, dependencies: NodeDependencies) -> WorkflowSt
                 "build_completed": False,
                 "validation_errors": [],
                 "commit_sha": "",
+                "retry_counts": {},
+                "retry_target": "",
+                "retry_delay_seconds": 0.0,
             }
         )
-    return update
+    return _apply_failure_policy(state, "planning", result, update)
 
 
 def building(state: WorkflowState, dependencies: NodeDependencies) -> WorkflowState:
@@ -561,7 +638,7 @@ def building(state: WorkflowState, dependencies: NodeDependencies) -> WorkflowSt
     )
     if result.item_built is not False and result.status != "failed":
         update["prd_items"] = _mark_current_item_built(state)
-    return update
+    return _apply_failure_policy(state, "building", result, update)
 
 
 def critic_auditor(
@@ -588,7 +665,7 @@ def critic_auditor(
             "status": result.status or "critic_audited",
         }
     )
-    return update
+    return _apply_failure_policy(state, "critic_auditor", result, update)
 
 
 def validation(
@@ -622,7 +699,7 @@ def validation(
         if item_id and item_id not in completed:
             completed.append(item_id)
         update["completed_items"] = completed
-    return update
+    return _apply_failure_policy(state, "validation", result, update)
 
 
 def debugger(
@@ -657,7 +734,7 @@ def debugger(
             "status": result.status or "debugged",
         }
     )
-    return update
+    return _apply_failure_policy(state, "debugger", result, update)
 
 
 def item_router(state: WorkflowState) -> WorkflowState:
@@ -704,6 +781,8 @@ def commit_item(
     )
     update = state_update_from_result(result)
     update.update(_audit_result(state, "commit_item", result))
+    if result.failure_class:
+        update["failure_node"] = "commit_item"
     return update
 
 
@@ -735,6 +814,8 @@ def github_node(
     result = repository.publish_pr(state.get("task", ""))
     update = state_update_from_result(result)
     update.update(_audit_result(state, "github_node", result))
+    if result.failure_class:
+        update["failure_node"] = "github_node"
     return update
 
 
@@ -750,12 +831,34 @@ def attempt_limit(state: WorkflowState) -> WorkflowState:
     }
 
 
+def retry_backoff(state: WorkflowState) -> WorkflowState:
+    """Wait between safe retries without retrying side-effecting operations."""
+
+    delay = state.get("retry_delay_seconds", 0.0)
+    if isinstance(delay, (int, float)) and not isinstance(delay, bool) and delay > 0:
+        time.sleep(delay)
+    return {
+        "status": "retrying",
+        "retry_delay_seconds": 0.0,
+    }
+
+
 def failed_build(state: WorkflowState) -> WorkflowState:
     """Stop safely when the builder fails after its retries are exhausted."""
 
     return {
         "status": "failed",
         "last_error": state.get("last_error") or "Build failed.",
+        "build_completed": False,
+    }
+
+
+def failed_run(state: WorkflowState) -> WorkflowState:
+    """Stop safely after a non-build agent failure cannot be retried."""
+
+    return {
+        "status": "failed",
+        "last_error": state.get("last_error") or "Workflow step failed.",
         "build_completed": False,
     }
 
@@ -775,14 +878,62 @@ def build_error_handler(
 ) -> Command:
     """Route an exhausted native build-node failure to the terminal path."""
 
+    failure_class = _exception_failure_class(error.error)
+    update: WorkflowState = {
+        "status": "failed",
+        "last_error": str(error.error),
+        "failure_class": failure_class,
+        "failure_node": "building",
+        "build_completed": False,
+    }
+    update.update(
+        append_run_manifest(
+            state,
+            "agent_error",
+            node="building",
+            failure_class=failure_class,
+            error=str(error.error),
+        )
+    )
     return Command(
-        update={
-            "status": "failed",
-            "last_error": str(error.error),
-            "build_completed": False,
-        },
+        update=update,
         goto="failed_build",
     )
+
+
+def agent_error_handler(
+    state: WorkflowState,
+    error: NodeError,
+    node: str = "agent",
+) -> Command:
+    """Classify an exhausted non-build node exception and stop safely."""
+
+    failure_class = _exception_failure_class(error.error)
+    update: WorkflowState = {
+        "status": "failed",
+        "last_error": str(error.error),
+        "failure_class": failure_class,
+        "failure_node": node,
+    }
+    update.update(
+        append_run_manifest(
+            state,
+            "agent_error",
+            node=node,
+            failure_class=failure_class,
+            error=str(error.error),
+        )
+    )
+    return Command(update=update, goto="failed_run")
+
+
+def agent_error_handler_for(node: str):
+    """Bind a graph node name while preserving LangGraph error injection."""
+
+    def handle(state: WorkflowState, error: NodeError) -> Command:
+        return agent_error_handler(state, error, node)
+
+    return handle
 
 
 def route_after_building(
@@ -792,13 +943,21 @@ def route_after_building(
     "validation",
     "attempt_limit",
     "failed_build",
+    "retry_backoff",
     "stop_run",
 ]:
     """Route code to review, validation, retry limiting, or failed-build stop."""
 
     if _run_stopped(state):
         return "stop_run"
+    if state.get("status") == "retry_scheduled":
+        return "retry_backoff"
     if state.get("status") == "failed":
+        if (
+            retryable_failure(state.get("failure_class"))
+            and state.get("attempts_count", 0) >= state.get("max_attempts", 3)
+        ):
+            return "attempt_limit"
         return "failed_build"
     if state.get("critic_passed"):
         return "validation"
@@ -812,11 +971,15 @@ def route_after_building(
 
 def route_after_planning(
     state: WorkflowState,
-) -> Literal["building", "item_router", "stop_run"]:
+) -> Literal["building", "item_router", "retry_backoff", "failed_run", "stop_run"]:
     """Start the next item or send an already-complete run to the router."""
 
     if _run_stopped(state):
         return "stop_run"
+    if state.get("status") == "retry_scheduled":
+        return "retry_backoff"
+    if state.get("status") == "failed":
+        return "failed_run"
     if select_next_item(state) is None:
         return "item_router"
     return "building"
@@ -832,26 +995,108 @@ def route_after_intake(
     return "learning" if state.get("workflow_mode") == "learn" else "planning"
 
 
+def route_after_learning(
+    state: WorkflowState,
+) -> Literal["intake", "retry_backoff", "failed_run", "stop_run"]:
+    """Retry transient learn failures without asking for a new mode."""
+
+    if _run_stopped(state):
+        return "stop_run"
+    if state.get("status") == "retry_scheduled":
+        return "retry_backoff"
+    if state.get("status") == "learning_failed":
+        return "failed_run"
+    return "intake"
+
+
 def route_after_preflight(
     state: WorkflowState,
-) -> Literal["intake", "__end__"]:
+) -> Literal["intake", "retry_backoff", "__end__"]:
     """Enter intake only after preflight succeeds or is explicitly skipped."""
 
+    if state.get("status") == "retry_scheduled":
+        return "retry_backoff"
     if _run_stopped(state) or state.get("status") == "preflight_failed":
         return "__end__"
     return "intake"
 
 
+def route_after_critic(
+    state: WorkflowState,
+) -> Literal["building", "retry_backoff", "failed_run", "stop_run"]:
+    """Retry transient review failures but never turn them into rebuilds."""
+
+    if _run_stopped(state):
+        return "stop_run"
+    if state.get("status") == "retry_scheduled":
+        return "retry_backoff"
+    if state.get("status") == "failed":
+        return "failed_run"
+    return "building"
+
+
 def route_after_validation(
     state: WorkflowState,
-) -> Literal["debugger", "commit_item", "stop_run"]:
+) -> Literal["debugger", "commit_item", "retry_backoff", "failed_run", "stop_run"]:
     """Send failures to debugging and successes to the commit checkpoint."""
 
     if _run_stopped(state):
         return "stop_run"
+    if state.get("status") == "retry_scheduled":
+        return "retry_backoff"
     if not state.get("validation_passed"):
+        if (
+            state.get("status") == "failed"
+            and state.get("failure_class") != "validation"
+        ):
+            return "failed_run"
         return "debugger"
     return "commit_item"
+
+
+def route_after_debugger(
+    state: WorkflowState,
+) -> Literal["planning", "retry_backoff", "failed_run", "stop_run"]:
+    """Retry transient debugger failures without hiding permanent failures."""
+
+    if _run_stopped(state):
+        return "stop_run"
+    if state.get("status") == "retry_scheduled":
+        return "retry_backoff"
+    if state.get("status") == "failed":
+        return "failed_run"
+    return "planning"
+
+
+def route_after_retry_backoff(
+    state: WorkflowState,
+) -> Literal[
+    "preflight",
+    "learning",
+    "planning",
+    "building",
+    "critic_auditor",
+    "validation",
+    "debugger",
+    "failed_run",
+    "stop_run",
+]:
+    """Return to the exact safe node that classified the transient failure."""
+
+    if _run_stopped(state):
+        return "stop_run"
+    target = state.get("retry_target")
+    if target in {
+        "preflight",
+        "learning",
+        "planning",
+        "building",
+        "critic_auditor",
+        "validation",
+        "debugger",
+    }:
+        return target
+    return "failed_run"
 
 
 def route_after_commit(
@@ -999,6 +1244,8 @@ def _audit_result(
         "status": result.status,
         "model": result.assigned_model,
     }
+    if result.failure_class:
+        details["failure_class"] = result.failure_class
     if request is not None:
         details["prompt"] = (
             redact_secrets(result.prompt)
@@ -1125,6 +1372,7 @@ __all__ = [
     "create_nodes",
     "debugger",
     "failed_build",
+    "failed_run",
     "default_dependencies",
     "claude_opus_4_8_dependencies",
     "gpt_5_6_luna_dependencies",
@@ -1133,17 +1381,24 @@ __all__ = [
     "learning",
     "item_router",
     "attempt_limit",
+    "agent_error_handler",
+    "agent_error_handler_for",
     "build_error_handler",
     "planning",
     "preflight",
     "route_after_preflight",
     "route_after_intake",
+    "route_after_learning",
     "route_after_building",
     "route_after_commit",
+    "route_after_critic",
+    "route_after_debugger",
     "route_after_github",
     "stop_run",
     "route_after_item_router",
+    "route_after_retry_backoff",
     "route_after_validation",
+    "retry_backoff",
     "select_next_item",
     "validation",
 ]

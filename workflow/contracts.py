@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Protocol
 
+from .retries import FailureClass, classify_failure
 from .state import PRDItem, WorkflowState
 
 
@@ -52,6 +53,21 @@ class AgentResult:
     commands: list[list[str]] = field(default_factory=list)
     diff: str = ""
     test_output: str = ""
+    failure_class: FailureClass | None = None
+
+    def __post_init__(self) -> None:
+        """Classify failures at the shared adapter boundary."""
+
+        if self.failure_class is not None:
+            return
+        failure_status = self.status == "failed" or self.status.endswith("_failed")
+        if not failure_status:
+            return
+        message = self.error or self.feedback
+        if self.validation_errors:
+            message = "\n".join(self.validation_errors)
+        status = "validation_failed" if self.validation_passed is False else self.status
+        self.failure_class = classify_failure(message, status=status)
 
 
 class AgentAdapter(Protocol):
@@ -99,6 +115,8 @@ def state_update_from_result(result: AgentResult) -> WorkflowState:
         "status": result.status,
         "assigned_model": result.assigned_model,
         "last_error": result.error or "",
+        "failure_class": result.failure_class or "",
+        "failure_node": "",
     }
 
     if result.files_touched:

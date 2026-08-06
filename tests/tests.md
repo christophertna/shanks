@@ -1,7 +1,7 @@
 # Test coverage
 
 This document summarizes the behavior covered by the repository's tracked test
-files. The Python suite contains **76 unittest methods** across four modules;
+files. The Python suite contains **84 unittest methods** across four modules;
 `hooks/test-guard.sh` is a separate shell regression harness with eight command
 checks.
 
@@ -19,9 +19,9 @@ Run the Python suite with:
 
 | File | Tests | Main areas |
 | --- | ---: | --- |
-| [`test_graph.py`](test_graph.py) | 31 | Workflow orchestration, item metadata, retries, budgets, approvals, and GitHub handoff |
-| [`test_node_contracts.py`](test_node_contracts.py) | 33 | Agent, subprocess, Ralph, local-test, critic, and GitHub adapter contracts |
-| [`test_state_schema.py`](test_state_schema.py) | 7 | State migration, versioned checkpoints, and legacy resume behavior |
+| [`test_graph.py`](test_graph.py) | 36 | Workflow orchestration, item metadata, targeted retries, budgets, approvals, and GitHub handoff |
+| [`test_node_contracts.py`](test_node_contracts.py) | 35 | Agent, failure-classification, subprocess, Ralph, local-test, critic, and GitHub adapter contracts |
+| [`test_state_schema.py`](test_state_schema.py) | 8 | State migration, retry metadata, versioned checkpoints, and legacy resume behavior |
 | [`test_viewer.py`](test_viewer.py) | 5 | Viewer HTML, execution-state data, checkpoint sharing, and Mermaid output |
 | [`../hooks/test-guard.sh`](../hooks/test-guard.sh) | 8 shell checks | Dangerous-command blocking and safe-command allowlisting |
 
@@ -48,22 +48,32 @@ in [`test_viewer.py`](test_viewer.py).
   its validation flag remains false.
 - Choosing `learn` returns to the same intake question with a learned status and
   no workflow mode selected.
+- A transient learning failure retries the learning node with backoff before
+  returning to intake.
 - Choosing `implement` enters the implementation workflow and creates the
   requested item.
 - Learning notes are carried into the later implementation planning request.
 
 ### Planning, building, and critic review
 
-- A failed builder result stops before critic or validation and leaves
-  `build_completed` false.
+- A permanent failed builder result stops before critic or validation and leaves
+  `build_completed` false; transient failures use the targeted retry path.
 - An exception from the builder is converted into a failed-build state with the
   exception message and the failed-build route.
+- Permanent exceptions from other agent nodes use the classified terminal
+  failure handler instead of escaping the graph.
 - Critic rejection sends feedback into the next builder request and causes the
   same item to be rebuilt; the attempt count and subsequent validation are
   checked.
 - Repeated critic rejection rebuilds the same item until its per-item attempt
   limit is reached, then produces `attempt_limit_reached`.
 - Builder-reported uncertainties are stored under the relevant PRD item ID.
+- Transient builder failures retry the builder with bounded backoff; the retry
+  count and failure classification are persisted.
+- Transient critic failures retry the critic rather than rebuilding already
+  produced code.
+- Transient validation failures retry validation rather than invoking the
+  debugger, while permanent builder failures remain terminal.
 
 ### Validation, debugging, and recovery
 
@@ -83,6 +93,9 @@ in [`test_viewer.py`](test_viewer.py).
   either configured limit stops the run before the critic.
 - The total-attempt budget stops execution before the critic when the budget is
   exhausted.
+- Failure classifications distinguish transient, validation, guardrail, budget,
+  cancellation, and permanent failures; only transient failures enter targeted
+  retry routes.
 - A cancellation in the initial state stops the run before the builder and
   preserves the cancellation message.
 - A cancellation written into a checkpoint is observed when the graph resumes
@@ -184,6 +197,8 @@ Source: [`test_node_contracts.py`](test_node_contracts.py).
 
 - A non-zero local test suite becomes `validation_failed`, with validation set
   to false and the failing output captured as validation errors.
+- Adapter failures expose a shared classification, including transient network
+  or timeout failures and non-retryable guardrail failures.
 - The local validator runs a current item's validation command when provided,
   tokenizes it without a shell, and falls back to full unittest discovery when
   the item has no command.
@@ -234,6 +249,8 @@ also covered in [`test_viewer.py`](test_viewer.py).
 - Version 1 state receives current run-budget defaults, including total token
   and cancellation fields.
 - Version 2 state receives an initialized run manifest.
+- Version 3 state receives failure classification, retry counters, retry target,
+  and backoff fields for resumable targeted retries.
 
 ### SQLite checkpoints and compatibility
 
@@ -253,6 +270,8 @@ Source: [`test_viewer.py`](test_viewer.py).
 - `graph.html` listens for server reconnects, resets the cached graph
   definition, exposes thread and execution-budget controls, fetches graph
   state, and displays checkpoint history and the run manifest.
+- Mermaid output includes the targeted retry backoff node, dashed recovery edges,
+  and the separate terminal route for non-build failures.
 - `execution_state` reads the current checkpoint and bounded history using the
   requested thread ID and history limit.
 - The execution payload exposes current node, item identity, attempt counts,

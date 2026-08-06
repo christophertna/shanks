@@ -43,12 +43,14 @@ more items? ──→ Complete
 - If the critic rejects it, its feedback is passed into the next `building` attempt.
 - If the critic approves it, the code goes to `validation`.
 - If validation fails, `debugger` studies the problem.
+- Transient failures in safe agent or validation nodes return to that same node
+  after bounded exponential backoff; permanent and guardrail failures stop.
 - The problem then goes back to `planning` for the same PRD item.
 - If validation passes, the `more items` decision sends the next PRD item to
   `planning`.
 - When no items remain, `more items` sends the graph to `Complete`.
-- Failed builds use an explicit terminal `failed_build` route and do not run
-  critic or validation.
+- Permanent build failures use an explicit terminal `failed_build` route and do
+  not run critic or validation.
 
 There are per-item and whole-run attempt limits. The workflow also tracks a
 wall-clock deadline, estimated token usage, and reported cost. When a limit is
@@ -164,6 +166,7 @@ Think of the state as a shared notebook. It stores things like:
 - Debugger findings.
 - Genuine builder uncertainties, grouped by PRD item.
 - Attempt counts.
+- Failure classifications and per-node retry counts.
 - Run time, total-attempt, token, and cost budgets.
 - Cumulative adapter usage.
 - A cancellation request and its reason.
@@ -197,8 +200,8 @@ This lets different agents fit into the same graph.
 `AgentRequest` carries the current item's acceptance criteria, optional
 validation command, and remaining run timeout. `AgentResult` can report input
 tokens, output tokens, cost, the redacted prompt, executed commands, and a
-staged diff; CLI adapters estimate tokens from text when a provider does not
-expose usage directly.
+staged diff, and a classified failure; CLI adapters estimate tokens from text
+when a provider does not expose usage directly.
 
 ### `workflow/adapters.py`
 
@@ -252,6 +255,11 @@ Contains the work done by each graph node:
 - The `more items` routing decision.
 
 It also selects the next unfinished PRD item and handles retries.
+
+Failures are classified before routing. Only transient failures from safe
+learning, planner, builder, critic, validator, debugger, and preflight operations
+use the targeted backoff path. Commit and GitHub publication failures are
+recorded but are not automatically retried because they can create side effects.
 
 The `_versioned_node` wrapper starts the run clock, accumulates usage, checks
 budgets before and after each node, and routes cancellation or budget exhaustion

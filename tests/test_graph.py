@@ -436,9 +436,143 @@ class GraphRoutingTests(unittest.TestCase):
 
         self.assertEqual(result["status"], "failed")
         self.assertFalse(result["build_completed"])
+        self.assertEqual(result["failure_class"], "permanent")
+        self.assertEqual(result["retry_counts"], {"building": 1})
         self.assertEqual(builder.calls, 1)
         self.assertEqual(critic.calls, 0)
         self.assertEqual(validator.calls, 0)
+
+    def test_transient_build_failure_retries_build_with_backoff(self) -> None:
+        builder = SequenceAdapter(
+            "ralph",
+            [
+                AgentResult(
+                    status="failed",
+                    assigned_model="ralph",
+                    error="connection reset by peer",
+                ),
+                AgentResult(status="built", assigned_model="ralph"),
+            ],
+        )
+        dependencies = NodeDependencies(
+            planner=StubAgentAdapter("planner", "planner"),
+            builder=builder,
+            critic=StubAgentAdapter("critic", "critic"),
+            validator=StubAgentAdapter("validator", "validator"),
+            debugger=StubAgentAdapter("debugger", "debugger"),
+        )
+
+        with patch("workflow.nodes.time.sleep") as sleep:
+            result = build_graph(dependencies).invoke(
+                _initial_state(),
+                {"configurable": {"thread_id": "transient-build-retry"}},
+            )
+
+        self.assertEqual(result["status"], "complete")
+        self.assertEqual(builder.calls, 2)
+        self.assertEqual(result["retry_counts"], {"building": 1})
+        sleep.assert_called_once_with(0.5)
+        self.assertEqual(
+            [
+                event["type"]
+                for event in result["run_manifest"]
+                if event.get("type") == "retry"
+            ],
+            ["retry"],
+        )
+        self.assertEqual(
+            [
+                event["failure_class"]
+                for event in result["run_manifest"]
+                if event.get("type") == "agent"
+                and event.get("node") == "building"
+                and "failure_class" in event
+            ],
+            ["transient"],
+        )
+
+    def test_transient_critic_failure_retries_critic_without_rebuilding(self) -> None:
+        builder = SequenceAdapter(
+            "ralph",
+            [AgentResult(status="built", assigned_model="ralph")],
+        )
+        critic = SequenceAdapter(
+            "critic",
+            [
+                AgentResult(
+                    status="failed",
+                    assigned_model="critic",
+                    error="service unavailable",
+                ),
+                AgentResult(
+                    status="critic_audited",
+                    assigned_model="critic",
+                    approved=True,
+                ),
+            ],
+        )
+        dependencies = NodeDependencies(
+            planner=StubAgentAdapter("planner", "planner"),
+            builder=builder,
+            critic=critic,
+            validator=StubAgentAdapter("validator", "validator"),
+            debugger=StubAgentAdapter("debugger", "debugger"),
+        )
+
+        with patch("workflow.nodes.time.sleep") as sleep:
+            result = build_graph(dependencies).invoke(
+                _initial_state(),
+                {"configurable": {"thread_id": "transient-critic-retry"}},
+            )
+
+        self.assertEqual(result["status"], "complete")
+        self.assertEqual(builder.calls, 1)
+        self.assertEqual(critic.calls, 2)
+        self.assertEqual(result["retry_counts"], {"critic_auditor": 1})
+        sleep.assert_called_once_with(0.5)
+
+    def test_transient_validation_failure_retries_validation_without_debugging(
+        self,
+    ) -> None:
+        validator = SequenceAdapter(
+            "validator",
+            [
+                AgentResult(
+                    status="failed",
+                    assigned_model="validator",
+                    error="timed out while running tests",
+                    validation_passed=False,
+                ),
+                AgentResult(
+                    status="validated",
+                    assigned_model="validator",
+                    validation_passed=True,
+                ),
+            ],
+        )
+        debugger = SequenceAdapter(
+            "debugger",
+            [AgentResult(status="debugged", assigned_model="debugger")],
+        )
+        dependencies = NodeDependencies(
+            planner=StubAgentAdapter("planner", "planner"),
+            builder=StubAgentAdapter("builder", "builder"),
+            critic=StubAgentAdapter("critic", "critic"),
+            validator=validator,
+            debugger=debugger,
+        )
+
+        with patch("workflow.nodes.time.sleep") as sleep:
+            result = build_graph(dependencies).invoke(
+                _initial_state(),
+                {"configurable": {"thread_id": "transient-validation-retry"}},
+            )
+
+        self.assertEqual(result["status"], "complete")
+        self.assertEqual(validator.calls, 2)
+        self.assertEqual(debugger.calls, 0)
+        self.assertEqual(result["retry_counts"], {"validation": 1})
+        sleep.assert_called_once_with(0.5)
 
     def test_builder_uncertainties_are_stored_by_item(self) -> None:
         builder = SequenceAdapter(
@@ -498,6 +632,31 @@ class GraphRoutingTests(unittest.TestCase):
         self.assertEqual(result["last_error"], "builder exploded")
         self.assertFalse(result["build_completed"])
         self.assertEqual(builder.calls, 1)
+
+    def test_permanent_planning_exception_uses_failure_handler(self) -> None:
+        class FailingPlanner:
+            model_name = "failing-planner"
+
+            def run(self, request: AgentRequest) -> AgentResult:
+                raise ValueError("invalid planner response")
+
+        dependencies = NodeDependencies(
+            planner=FailingPlanner(),
+            builder=StubAgentAdapter("builder", "builder"),
+            critic=StubAgentAdapter("critic", "critic"),
+            validator=StubAgentAdapter("validator", "validator"),
+            debugger=StubAgentAdapter("debugger", "debugger"),
+        )
+
+        result = build_graph(dependencies).invoke(
+            _initial_state(),
+            {"configurable": {"thread_id": "planning-exception"}},
+        )
+
+        self.assertEqual(result["status"], "failed")
+        self.assertEqual(result["failure_class"], "permanent")
+        self.assertEqual(result["failure_node"], "planning")
+        self.assertEqual(result["last_error"], "invalid planner response")
 
     def test_graph_advances_through_all_incomplete_items(self) -> None:
         repository = RecordingRepository()
@@ -789,6 +948,41 @@ class GraphRoutingTests(unittest.TestCase):
         self.assertEqual(learned["status"], "learned")
         self.assertIsNone(learned["workflow_mode"])
         self.assertEqual(learned["__interrupt__"][0].value["type"], "intake")
+
+    def test_transient_learning_failure_retries_learning_with_backoff(self) -> None:
+        planner = SequenceAdapter(
+            "planner",
+            [
+                AgentResult(
+                    status="failed",
+                    assigned_model="planner",
+                    error="temporarily unavailable",
+                ),
+                AgentResult(
+                    status="learned",
+                    assigned_model="planner",
+                    feedback="The workflow uses LangGraph.",
+                ),
+            ],
+        )
+        dependencies = NodeDependencies(
+            planner=planner,
+            builder=StubAgentAdapter("builder", "builder"),
+            critic=StubAgentAdapter("critic", "critic"),
+            validator=StubAgentAdapter("validator", "validator"),
+            debugger=StubAgentAdapter("debugger", "debugger"),
+        )
+        graph = build_graph(dependencies)
+        config = {"configurable": {"thread_id": "transient-learning-retry"}}
+
+        graph.invoke({"task": "Understand this codebase"}, config)
+        with patch("workflow.nodes.time.sleep") as sleep:
+            result = graph.invoke(Command(resume="learn"), config)
+
+        self.assertEqual(planner.calls, 2)
+        self.assertEqual(result["status"], "learned")
+        self.assertEqual(result["retry_counts"], {"learning": 1})
+        sleep.assert_called_once_with(0.5)
 
     def test_intake_implement_enters_the_existing_workflow(self) -> None:
         graph = build_graph(_stub_dependencies())

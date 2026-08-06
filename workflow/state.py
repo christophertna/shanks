@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from typing import Any, Literal, TypedDict, cast
 
 
-CURRENT_STATE_SCHEMA_VERSION = 3
+CURRENT_STATE_SCHEMA_VERSION = 4
 DEFAULT_MAX_RUNTIME_SECONDS = 3600.0
 DEFAULT_MAX_ATTEMPTS = 3
 DEFAULT_MAX_TOTAL_ATTEMPTS = 20
@@ -79,6 +79,11 @@ class WorkflowState(TypedDict, total=False):
     completed_items: list[str]
     learning_notes: str
     status: str
+    failure_class: str
+    failure_node: str
+    retry_counts: dict[str, int]
+    retry_target: str
+    retry_delay_seconds: float
     commit_sha: str
     pr_url: str
 
@@ -147,6 +152,18 @@ def _migrate_v2_to_v3(state: dict[str, Any]) -> dict[str, Any]:
     """Add the persisted run manifest and audit history."""
 
     state.setdefault("run_manifest", [])
+    state["state_schema_version"] = 3
+    return state
+
+
+def _migrate_v3_to_v4(state: dict[str, Any]) -> dict[str, Any]:
+    """Add failure classification and targeted retry fields."""
+
+    state.setdefault("failure_class", "")
+    state.setdefault("failure_node", "")
+    state.setdefault("retry_counts", {})
+    state.setdefault("retry_target", "")
+    state.setdefault("retry_delay_seconds", 0.0)
     state["state_schema_version"] = CURRENT_STATE_SCHEMA_VERSION
     return state
 
@@ -155,6 +172,7 @@ _STATE_MIGRATIONS: dict[int, StateMigration] = {
     0: _migrate_v0_to_v1,
     1: _migrate_v1_to_v2,
     2: _migrate_v2_to_v3,
+    3: _migrate_v3_to_v4,
 }
 
 
@@ -224,4 +242,9 @@ def migrate_state(state: Mapping[str, Any]) -> WorkflowState:
         version = next_version
 
     migrated.setdefault("run_manifest", [])
+    migrated.setdefault("failure_class", "")
+    migrated.setdefault("failure_node", "")
+    migrated.setdefault("retry_counts", {})
+    migrated.setdefault("retry_target", "")
+    migrated.setdefault("retry_delay_seconds", 0.0)
     return cast(WorkflowState, migrated)
