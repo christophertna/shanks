@@ -21,6 +21,11 @@ class PRDItem(TypedDict, total=False):
     id: str
     title: str
     description: str
+    acceptance_criteria: list[str]
+    validation_command: str
+    # These aliases are accepted when loading the Ralph JSON representation.
+    acceptanceCriteria: list[str]
+    validationCommand: str
     priority: int
     passes: bool
     validation: bool
@@ -83,6 +88,30 @@ class StateSchemaError(ValueError):
 
 
 StateMigration = Callable[[dict[str, Any]], dict[str, Any]]
+
+
+def acceptance_criteria_for_item(item: Mapping[str, Any]) -> list[str]:
+    """Read acceptance criteria from either Python or Ralph PRD field names."""
+
+    criteria = item.get("acceptance_criteria")
+    if criteria is None:
+        criteria = item.get("acceptanceCriteria", [])
+    if not isinstance(criteria, (list, tuple)):
+        return []
+    return [
+        value.strip()
+        for value in criteria
+        if isinstance(value, str) and value.strip()
+    ]
+
+
+def validation_command_for_item(item: Mapping[str, Any]) -> str:
+    """Read an optional per-item validation command from a PRD item."""
+
+    command = item.get("validation_command")
+    if command is None:
+        command = item.get("validationCommand", "")
+    return command.strip() if isinstance(command, str) else ""
 
 
 def _migrate_v0_to_v1(state: dict[str, Any]) -> dict[str, Any]:

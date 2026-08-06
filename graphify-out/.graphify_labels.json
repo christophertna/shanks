@@ -23,7 +23,13 @@
   "21": "test-guard.sh",
   "22": "GitHubAdapter",
   "23": "WorkflowState",
+  "24": "Test coverage",
+  "25": "graph.py",
+  "26": "nodes.py",
   "27": "RepositoryAdapter",
+  "28": "create_nodes",
   "29": "Any",
-  "30": "RalphAdapter"
+  "30": "RalphAdapter",
+  "31": "planning",
+  "32": "CheapCriticAdapter"
 }

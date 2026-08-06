@@ -140,12 +140,43 @@ class NodeContractTests(unittest.TestCase):
             stderr="",
         )
 
-        with patch("workflow.adapters.subprocess.run", return_value=completed):
+        with patch("workflow.adapters.subprocess.run", return_value=completed) as run:
             result = adapter.run(AgentRequest(task="validate this"))
 
         self.assertEqual(result.status, "validation_failed")
         self.assertFalse(result.validation_passed)
         self.assertEqual(result.validation_errors, ["FAIL: test_example"])
+        self.assertEqual(
+            run.call_args.args[0],
+            (sys.executable, "-m", "unittest", "discover", "-s", "tests"),
+        )
+
+    def test_local_test_adapter_runs_the_item_validation_command(self) -> None:
+        adapter = LocalTestAdapter(Path("/tmp/shanks"))
+        completed = subprocess.CompletedProcess(
+            args=adapter.command,
+            returncode=0,
+            stdout="item tests passed",
+            stderr="",
+        )
+
+        with patch("workflow.adapters.subprocess.run", return_value=completed) as run:
+            result = adapter.run(
+                AgentRequest(
+                    task="validate this item",
+                    validation_command=(
+                        f"{sys.executable} -m unittest tests.test_graph"
+                    ),
+                )
+            )
+
+        self.assertEqual(result.status, "validated")
+        self.assertTrue(result.validation_passed)
+        self.assertEqual(result.test_output, "item tests passed")
+        self.assertEqual(
+            run.call_args.args[0],
+            (sys.executable, "-m", "unittest", "tests.test_graph"),
+        )
 
     def test_debugger_adapter_maps_structured_failure_analysis(self) -> None:
         adapter = DebuggerAdapter(Path("/tmp/shanks"))
@@ -719,11 +750,15 @@ class NodeContractTests(unittest.TestCase):
                 task="Example",
                 item_id="item-1",
                 item_description="New debugger requirement",
+                acceptance_criteria=["Debugger guidance is covered."],
+                validation_command=".venv/bin/python -m unittest tests.test_graph",
                 prd_items=[
                     {
                         "id": "item-1",
                         "title": "First",
                         "description": "New debugger requirement",
+                        "acceptance_criteria": ["Debugger guidance is covered."],
+                        "validation_command": ".venv/bin/python -m unittest tests.test_graph",
                         "passes": True,
                         "validation": False,
                     },
@@ -757,8 +792,14 @@ class NodeContractTests(unittest.TestCase):
             )
             self.assertEqual(
                 payload["userStories"][0]["acceptanceCriteria"],
-                ["Keep this"],
+                ["Debugger guidance is covered."],
             )
+            self.assertEqual(
+                payload["userStories"][0]["validationCommand"],
+                ".venv/bin/python -m unittest tests.test_graph",
+            )
+            self.assertNotIn("acceptance_criteria", payload["userStories"][0])
+            self.assertNotIn("validation_command", payload["userStories"][0])
             self.assertEqual(
                 payload["userStories"][1]["description"],
                 "Unchanged requirement",

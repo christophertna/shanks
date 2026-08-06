@@ -1,0 +1,279 @@
+# Test coverage
+
+This document summarizes the behavior covered by the repository's tracked test
+files. The Python suite contains **76 unittest methods** across four modules;
+`hooks/test-guard.sh` is a separate shell regression harness with eight command
+checks.
+
+The tests use in-memory graphs, temporary SQLite databases and temporary
+projects, stub adapters, and mocked subprocesses. They verify orchestration and
+adapter contracts without making real LLM, GitHub, or destructive shell calls.
+
+Run the Python suite with:
+
+```bash
+.venv/bin/python -m unittest discover -s tests
+```
+
+## Test file inventory
+
+| File | Tests | Main areas |
+| --- | ---: | --- |
+| [`test_graph.py`](test_graph.py) | 31 | Workflow orchestration, item metadata, retries, budgets, approvals, and GitHub handoff |
+| [`test_node_contracts.py`](test_node_contracts.py) | 33 | Agent, subprocess, Ralph, local-test, critic, and GitHub adapter contracts |
+| [`test_state_schema.py`](test_state_schema.py) | 7 | State migration, versioned checkpoints, and legacy resume behavior |
+| [`test_viewer.py`](test_viewer.py) | 5 | Viewer HTML, execution-state data, checkpoint sharing, and Mermaid output |
+| [`../hooks/test-guard.sh`](../hooks/test-guard.sh) | 8 shell checks | Dangerous-command blocking and safe-command allowlisting |
+
+## Workflow orchestration
+
+Sources: [`test_graph.py`](test_graph.py), with graph topology assertions also
+in [`test_viewer.py`](test_viewer.py).
+
+### Entry, intake, and item routing
+
+- GitHub preflight runs before intake; a successful preflight opens the intake
+  interrupt, while a failed preflight records `preflight_failed` and ends the
+  run without entering intake.
+- A normal single-item implement run completes planning, building, critic
+  review, validation, and PR handoff, and marks the PRD item as passing.
+- Acceptance criteria and an optional validation command are carried from the
+  current PRD item into planning and validation requests, including Ralph's
+  camelCase JSON field names.
+- The graph advances through multiple incomplete PRD items, records completed
+  item IDs and per-item attempt counts, and processes each item before the
+  final handoff.
+- Already-completed items terminate without invoking the builder.
+- Item selection skips passing items but retries an item that was built while
+  its validation flag remains false.
+- Choosing `learn` returns to the same intake question with a learned status and
+  no workflow mode selected.
+- Choosing `implement` enters the implementation workflow and creates the
+  requested item.
+- Learning notes are carried into the later implementation planning request.
+
+### Planning, building, and critic review
+
+- A failed builder result stops before critic or validation and leaves
+  `build_completed` false.
+- An exception from the builder is converted into a failed-build state with the
+  exception message and the failed-build route.
+- Critic rejection sends feedback into the next builder request and causes the
+  same item to be rebuilt; the attempt count and subsequent validation are
+  checked.
+- Repeated critic rejection rebuilds the same item until its per-item attempt
+  limit is reached, then produces `attempt_limit_reached`.
+- Builder-reported uncertainties are stored under the relevant PRD item ID.
+
+### Validation, debugging, and recovery
+
+- Validation failure invokes the debugger with the validation errors, then
+  replans and rebuilds the same item.
+- Debugger root cause and repair instructions are added to the PRD description,
+  planner context, planner instructions, and builder instructions.
+- A successful validation retry still commits the repaired item and proceeds to
+  pull-request publication.
+- GitHub failure and completed GitHub states terminate instead of routing into
+  the debugger.
+
+### Budgets, cancellation, and run state
+
+- A runtime overage stops the graph before external adapters execute.
+- Input and output token usage and dollar cost accumulate in state; exceeding
+  either configured limit stops the run before the critic.
+- The total-attempt budget stops execution before the critic when the budget is
+  exhausted.
+- A cancellation in the initial state stops the run before the builder and
+  preserves the cancellation message.
+- A cancellation written into a checkpoint is observed when the graph resumes
+  and produces a terminal cancelled state.
+- The run manifest records agent events, assigned models, planning prompts and
+  item IDs, and pull-request IDs.
+
+## Guardrails, hooks, and command safety
+
+Sources: [`test_node_contracts.py`](test_node_contracts.py) and
+[`../hooks/test-guard.sh`](../hooks/test-guard.sh).
+
+### Process and workspace boundaries
+
+- Unapproved subprocess executables are rejected before execution.
+- Working directories outside the configured allowlist are rejected before
+  execution.
+- GitHub tokens and API-key-like credentials are redacted from adapter output.
+- Debugger requests use read-only execution and structured-output schema
+  enforcement.
+- GitHub path normalization rejects traversal outside the project and symlinks
+  that resolve outside it, while allowing an in-project file.
+- The Git/GitHub command allowlist rejects an unapproved command without
+  invoking subprocesses.
+
+### Shell guard regression checks
+
+The shell harness invokes `hooks/deny-dangerous.sh`, classifies each command as
+allowed or blocked, counts pass/fail results, and exits non-zero if any
+expectation fails. It verifies that the guard:
+
+- Blocks destructive root deletion: `rm -rf /`.
+- Blocks destructive deletion with `sudo`.
+- Blocks remote install pipelines that pipe `curl` into a shell.
+- Blocks force-pushing to `main`.
+- Blocks `gh auth token` access.
+- Allows deletion of a relative build cache.
+- Allows a normal push to a feature branch.
+- Allows creating a pull request with `gh pr create`.
+
+## GitHub commit and pull-request delivery
+
+Sources: [`test_graph.py`](test_graph.py) and
+[`test_node_contracts.py`](test_node_contracts.py).
+
+### Commit scope and resume safety
+
+- A completed `commit_sha` prevents the commit side effect from running again.
+- Commit preparation excludes files that were already dirty when the run
+  started and commits only fresh story files.
+- The staged diff, `git add`, and `git commit --only` command arguments are
+  constrained to those fresh files.
+- A saved `pr_url` prevents the publish side effect from running again.
+
+### Preflight
+
+- Preflight checks tool availability, branch state, authentication, and local
+  tests, and returns the test output on success.
+- A dirty worktree fails preflight before local tests run.
+
+### Publishing and PR reuse
+
+- Publishing uses a restricted environment: Git receives the non-interactive
+  prompt setting, GitHub receives only the GitHub token, unrelated secrets are
+  omitted, and pull-request text is redacted.
+- Publishing pushes the validation branch before creating a PR against `main`
+  and returns the created PR URL.
+- An existing PR for the branch is reused instead of creating a duplicate.
+- Commit failure is reported and stops before pull-request creation.
+- Push failure stops before PR lookup or creation.
+- PR creation failure is reported after the preceding push and lookup steps.
+- A failed GitHub publish stops without invoking the debugger.
+
+### Approval and handoff behavior
+
+- Commit approval is requested before any commit side effect; approval then
+  leads to a publish approval and pull-request creation.
+- Rejecting commit approval ends with no commit or pull request.
+- Rejecting publish approval ends with no push or pull request.
+- GitHub failure and completed GitHub states terminate rather than entering
+  debugger recovery.
+- The multi-item workflow commits each passing item and publishes one pull
+  request after all items pass.
+
+## Agent and adapter contracts
+
+Source: [`test_node_contracts.py`](test_node_contracts.py).
+
+### Common agent and subprocess behavior
+
+- Planner, builder, critic, validator, and debugger stubs all return the common
+  `AgentResult` shape with the configured model and a non-empty status.
+- The cheap critic exposes its model name and returns an approval result.
+- The generic subprocess adapter maps command output into a completed result,
+  including feedback, model, prompt, token counts, and executed commands.
+- A request timeout is passed through as the subprocess timeout.
+
+### Local validation and debugging adapters
+
+- A non-zero local test suite becomes `validation_failed`, with validation set
+  to false and the failing output captured as validation errors.
+- The local validator runs a current item's validation command when provided,
+  tokenizes it without a shell, and falls back to full unittest discovery when
+  the item has no command.
+- Structured debugger JSON is mapped to status, root cause, builder
+  instructions, and feedback.
+- Debugger requests include the validation failure and item description.
+
+### Dependency factories and critic models
+
+- Default dependencies wire Codex planning, Ralph building, local-test
+  validation, debugging, and GitHub repository operations.
+- The Claude tool option swaps in Claude planning, configures Ralph to use
+  Claude, and selects the Claude Opus critic/debugger setup.
+- The GPT-5.6 Luna critic is configured for the expected model, maximum
+  reasoning, sandboxed read-only execution, and maps structured approval and
+  feedback JSON.
+- The Claude Opus 4.8 critic is configured for the expected model and medium
+  effort, plan/read-only permissions, and JSON-schema output, and maps its
+  structured result.
+- Luna and Claude dependency factories wire the corresponding critic adapter
+  into the node dependencies.
+
+### Ralph adapter
+
+- Ralph command construction selects the project directory, agent-engine
+  working directory, tool, project skill, and iteration count.
+- Ralph receives the graph item ID and an enriched requirement containing the
+  current PRD requirement, other PRD items, and repair instructions.
+- The `RALPH_UNCERTAINTIES` output section is parsed into structured
+  uncertainties.
+- A successful process without the `<promise>ITEM_BUILT</promise>` signal is
+  treated as a failed build.
+- Ralph synchronization updates only the changed PRD item, preserves that
+  item's acceptance criteria, and leaves unchanged items untouched.
+
+## State schema and checkpoint persistence
+
+Source: [`test_state_schema.py`](test_state_schema.py), with checkpoint sharing
+also covered in [`test_viewer.py`](test_viewer.py).
+
+### Schema migration
+
+- Unversioned state is migrated to the current schema without mutating the
+  legacy input, while preserving task data and applying current attempt
+  defaults.
+- A state declaring a schema newer than the application supports is rejected
+  with `StateSchemaError`.
+- Version 1 state receives current run-budget defaults, including total token
+  and cancellation fields.
+- Version 2 state receives an initialized run manifest.
+
+### SQLite checkpoints and compatibility
+
+- `VersionedSqliteSaver` migrates legacy checkpoint channel values when they
+  are read.
+- New checkpoints are stamped with the current schema version when written.
+- A checkpoint created with the legacy saver can be resumed through the current
+  graph, including an intake interrupt and a later implement command, while
+  retaining the current schema version.
+
+## Viewer and observability
+
+Source: [`test_viewer.py`](test_viewer.py).
+
+### Viewer page and execution state
+
+- `graph.html` listens for server reconnects, resets the cached graph
+  definition, exposes thread and execution-budget controls, fetches graph
+  state, and displays checkpoint history and the run manifest.
+- `execution_state` reads the current checkpoint and bounded history using the
+  requested thread ID and history limit.
+- The execution payload exposes current node, item identity, attempt counts,
+  token and cost totals, last error, assigned model, checkpoint IDs, and run
+  manifest entries.
+- Default graph instances share the configured SQLite checkpoint database, so a
+  later graph instance can read an earlier instance's state and history.
+
+### Mermaid graph rendering
+
+- Forward workflow edges render solid and recovery/backward edges render
+  dashed.
+- The rendered topology includes preflight, intake, planning, building,
+  validation, failed-build, commit, item routing, GitHub handoff, debugger,
+  and critic-auditor paths.
+- Critic rejection loops back to building; debugger and item-router recovery
+  paths loop back to planning.
+- Structured labels and visual classes are applied to main, decision, and
+  highlighted nodes, including Intake, Preflight, Learn codebase, Build,
+  Validate, commit item, GitHub, and the item router.
+- Detailed rendering exposes the main and recovery sections and their links.
+- Invalid or unintended edges are excluded, including direct GitHub-to-debugger
+  routing, validation-to-debugger dashed styling, critic-to-validation or
+  critic-to-item-router edges, self-loops, and direct building-to-end edges.
