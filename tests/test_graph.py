@@ -113,7 +113,9 @@ class GraphRoutingTests(unittest.TestCase):
 
         self.assertEqual(repository.calls, 1)
         self.assertEqual(result["__interrupt__"][0].value["type"], "intake")
-        self.assertEqual(route_after_preflight({"status": "preflight_passed"}), "intake")
+        self.assertEqual(
+            route_after_preflight({"status": "preflight_passed"}), "intake"
+        )
 
     def test_preflight_failure_stops_before_intake(self) -> None:
         repository = PreflightOnlyRepository(
@@ -175,9 +177,7 @@ class GraphRoutingTests(unittest.TestCase):
             {
                 "task": "Build a simple workflow",
                 "workflow_mode": "implement",
-                "prd_items": [
-                    {"id": "item-1", "title": "First item", "passes": False}
-                ],
+                "prd_items": [{"id": "item-1", "title": "First item", "passes": False}],
             },
             {"configurable": {"thread_id": "default-completes"}},
         )

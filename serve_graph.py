@@ -129,9 +129,7 @@ def graph_source_files() -> tuple[Path, ...]:
     """Return graph.py and the Python modules that define its nodes."""
 
     workflow_files = (
-        tuple(sorted(WORKFLOW_DIR.glob("*.py")))
-        if WORKFLOW_DIR.is_dir()
-        else ()
+        tuple(sorted(WORKFLOW_DIR.glob("*.py"))) if WORKFLOW_DIR.is_dir() else ()
     )
     return (GRAPH_FILE, *workflow_files)
 
@@ -267,7 +265,9 @@ def _snapshot_summary(snapshot: object, *, include_manifest: bool = True) -> dic
     return summary
 
 
-def execution_state(graph: object, thread_id: str, *, limit: int = EXECUTION_HISTORY_LIMIT) -> dict:
+def execution_state(
+    graph: object, thread_id: str, *, limit: int = EXECUTION_HISTORY_LIMIT
+) -> dict:
     """Read the current state and recent checkpoint history for one thread."""
 
     config = {"configurable": {"thread_id": thread_id}}
@@ -331,15 +331,12 @@ def structured_mermaid(
     """Build a readable overview, optionally showing recovery paths."""
 
     node_ids = set(VIEW_NODE_DECLARATION.findall(content))
-    edges = {
-        (source, target)
-        for source, _arrow, target in VIEW_EDGE.findall(content)
-    }
+    edges = {(source, target) for source, _arrow, target in VIEW_EDGE.findall(content)}
     if not set(VIEW_MAIN_FLOW).issubset(node_ids):
         return style_mermaid(content, decision_node_ids)
 
     lines = [
-        "%%{init: {\"flowchart\": {\"curve\": \"basis\", \"nodeSpacing\": 54, \"rankSpacing\": 88}}}%%",
+        '%%{init: {"flowchart": {"curve": "basis", "nodeSpacing": 54, "rankSpacing": 88}}}%%',
         "flowchart LR",
         '  subgraph main["Main workflow"]',
         "    direction LR",
@@ -408,9 +405,7 @@ def _view_node(node_id: str, decision_node_ids: set[str]) -> str:
         node_class = "yellowNode" if node_id == "validation" else "decisionNode"
         return f'    {node_id}{{"{label}"}}:::{node_class}'
     node_class = (
-        "safetyNode"
-        if node_id in {"attempt_limit", "failed_build"}
-        else "recoveryNode"
+        "safetyNode" if node_id in {"attempt_limit", "failed_build"} else "recoveryNode"
     )
     if node_id in VIEW_MAIN_NODES:
         node_class = "mainNode"
@@ -527,8 +522,7 @@ class GraphRequestHandler(BaseHTTPRequestHandler):
                     continue
 
                 self.wfile.write(
-                    b"event: graph-changed\n"
-                    b"data: graph source changed\n\n"
+                    b"event: graph-changed\n" b"data: graph source changed\n\n"
                 )
                 self.wfile.flush()
                 revision = current_revision
@@ -557,7 +551,7 @@ class GraphRequestHandler(BaseHTTPRequestHandler):
             payload = content.encode("utf-8")
             self.send_response(200)
         except Exception as error:  # pragma: no cover - viewer error response
-            payload = f"graph TD\n  error[\"{error}\"]".encode("utf-8")
+            payload = f'graph TD\n  error["{error}"]'.encode("utf-8")
             self.send_response(500)
 
         self.send_header("Content-Type", "text/plain; charset=utf-8")

@@ -34,7 +34,8 @@ more items? ──→ Complete
    └──────────→ planning
 ```
 
-- `preflight` checks the tools, branch, GitHub authentication, and test suite.
+- `preflight` checks the tools, branch, GitHub authentication, test suite, and
+  all repository quality gates.
 - `intake` asks whether the run should learn the codebase or implement a feature.
 - `learning` records reusable codebase context and returns to `intake`.
 - `planning` picks the next unfinished PRD item.
@@ -225,8 +226,18 @@ errors.
 `RalphAdapter` parses the builder's `RALPH_UNCERTAINTIES` section into the
 current item's uncertainty list.
 `GitHubAdapter.preflight()` checks required tools, the current branch and
-working tree, GitHub CLI authentication, and the local unittest suite before
-intake.
+working tree, GitHub CLI authentication, the local unittest suite, and the
+repository quality gates before intake. `commit_item()` repeats the quality
+gates against the staged diff before creating a commit.
+
+### `scripts/quality_gates.py`
+
+This is the single command used by CI and GitHub handoff checks. It runs Black
+format verification, Ruff linting, Mypy typing, a pip-audit scan of runtime and
+development requirements, and a diff-size check. The default diff limit is 50
+files or 1,000 changed lines; generated `graphify-out/` files are excluded.
+The script uses argument lists rather than a shell, and the GitHub adapter
+allowlists its exact command shape.
 
 GitHub commit operations capture the staged diff and command trail before the
 commit. Pull-request handoff events retain the commit/PR metadata, including a
@@ -300,9 +311,10 @@ audit event to the run manifest.
 Checks that the graph works.
 
 The tests cover retries, validation failures, item progress, attempt limits,
-failed-build routing, idempotent GitHub handoff, viewer state inspection, and
-agent adapters. GitHub Actions runs the unittest suite on pushes and pull
-requests.
+failed-build routing, idempotent GitHub handoff, viewer state inspection, agent
+adapters, and the quality-gate parser/runner. GitHub Actions installs the
+development quality tools, runs the unittest suite, and runs every quality gate
+on pushes and pull requests.
 
 ### `graphify-out/`
 

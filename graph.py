@@ -38,8 +38,9 @@ from workflow.retries import (
 )
 from workflow.state import DEFAULT_MAX_ATTEMPTS, WorkflowState, migrate_state
 
-
-DEFAULT_CHECKPOINT_DB = Path(__file__).resolve().parent / ".shanks" / "checkpoints.sqlite"
+DEFAULT_CHECKPOINT_DB = (
+    Path(__file__).resolve().parent / ".shanks" / "checkpoints.sqlite"
+)
 TARGETED_RETRY_POLICY = RetryPolicy(
     initial_interval=RETRY_INITIAL_DELAY_SECONDS,
     backoff_factor=RETRY_BACKOFF_FACTOR,
@@ -114,9 +115,7 @@ def build_graph(
 ):
     """Build the workflow with optional adapters or a Claude/Codex choice."""
 
-    nodes = create_nodes(
-        dependencies or default_dependencies(tool=tool)
-    )
+    nodes = create_nodes(dependencies or default_dependencies(tool=tool))
     builder = StateGraph(WorkflowState)
     builder.add_node(
         "preflight",

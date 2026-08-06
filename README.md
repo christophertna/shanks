@@ -18,6 +18,8 @@ and its recovery paths.
 - `graph.py` assembles the executable LangGraph workflow.
 - `serve_graph.py` serves the live graph viewer.
 - `scripts/ralph/` contains Ralph-oriented supporting instructions and examples.
+- `scripts/quality_gates.py` runs the repository's formatting, typing, lint,
+  dependency/security, and diff-size checks.
 - `skills/` contains shared skill sources; `.agents/skills/` and `.claude/skills/`
   expose project-scoped Codex and Claude entrypoints.
 - `.github/workflows/tests.yml` runs the unittest suite on pushes and pull requests.
@@ -30,6 +32,18 @@ Run the tests:
 ```bash
 .venv/bin/python -m unittest discover -s tests
 ```
+
+Install the development quality tools and run every quality gate from a feature
+branch:
+
+```bash
+.venv/bin/python -m pip install -r requirements-dev.txt
+.venv/bin/python scripts/quality_gates.py --diff-base origin/main
+```
+
+The diff gate allows at most 50 changed files and 1,000 changed lines. Use
+`--staged` with `--diff-base` to check the exact staged diff before committing.
+Derived `graphify-out/` files are excluded from the source-diff limit.
 
 Start the graph viewer:
 
@@ -95,7 +109,9 @@ the same thread ID when starting the workflow and inspecting it.
 
 The default GitHub-backed graph checks that `git`, `gh`, and `bash` are
 available, the run is on a non-`main` clean branch, GitHub CLI authentication
-works, and the unittest suite passes. A failed check ends with
+works, the unittest suite passes, and all quality gates pass. The gates run
+Black in check mode, Ruff, Mypy, pip-audit across runtime and development
+requirements, and the diff-size limit. A failed check ends with
 `status="preflight_failed"` before intake or agent work. Lightweight injected
 test repositories can omit the preflight capability and are explicitly marked
 `preflight_skipped`.

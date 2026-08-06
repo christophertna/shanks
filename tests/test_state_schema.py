@@ -37,9 +37,7 @@ class StateSchemaTests(unittest.TestCase):
 
     def test_newer_state_schema_is_rejected(self) -> None:
         with self.assertRaises(StateSchemaError):
-            migrate_state(
-                {"state_schema_version": CURRENT_STATE_SCHEMA_VERSION + 1}
-            )
+            migrate_state({"state_schema_version": CURRENT_STATE_SCHEMA_VERSION + 1})
 
     def test_v1_state_migrates_run_budget_defaults(self) -> None:
         migrated = migrate_state({"state_schema_version": 1})

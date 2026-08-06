@@ -435,7 +435,9 @@ def intake(state: WorkflowState) -> WorkflowState:
                 "status": f"intake_{answer}",
             }
             if answer == "implement" and not state.get("prd_items"):
-                task = state.get("task", "").strip() or "Implement the requested feature"
+                task = (
+                    state.get("task", "").strip() or "Implement the requested feature"
+                )
                 update["prd_items"] = [
                     {
                         "id": "feature-1",
@@ -741,9 +743,9 @@ def item_router(state: WorkflowState) -> WorkflowState:
     """Prepare the decision to start another item or finish the workflow."""
 
     return {
-        "status": "next_item_ready"
-        if select_next_item(state) is not None
-        else "complete"
+        "status": (
+            "next_item_ready" if select_next_item(state) is not None else "complete"
+        )
     }
 
 
@@ -953,17 +955,15 @@ def route_after_building(
     if state.get("status") == "retry_scheduled":
         return "retry_backoff"
     if state.get("status") == "failed":
-        if (
-            retryable_failure(state.get("failure_class"))
-            and state.get("attempts_count", 0) >= state.get("max_attempts", 3)
-        ):
+        if retryable_failure(state.get("failure_class")) and state.get(
+            "attempts_count", 0
+        ) >= state.get("max_attempts", 3):
             return "attempt_limit"
         return "failed_build"
     if state.get("critic_passed"):
         return "validation"
-    if (
-        not state.get("build_completed")
-        and state.get("attempts_count", 0) >= state.get("max_attempts", 3)
+    if not state.get("build_completed") and state.get("attempts_count", 0) >= state.get(
+        "max_attempts", 3
     ):
         return "attempt_limit"
     return "critic_auditor"
@@ -1304,10 +1304,7 @@ def _redact_manifest_value(value: object) -> object:
     if isinstance(value, str):
         return redact_secrets(value)
     if isinstance(value, dict):
-        return {
-            str(key): _redact_manifest_value(item)
-            for key, item in value.items()
-        }
+        return {str(key): _redact_manifest_value(item) for key, item in value.items()}
     if isinstance(value, (list, tuple)):
         return [_redact_manifest_value(item) for item in value]
     return value

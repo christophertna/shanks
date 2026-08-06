@@ -1,0 +1,28 @@
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+extend-exclude = '''
+/(\.git|\.venv|\.shanks|graphify-out|scripts/ralph/archive)/
+'''
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+extend-exclude = [".git", ".venv", ".shanks", "graphify-out", "scripts/ralph/archive"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+
+[tool.mypy]
+python_version = "3.11"
+files = [
+    "scripts/quality_gates.py",
+    "workflow/adapters.py",
+    "workflow/contracts.py",
+    "workflow/retries.py",
+    "workflow/state.py",
+]
+ignore_missing_imports = true
+follow_imports = "skip"
+check_untyped_defs = true
+warn_unused_ignores = true

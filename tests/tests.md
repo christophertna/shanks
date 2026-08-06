@@ -1,7 +1,7 @@
 # Test coverage
 
 This document summarizes the behavior covered by the repository's tracked test
-files. The Python suite contains **84 unittest methods** across four modules;
+files. The Python suite contains **95 unittest methods** across five modules;
 `hooks/test-guard.sh` is a separate shell regression harness with eight command
 checks.
 
@@ -15,14 +15,22 @@ Run the Python suite with:
 .venv/bin/python -m unittest discover -s tests
 ```
 
+Run the repository quality gates from a feature branch with:
+
+```bash
+.venv/bin/python -m pip install -r requirements-dev.txt
+.venv/bin/python scripts/quality_gates.py --diff-base origin/main
+```
+
 ## Test file inventory
 
 | File | Tests | Main areas |
 | --- | ---: | --- |
 | [`test_graph.py`](test_graph.py) | 36 | Workflow orchestration, item metadata, targeted retries, budgets, approvals, and GitHub handoff |
-| [`test_node_contracts.py`](test_node_contracts.py) | 35 | Agent, failure-classification, subprocess, Ralph, local-test, critic, and GitHub adapter contracts |
+| [`test_node_contracts.py`](test_node_contracts.py) | 37 | Agent, failure-classification, subprocess, Ralph, local-test, critic, quality-gate, and GitHub adapter contracts |
 | [`test_state_schema.py`](test_state_schema.py) | 8 | State migration, retry metadata, versioned checkpoints, and legacy resume behavior |
 | [`test_viewer.py`](test_viewer.py) | 5 | Viewer HTML, execution-state data, checkpoint sharing, and Mermaid output |
+| [`test_quality_gates.py`](test_quality_gates.py) | 9 | Quality command definitions, safe diff refs, numstat parsing, generated-output handling, diff limits, and gate failure reporting |
 | [`../hooks/test-guard.sh`](../hooks/test-guard.sh) | 8 shell checks | Dangerous-command blocking and safe-command allowlisting |
 
 ## Workflow orchestration
@@ -86,6 +94,30 @@ in [`test_viewer.py`](test_viewer.py).
 - GitHub failure and completed GitHub states terminate instead of routing into
   the debugger.
 
+## Quality gates
+
+Sources: [`test_quality_gates.py`](test_quality_gates.py),
+[`test_node_contracts.py`](test_node_contracts.py),
+[`../scripts/quality_gates.py`](../scripts/quality_gates.py), and
+[`.github/workflows/tests.yml`](../.github/workflows/tests.yml).
+
+- The quality runner defines formatting, linting, typing, dependency/security,
+  and diff-size gates as separate, inspectable commands.
+- Black checks the repository's Python paths without rewriting files; Ruff
+  checks the same paths; Mypy checks the production modules; and pip-audit
+  scans both runtime and development requirement files.
+- The diff gate parses `git diff --numstat`, counts binary files safely, rejects
+  malformed output, and enforces limits of 50 changed files and 1,000 changed
+  lines by default. Derived `graphify-out/` artifacts are excluded from those
+  source-diff limits.
+- Diff-base refs are validated before they enter a subprocess argument list,
+  and the GitHub adapter allowlists only its exact repository quality command.
+- GitHub preflight runs the full quality suite on a clean branch; commit
+  preparation runs it again against the staged diff and stops before `git
+  commit` if any gate fails.
+- CI fetches the complete Git history so the diff gate can compare each push or
+  pull request with `origin/main`.
+
 ### Budgets, cancellation, and run state
 
 - A runtime overage stops the graph before external adapters execute.
@@ -120,6 +152,8 @@ Sources: [`test_node_contracts.py`](test_node_contracts.py) and
   that resolve outside it, while allowing an in-project file.
 - The Git/GitHub command allowlist rejects an unapproved command without
   invoking subprocesses.
+- The exact quality-gate command is allowed, while altered script paths, refs,
+  and extra flags remain rejected.
 
 ### Shell guard regression checks
 
@@ -153,7 +187,7 @@ Sources: [`test_graph.py`](test_graph.py) and
 ### Preflight
 
 - Preflight checks tool availability, branch state, authentication, and local
-  tests, and returns the test output on success.
+  tests plus the quality gates, and returns the test output on success.
 - A dirty worktree fails preflight before local tests run.
 
 ### Publishing and PR reuse
