@@ -27,6 +27,7 @@ from workflow.nodes import (
     default_dependencies,
     gpt_5_6_luna_dependencies,
 )
+from workflow.retries import classify_failure, retry_delay, retry_on_exception
 
 
 class NodeContractTests(unittest.TestCase):
@@ -39,6 +40,42 @@ class NodeContractTests(unittest.TestCase):
                 self.assertIsInstance(result, AgentResult)
                 self.assertEqual(result.assigned_model, f"{role}-model")
                 self.assertTrue(result.status)
+
+    def test_failures_are_classified_before_routing(self) -> None:
+        self.assertEqual(
+            AgentResult(
+                status="failed",
+                assigned_model="test",
+                error="connection reset by peer",
+            ).failure_class,
+            "transient",
+        )
+        self.assertEqual(
+            AgentResult(
+                status="failed",
+                assigned_model="test",
+                error="Refusing to run an unapproved executable: sh.",
+            ).failure_class,
+            "guardrail",
+        )
+        self.assertEqual(
+            AgentResult(
+                status="failed",
+                assigned_model="test",
+                validation_passed=False,
+                validation_errors=["FAIL: test_example"],
+            ).failure_class,
+            "validation",
+        )
+
+    def test_retry_classifier_uses_bounded_exponential_backoff(self) -> None:
+        self.assertTrue(retry_on_exception(ConnectionError("temporary network error")))
+        self.assertFalse(retry_on_exception(ValueError("invalid request")))
+        self.assertEqual(
+            [retry_delay(index) for index in range(1, 5)],
+            [0.5, 1.0, 2.0, 4.0],
+        )
+        self.assertEqual(classify_failure("status 503 from GitHub"), "transient")
 
     def test_cheap_critic_is_an_adapter_with_a_model_name(self) -> None:
         result = CheapCriticAdapter().run(AgentRequest(task="review this"))
@@ -144,6 +181,7 @@ class NodeContractTests(unittest.TestCase):
             result = adapter.run(AgentRequest(task="validate this"))
 
         self.assertEqual(result.status, "validation_failed")
+        self.assertEqual(result.failure_class, "validation")
         self.assertFalse(result.validation_passed)
         self.assertEqual(result.validation_errors, ["FAIL: test_example"])
         self.assertEqual(

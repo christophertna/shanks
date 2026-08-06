@@ -62,6 +62,18 @@ class StateSchemaTests(unittest.TestCase):
         )
         self.assertEqual(migrated["run_manifest"], [])
 
+    def test_v3_state_migrates_failure_and_retry_fields(self) -> None:
+        migrated = migrate_state({"state_schema_version": 3})
+
+        self.assertEqual(
+            migrated["state_schema_version"],
+            CURRENT_STATE_SCHEMA_VERSION,
+        )
+        self.assertEqual(migrated["failure_class"], "")
+        self.assertEqual(migrated["retry_counts"], {})
+        self.assertEqual(migrated["retry_target"], "")
+        self.assertEqual(migrated["retry_delay_seconds"], 0.0)
+
     def test_sqlite_saver_migrates_legacy_checkpoint_on_read(self) -> None:
         connection = sqlite3.connect(":memory:", check_same_thread=False)
         legacy_saver = SqliteSaver(connection)

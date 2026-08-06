@@ -54,6 +54,13 @@ are treated as v0 and migrated to the current schema when loaded; new checkpoint
 are written with the current version. Checkpoints from a newer unsupported version
 fail clearly instead of being interpreted incorrectly.
 
+Agent failures are classified as `transient`, `validation`, `guardrail`,
+`budget`, `cancelled`, or `permanent`. Safe agent and validation nodes retry only
+`transient` failures with bounded exponential backoff (0.5, 1, 2 seconds, capped
+at 8 seconds), recording per-node retry counts in the checkpoint and run manifest.
+Validation failures still go to the debugger; commit, push, and pull-request
+operations are never automatically retried because they have side effects.
+
 Runs have persisted safety budgets: one hour of wall time, three build attempts
 per item, twenty total build attempts, and an estimated 100,000-token ceiling by
 default. Set `max_runtime_seconds`, `max_attempts`, `max_total_attempts`,
@@ -114,8 +121,13 @@ Choose `tool="codex"` or `tool="claude"` when building the graph to use that
 CLI throughout the agent workflow.
 
 Critic feedback is included in the next builder attempt when a review rejects
-an item. A failed build follows the explicit failed-build terminal route and
-does not proceed to critic or validation.
+an item. A permanent failed build follows the explicit failed-build terminal
+route and does not proceed to critic or validation.
+
+Transient preflight, learning, planner, builder, critic, validator, and debugger
+failures return to the exact failed node after backoff. Permanent and guardrail
+failures stop in a terminal failure route instead of receiving the same retry
+treatment.
 
 When validation fails, the read-only debugger analyzes the failure, records its
 root cause and repair instructions in the current PRD item, then planning sends
