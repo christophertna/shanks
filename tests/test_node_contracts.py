@@ -59,6 +59,8 @@ class NodeContractTests(unittest.TestCase):
         self.assertIn("adapter ok", result.feedback)
         self.assertGreater(result.input_tokens, 0)
         self.assertGreater(result.output_tokens, 0)
+        self.assertIn("Task: test task", result.prompt)
+        self.assertEqual(result.commands[0][0], sys.executable)
 
     def test_subprocess_adapter_uses_remaining_runtime_budget(self) -> None:
         adapter = SubprocessAgentAdapter(
@@ -195,6 +197,7 @@ class NodeContractTests(unittest.TestCase):
                 stderr="",
             ),
             subprocess.CompletedProcess(args=(), returncode=0, stdout="", stderr=""),
+            subprocess.CompletedProcess(args=(), returncode=0, stdout="diff --git a/workflow/new.py b/workflow/new.py\n", stderr=""),
             subprocess.CompletedProcess(
                 args=(),
                 returncode=0,
@@ -215,12 +218,13 @@ class NodeContractTests(unittest.TestCase):
 
         self.assertEqual(result.status, "committed")
         self.assertEqual(result.files_touched, ["workflow/new.py", "new.py"])
+        self.assertIn("diff --git", result.diff)
         self.assertEqual(
             run.call_args_list[1].args[0],
             ("git", "add", "--", "workflow/new.py", "new.py"),
         )
         self.assertEqual(
-            run.call_args_list[2].args[0],
+            run.call_args_list[3].args[0],
             (
                 "git",
                 "commit",
@@ -231,6 +235,18 @@ class NodeContractTests(unittest.TestCase):
                 "workflow/new.py",
                 "new.py",
             ),
+        )
+        self.assertEqual(
+            result.commands[2],
+            [
+                "git",
+                "diff",
+                "--cached",
+                "--no-ext-diff",
+                "--",
+                "workflow/new.py",
+                "new.py",
+            ],
         )
 
     def test_github_adapter_rejects_paths_outside_the_project(self) -> None:
@@ -271,11 +287,16 @@ class NodeContractTests(unittest.TestCase):
         ) as run, patch.object(
             LocalTestAdapter,
             "run",
-            return_value=AgentResult(status="validated", assigned_model="local-tests"),
+            return_value=AgentResult(
+                status="validated",
+                assigned_model="local-tests",
+                feedback="Ran 10 tests in 0.1s",
+            ),
         ) as tests:
             result = adapter.preflight()
 
         self.assertEqual(result.status, "preflight_passed")
+        self.assertEqual(result.test_output, "Ran 10 tests in 0.1s")
         self.assertEqual(run.call_count, 3)
         tests.assert_called_once()
 
@@ -422,6 +443,8 @@ class NodeContractTests(unittest.TestCase):
             subprocess.CompletedProcess(
                 args=(), returncode=0, stdout="?? item.py\n", stderr=""
             ),
+            subprocess.CompletedProcess(args=(), returncode=0, stdout="", stderr=""),
+            subprocess.CompletedProcess(args=(), returncode=0, stdout="diff", stderr=""),
             subprocess.CompletedProcess(
                 args=(), returncode=1, stdout="", stderr="commit failed"
             ),
@@ -431,7 +454,7 @@ class NodeContractTests(unittest.TestCase):
             result = adapter.commit_item("item-1", "First item", ["item.py"])
 
         self.assertEqual(result.status, "failed")
-        self.assertEqual(run.call_count, 2)
+        self.assertEqual(run.call_count, 4)
 
     def test_github_adapter_stops_after_push_failure(self) -> None:
         adapter = GitHubAdapter(

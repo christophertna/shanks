@@ -42,6 +42,7 @@ class GraphViewerTests(unittest.TestCase):
         self.assertIn('id="execution-budget"', content)
         self.assertIn('fetch(`/graph-state?', content)
         self.assertIn("Checkpoint history", content)
+        self.assertIn("Run manifest", content)
 
     def test_execution_state_reads_current_snapshot_and_history(self) -> None:
         current = SimpleNamespace(
@@ -62,6 +63,9 @@ class GraphViewerTests(unittest.TestCase):
                 "last_error": "Validation failed",
                 "assigned_model": "ralph-model",
                 "status": "building",
+                "run_manifest": [
+                    {"type": "agent", "node": "planning", "model": "ralph-model"}
+                ],
             },
             next=("building",),
             config={"configurable": {"checkpoint_id": "checkpoint-2"}},
@@ -102,6 +106,7 @@ class GraphViewerTests(unittest.TestCase):
         self.assertEqual(result["last_error"], "Validation failed")
         self.assertEqual(result["model"], "ralph-model")
         self.assertEqual(result["checkpoint_history"][0]["checkpoint_id"], "checkpoint-1")
+        self.assertEqual(result["run_manifest"][0]["node"], "planning")
 
     def test_default_graphs_share_sqlite_checkpoints(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

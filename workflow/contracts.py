@@ -46,6 +46,10 @@ class AgentResult:
     input_tokens: int = 0
     output_tokens: int = 0
     cost_usd: float = 0.0
+    prompt: str = ""
+    commands: list[list[str]] = field(default_factory=list)
+    diff: str = ""
+    test_output: str = ""
 
 
 class AgentAdapter(Protocol):

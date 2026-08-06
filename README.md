@@ -43,6 +43,12 @@ Workflow checkpoints are stored in `.shanks/checkpoints.sqlite`, so the viewer
 can inspect runs started by another process. Set `SHANKS_CHECKPOINT_DB` in both
 processes to use a different shared database path.
 
+Each checkpoint also carries a persisted `run_manifest`. Its redacted audit
+events record agent prompts and model names, executed commands, validation/test
+output, staged diffs, commit SHAs, and pull-request URLs/IDs. The manifest is
+available from the viewer's Live execution panel and survives checkpointed
+retries.
+
 Checkpoint state carries a `state_schema_version`. Older unversioned checkpoints
 are treated as v0 and migrated to the current schema when loaded; new checkpoints
 are written with the current version. Checkpoints from a newer unsupported version
@@ -73,9 +79,10 @@ The run ends with `status="cancelled"` and records the reason instead of
 starting another backend or side-effecting node.
 
 The viewer's Live execution panel accepts the workflow's `thread_id` and polls
-the current node, PRD item, attempt count, budget usage, last error, model, and
-checkpoint history. Use the same thread ID when starting the workflow and
-inspecting it.
+the current node, PRD item, attempt count, budget usage, last error, model,
+checkpoint history, and run manifest. Expand an audit event to inspect its
+recorded prompt, commands, output, diff, commit, or pull-request details. Use
+the same thread ID when starting the workflow and inspecting it.
 
 ## Preflight checks
 
@@ -137,4 +144,5 @@ For implement runs, each validated item is committed locally. After the last
 item passes, the final GitHub handoff pushes the current non-`main` branch and
 creates a pull request with the GitHub CLI (`gh`). Persisted commit and PR IDs
 make commit and pull-request handoff safe to resume without duplicating those
-side effects; authenticate `gh` before starting the run.
+side effects; the same handoff details are added to the run manifest. Authenticate
+`gh` before starting the run.

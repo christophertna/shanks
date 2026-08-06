@@ -121,12 +121,15 @@ class SubprocessAgentAdapter:
         prompt = _format_request(request)
         cwd = request.working_directory or self.working_directory
         command = self._command_for(request)
+        audit_command = _audit_command(command)
         guardrail_error = self._validate_execution(command, cwd)
         if guardrail_error:
             return AgentResult(
                 status="failed",
                 assigned_model=self.model_name,
                 error=guardrail_error,
+                prompt=redact_secrets(prompt),
+                commands=[audit_command],
             )
 
         timeout = self.timeout_seconds
@@ -137,6 +140,8 @@ class SubprocessAgentAdapter:
                 status="failed",
                 assigned_model=self.model_name,
                 error="CLI deadline has elapsed.",
+                prompt=redact_secrets(prompt),
+                commands=[audit_command],
             )
 
         try:
@@ -155,6 +160,8 @@ class SubprocessAgentAdapter:
                 assigned_model=self.model_name,
                 error=redact_secrets(str(error)),
                 input_tokens=_estimate_tokens(prompt),
+                prompt=redact_secrets(prompt),
+                commands=[audit_command],
             )
 
         output = "\n".join(
@@ -173,6 +180,8 @@ class SubprocessAgentAdapter:
                 feedback=output,
                 input_tokens=_estimate_tokens(prompt),
                 output_tokens=_estimate_tokens(output),
+                prompt=redact_secrets(prompt),
+                commands=[audit_command],
             )
 
         return AgentResult(
@@ -181,6 +190,8 @@ class SubprocessAgentAdapter:
             feedback=output,
             input_tokens=_estimate_tokens(prompt),
             output_tokens=_estimate_tokens(output),
+            prompt=redact_secrets(prompt),
+            commands=[audit_command],
         )
 
     def _command_for(self, request: AgentRequest) -> tuple[str, ...]:
@@ -274,6 +285,11 @@ class RalphAdapter(SubprocessAgentAdapter):
                 assigned_model=self.model_name,
                 error=f"Ralph did not emit {ITEM_BUILT_MARKER}.",
                 feedback=result.feedback,
+                input_tokens=result.input_tokens,
+                output_tokens=result.output_tokens,
+                cost_usd=result.cost_usd,
+                prompt=result.prompt,
+                commands=result.commands,
             )
         result.item_built = True
         return result
@@ -347,6 +363,9 @@ class LocalTestAdapter(SubprocessAgentAdapter):
                 input_tokens=result.input_tokens,
                 output_tokens=result.output_tokens,
                 cost_usd=result.cost_usd,
+                prompt=result.prompt,
+                commands=result.commands,
+                test_output=output,
             )
         return AgentResult(
             status="validated",
@@ -356,6 +375,9 @@ class LocalTestAdapter(SubprocessAgentAdapter):
             input_tokens=result.input_tokens,
             output_tokens=result.output_tokens,
             cost_usd=result.cost_usd,
+            prompt=result.prompt,
+            commands=result.commands,
+            test_output=result.feedback,
         )
 
 
@@ -436,6 +458,7 @@ class GitHubAdapter:
     def preflight(self) -> AgentResult:
         """Check tools, branch state, GitHub auth, and the test environment."""
 
+        commands: list[list[str]] = []
         required_tools = ("git", "gh", "bash")
         missing = [tool for tool in required_tools if shutil.which(tool) is None]
         if not Path(sys.executable).exists():
@@ -448,37 +471,45 @@ class GitHubAdapter:
             )
 
         branch = self._run(("git", "branch", "--show-current"))
+        commands.extend(branch.commands)
         if branch.status == "failed":
-            return _preflight_failure(branch.error or branch.feedback)
+            return _preflight_failure(branch.error or branch.feedback, commands)
         branch_name = branch.feedback.strip()
         if not branch_name or branch_name == self.base_branch:
             return _preflight_failure(
                 f"Run from a non-{self.base_branch} branch; current branch is "
-                f"{branch_name or 'unknown'}."
+                f"{branch_name or 'unknown'}.",
+                commands,
             )
 
         status = self._run(("git", "status", "--short", "--untracked-files=all"))
+        commands.extend(status.commands)
         if status.status == "failed":
-            return _preflight_failure(status.error or status.feedback)
+            return _preflight_failure(status.error or status.feedback, commands)
         if status.feedback.strip():
             return _preflight_failure(
-                "Working tree is not clean:\n" + status.feedback.strip()
+                "Working tree is not clean:\n" + status.feedback.strip(),
+                commands,
             )
 
         auth = self._run(("gh", "auth", "status"))
+        commands.extend(auth.commands)
         if auth.status == "failed":
             return _preflight_failure(
                 "GitHub CLI authentication failed: "
-                + (auth.error or auth.feedback)
+                + (auth.error or auth.feedback),
+                commands,
             )
 
         tests = LocalTestAdapter(self.project_directory).run(
             AgentRequest(task="Run the preflight test suite.")
         )
+        commands.extend(tests.commands)
         if tests.status != "validated":
             return _preflight_failure(
                 "Preflight test suite failed: "
-                + (tests.error or tests.feedback)
+                + (tests.error or tests.feedback),
+                commands,
             )
         return AgentResult(
             status="preflight_passed",
@@ -487,6 +518,8 @@ class GitHubAdapter:
                 f"branch={branch_name}; working tree clean; GitHub auth ready; "
                 "test suite passed"
             ),
+            commands=commands,
+            test_output=tests.feedback,
         )
 
     def commit_item(
@@ -504,48 +537,76 @@ class GitHubAdapter:
                 assigned_model=self.model_name,
                 error="Refusing to commit a path outside the project directory.",
             )
-        files = self._candidate_files(files_touched)
+        commands: list[list[str]] = []
+        files = self._candidate_files(files_touched, commands=commands)
         if not files:
-            return AgentResult(status="no_changes", assigned_model=self.model_name)
+            return AgentResult(
+                status="no_changes",
+                assigned_model=self.model_name,
+                commands=commands,
+            )
 
         added = self._run(("git", "add", "--", *files))
+        commands.extend(added.commands)
         if added.status == "failed":
-            return added
+            return _attach_commands(added, commands)
+
+        diff_result = self._run(
+            ("git", "diff", "--cached", "--no-ext-diff", "--", *files)
+        )
+        commands.extend(diff_result.commands)
+        if diff_result.status == "failed":
+            return _attach_commands(diff_result, commands)
+        diff = diff_result.feedback
 
         message = f"feat: {item_id} - {item_title}".strip()
         committed = self._run(
             ("git", "commit", "--only", "-m", message, "--", *files)
         )
+        commands.extend(committed.commands)
         if committed.status == "failed":
             output = (committed.error or committed.feedback).lower()
             if "nothing to commit" in output:
-                return AgentResult(status="no_changes", assigned_model=self.model_name)
-            return committed
+                return AgentResult(
+                    status="no_changes",
+                    assigned_model=self.model_name,
+                    commands=commands,
+                    diff=diff,
+                )
+            committed.diff = diff
+            return _attach_commands(committed, commands)
 
         sha = self._run(("git", "rev-parse", "HEAD"))
+        commands.extend(sha.commands)
         return AgentResult(
             status="committed",
             assigned_model=self.model_name,
             files_touched=files,
             feedback=committed.feedback,
             commit_sha=sha.feedback.strip() if sha.status != "failed" else "",
+            commands=commands,
+            diff=diff,
         )
 
     def publish_pr(self, task: str) -> AgentResult:
+        commands: list[list[str]] = []
         branch_result = self._run(("git", "branch", "--show-current"))
+        commands.extend(branch_result.commands)
         if branch_result.status == "failed":
-            return branch_result
+            return _attach_commands(branch_result, commands)
         branch = branch_result.feedback.strip()
         if not branch or branch == self.base_branch:
             return AgentResult(
                 status="failed",
                 assigned_model=self.model_name,
                 error="Refusing to push or open a PR from the base branch.",
+                commands=commands,
             )
 
         pushed = self._run(("git", "push", "-u", self.remote, branch))
+        commands.extend(pushed.commands)
         if pushed.status == "failed":
-            return pushed
+            return _attach_commands(pushed, commands)
 
         existing = self._run(
             (
@@ -562,8 +623,9 @@ class GitHubAdapter:
                 "1",
             )
         )
+        commands.extend(existing.commands)
         if existing.status == "failed":
-            return existing
+            return _attach_commands(existing, commands)
         try:
             existing_prs = json.loads(existing.feedback or "[]")
         except json.JSONDecodeError as error:
@@ -572,6 +634,7 @@ class GitHubAdapter:
                 assigned_model=self.model_name,
                 error=f"Could not parse existing PR lookup: {error}",
                 feedback=existing.feedback,
+                commands=commands,
             )
         if not isinstance(existing_prs, list):
             return AgentResult(
@@ -579,6 +642,7 @@ class GitHubAdapter:
                 assigned_model=self.model_name,
                 error="Existing PR lookup returned an invalid response.",
                 feedback=existing.feedback,
+                commands=commands,
             )
         if existing_prs:
             first_pr = existing_prs[0]
@@ -593,12 +657,14 @@ class GitHubAdapter:
                     assigned_model=self.model_name,
                     error="Existing PR lookup returned no URL.",
                     feedback=existing.feedback,
+                    commands=commands,
                 )
             return AgentResult(
                 status="pr_created",
                 assigned_model=self.model_name,
                 feedback=existing.feedback,
                 pr_url=pr_url,
+                commands=commands,
             )
 
         summary = redact_secrets(" ".join(task.split())) or (
@@ -631,8 +697,9 @@ class GitHubAdapter:
                 body,
             )
         )
+        commands.extend(created.commands)
         if created.status == "failed":
-            return created
+            return _attach_commands(created, commands)
 
         pr_url = next(
             (part for part in created.feedback.split() if part.startswith("https://")),
@@ -643,10 +710,16 @@ class GitHubAdapter:
             assigned_model=self.model_name,
             feedback=created.feedback,
             pr_url=pr_url,
+            commands=commands,
         )
 
-    def _candidate_files(self, files_touched: list[str]) -> list[str]:
-        current = self._status_files()
+    def _candidate_files(
+        self,
+        files_touched: list[str],
+        *,
+        commands: list[list[str]] | None = None,
+    ) -> list[str]:
+        current = self._status_files(commands=commands)
         baseline = {
             normalized
             for file in (self.initial_dirty_files or ())
@@ -665,8 +738,10 @@ class GitHubAdapter:
         }
         return [path for path in fresh if not requested or path in requested]
 
-    def _status_files(self) -> list[str]:
+    def _status_files(self, *, commands: list[list[str]] | None = None) -> list[str]:
         result = self._run(("git", "status", "--short", "--untracked-files=all"))
+        if commands is not None:
+            commands.extend(result.commands)
         if result.status == "failed":
             return []
         files = []
@@ -699,6 +774,7 @@ class GitHubAdapter:
                 status="failed",
                 assigned_model=self.model_name,
                 error=guardrail_error,
+                commands=[_audit_command(command)],
             )
         try:
             completed = subprocess.run(
@@ -715,6 +791,7 @@ class GitHubAdapter:
                 status="failed",
                 assigned_model=self.model_name,
                 error=redact_secrets(str(error)),
+                commands=[_audit_command(command)],
             )
 
         stdout = redact_secrets((completed.stdout or "").strip())
@@ -733,11 +810,13 @@ class GitHubAdapter:
                 assigned_model=self.model_name,
                 error=output or f"Command exited with status {completed.returncode}",
                 feedback=output,
+                commands=[_audit_command(command)],
             )
         return AgentResult(
             status="completed",
             assigned_model=self.model_name,
             feedback=output,
+            commands=[_audit_command(command)],
         )
 
     def _validate_command(self, command: tuple[str, ...]) -> str | None:
@@ -746,6 +825,12 @@ class GitHubAdapter:
         if command == ("git", "branch", "--show-current"):
             return None
         if command == ("git", "rev-parse", "HEAD"):
+            return None
+        if (
+            len(command) >= 6
+            and command[:5] == ("git", "diff", "--cached", "--no-ext-diff", "--")
+            and self._safe_files(command[5:])
+        ):
             return None
         if command == ("gh", "auth", "status"):
             return None
@@ -858,6 +943,22 @@ def redact_secrets(value: str) -> str:
         else:
             redacted = pattern.sub("[REDACTED]", redacted)
     return redacted
+
+
+def _audit_command(command: tuple[str, ...]) -> list[str]:
+    """Return a redacted command suitable for the persisted run manifest."""
+
+    return [redact_secrets(part) for part in command]
+
+
+def _attach_commands(
+    result: AgentResult,
+    commands: list[list[str]],
+) -> AgentResult:
+    """Keep the full command trail when a multi-command operation fails."""
+
+    result.commands = list(commands)
+    return result
 
 
 class CodexAdapter(SubprocessAgentAdapter):
@@ -1145,6 +1246,8 @@ def _critic_result(
             input_tokens=raw_result.input_tokens,
             output_tokens=raw_result.output_tokens,
             cost_usd=raw_result.cost_usd,
+            prompt=raw_result.prompt,
+            commands=raw_result.commands,
         )
 
     return AgentResult(
@@ -1155,6 +1258,8 @@ def _critic_result(
         input_tokens=raw_result.input_tokens,
         output_tokens=raw_result.output_tokens,
         cost_usd=raw_result.cost_usd,
+        prompt=raw_result.prompt,
+        commands=raw_result.commands,
     )
 
 
@@ -1188,6 +1293,8 @@ def _debugger_result(
             input_tokens=raw_result.input_tokens,
             output_tokens=raw_result.output_tokens,
             cost_usd=raw_result.cost_usd,
+            prompt=raw_result.prompt,
+            commands=raw_result.commands,
         )
 
     return AgentResult(
@@ -1199,6 +1306,8 @@ def _debugger_result(
         input_tokens=raw_result.input_tokens,
         output_tokens=raw_result.output_tokens,
         cost_usd=raw_result.cost_usd,
+        prompt=raw_result.prompt,
+        commands=raw_result.commands,
     )
 
 
@@ -1223,11 +1332,15 @@ def _estimate_tokens(value: str) -> int:
     return (len(value) + 3) // 4
 
 
-def _preflight_failure(message: str) -> AgentResult:
+def _preflight_failure(
+    message: str,
+    commands: list[list[str]] | None = None,
+) -> AgentResult:
     return AgentResult(
         status="preflight_failed",
         assigned_model="github",
         error=message or "Preflight check failed.",
+        commands=commands or [],
     )
 
 

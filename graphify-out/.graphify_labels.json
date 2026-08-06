@@ -23,13 +23,7 @@
   "21": "test-guard.sh",
   "22": "GitHubAdapter",
   "23": "WorkflowState",
-  "24": "nodes.py",
-  "25": "create_nodes",
-  "26": "PRDItem",
   "27": "RepositoryAdapter",
-  "28": "github_node",
   "29": "Any",
-  "30": "RalphAdapter",
-  "31": "LocalTestAdapter",
-  "32": "AgentAdapter"
+  "30": "RalphAdapter"
 }
