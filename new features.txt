@@ -1,15 +1,38 @@
 Shanks feature roadmap
 
-Priority 2 - Scale and workflow operations
+Priority 1 - Execution safety and recovery
 
-5- Branch and worktree isolation.
-     Prevent concurrent runs from modifying the same working tree.
+1- Branch and worktree isolation.
+    Give each run its own branch and worktree, preventing concurrent runs from
+    modifying the same project directory or checkpoint thread.
 
-6- Pull request lifecycle management.
-     Update existing PRs, detect stale branches, assign reviewers, and apply
-     labels automatically.
+2- Checkpoint and run lifecycle safety.
+    Add run leases, stale-run recovery, checkpoint retention and cleanup, and
+    clear handling for abandoned or interrupted runs.
+
+Priority 2 - GitHub delivery and integration confidence
+
+3- Pull request lifecycle management.
+    Reconcile existing pull requests, distinguish open, closed, and merged
+    requests, update PR text, detect stale branches, and apply reviewer and
+    label policies idempotently.
+
+4- Git and GitHub integration tests.
+    Exercise real temporary Git repositories and a fake gh executable to verify
+    worktree creation, commits, pushes, PR reuse, and failure recovery beyond
+    mocked subprocess calls.
+
+Priority 3 - Reproducibility and maintenance
+
+5- Reproducible development environments.
+    Lock runtime and development dependency versions and provide one documented
+    bootstrap command for a fresh virtual environment.
+
+6- Security and permission hardening.
+    Review GitHub token permissions, branch protections, reviewer and label
+    allowlists, and dry-run behavior as lifecycle automation expands.
 
 Deferred
 
-- Parallelism and additional agent roles. Reliability and observability should
-  come first.
+- Parallelism and additional agent roles. Revisit after isolation, recovery,
+  and pull-request lifecycle behavior are reliable.
