@@ -249,7 +249,9 @@ class NodeContractTests(unittest.TestCase):
         )
         self.assertIn("FAIL: expected request", run.call_args.kwargs["input"])
         self.assertIn("read-only", run.call_args.kwargs["input"])
-        self.assertIn("The handler must use the request field.", run.call_args.kwargs["input"])
+        self.assertIn(
+            "The handler must use the request field.", run.call_args.kwargs["input"]
+        )
         self.assertIn("read-only", adapter.command)
         self.assertIn("--output-schema", adapter.command)
 
@@ -266,7 +268,15 @@ class NodeContractTests(unittest.TestCase):
                 stderr="",
             ),
             subprocess.CompletedProcess(args=(), returncode=0, stdout="", stderr=""),
-            subprocess.CompletedProcess(args=(), returncode=0, stdout="diff --git a/workflow/new.py b/workflow/new.py\n", stderr=""),
+            subprocess.CompletedProcess(
+                args=(),
+                returncode=0,
+                stdout="diff --git a/workflow/new.py b/workflow/new.py\n",
+                stderr="",
+            ),
+            subprocess.CompletedProcess(
+                args=(), returncode=0, stdout="Quality gates passed.\n", stderr=""
+            ),
             subprocess.CompletedProcess(
                 args=(),
                 returncode=0,
@@ -293,7 +303,7 @@ class NodeContractTests(unittest.TestCase):
             ("git", "add", "--", "workflow/new.py", "new.py"),
         )
         self.assertEqual(
-            run.call_args_list[3].args[0],
+            run.call_args_list[4].args[0],
             (
                 "git",
                 "commit",
@@ -316,6 +326,10 @@ class NodeContractTests(unittest.TestCase):
                 "workflow/new.py",
                 "new.py",
             ],
+        )
+        self.assertEqual(
+            result.commands[3][:3],
+            [sys.executable, "scripts/quality_gates.py", "--diff-base"],
         )
 
     def test_github_adapter_rejects_paths_outside_the_project(self) -> None:
@@ -341,46 +355,115 @@ class NodeContractTests(unittest.TestCase):
         self.assertIn("unapproved Git or GitHub command", result.error)
         run.assert_not_called()
 
+    def test_github_quality_gate_command_is_allowlisted(self) -> None:
+        adapter = GitHubAdapter(Path("/tmp/shanks"), initial_dirty_files=())
+
+        with patch(
+            "workflow.adapters.subprocess.run",
+            return_value=subprocess.CompletedProcess(
+                args=(), returncode=0, stdout="Quality gates passed.", stderr=""
+            ),
+        ) as run:
+            result = adapter._run(adapter._quality_gate_command(staged=True))
+
+        self.assertEqual(result.status, "completed")
+        self.assertEqual(
+            run.call_args.args[0],
+            (
+                sys.executable,
+                "scripts/quality_gates.py",
+                "--diff-base",
+                "origin/main",
+                "--staged",
+            ),
+        )
+
+    def test_github_quality_gate_failure_stops_before_commit(self) -> None:
+        adapter = GitHubAdapter(
+            Path("/tmp/shanks"),
+            initial_dirty_files=(),
+        )
+        responses = [
+            subprocess.CompletedProcess(
+                args=(), returncode=0, stdout="?? item.py\n", stderr=""
+            ),
+            subprocess.CompletedProcess(args=(), returncode=0, stdout="", stderr=""),
+            subprocess.CompletedProcess(
+                args=(), returncode=0, stdout="diff", stderr=""
+            ),
+            subprocess.CompletedProcess(
+                args=(), returncode=1, stdout="", stderr="diff is too large"
+            ),
+        ]
+
+        with patch("workflow.adapters.subprocess.run", side_effect=responses) as run:
+            result = adapter.commit_item("item-1", "First item", ["item.py"])
+
+        self.assertEqual(result.status, "failed")
+        self.assertIn("diff is too large", result.error)
+        self.assertEqual(run.call_count, 4)
+
     def test_github_preflight_checks_branch_auth_and_tests(self) -> None:
         adapter = GitHubAdapter(Path("/tmp/shanks"), initial_dirty_files=())
         responses = [
-            AgentResult(status="completed", assigned_model="github", feedback="feature"),
+            AgentResult(
+                status="completed", assigned_model="github", feedback="feature"
+            ),
             AgentResult(status="completed", assigned_model="github", feedback=""),
-            AgentResult(status="completed", assigned_model="github", feedback="auth ok"),
+            AgentResult(
+                status="completed", assigned_model="github", feedback="auth ok"
+            ),
+            AgentResult(
+                status="completed",
+                assigned_model="github",
+                feedback="Quality gates passed.",
+            ),
         ]
 
-        with patch("workflow.adapters.shutil.which", return_value="/usr/bin/tool"), patch.object(
-            GitHubAdapter,
-            "_run",
-            side_effect=responses,
-        ) as run, patch.object(
-            LocalTestAdapter,
-            "run",
-            return_value=AgentResult(
-                status="validated",
-                assigned_model="local-tests",
-                feedback="Ran 10 tests in 0.1s",
-            ),
-        ) as tests:
+        with (
+            patch("workflow.adapters.shutil.which", return_value="/usr/bin/tool"),
+            patch.object(
+                GitHubAdapter,
+                "_run",
+                side_effect=responses,
+            ) as run,
+            patch.object(
+                LocalTestAdapter,
+                "run",
+                return_value=AgentResult(
+                    status="validated",
+                    assigned_model="local-tests",
+                    feedback="Ran 10 tests in 0.1s",
+                ),
+            ) as tests,
+        ):
             result = adapter.preflight()
 
         self.assertEqual(result.status, "preflight_passed")
         self.assertEqual(result.test_output, "Ran 10 tests in 0.1s")
-        self.assertEqual(run.call_count, 3)
+        self.assertEqual(run.call_count, 4)
         tests.assert_called_once()
 
     def test_github_preflight_rejects_dirty_worktree(self) -> None:
         adapter = GitHubAdapter(Path("/tmp/shanks"), initial_dirty_files=())
         responses = [
-            AgentResult(status="completed", assigned_model="github", feedback="feature"),
-            AgentResult(status="completed", assigned_model="github", feedback=" M README.md"),
+            AgentResult(
+                status="completed", assigned_model="github", feedback="feature"
+            ),
+            AgentResult(
+                status="completed", assigned_model="github", feedback=" M README.md"
+            ),
         ]
 
-        with patch("workflow.adapters.shutil.which", return_value="/usr/bin/tool"), patch.object(
-            GitHubAdapter,
-            "_run",
-            side_effect=responses,
-        ) as run, patch.object(LocalTestAdapter, "run") as tests:
+        with (
+            patch("workflow.adapters.shutil.which", return_value="/usr/bin/tool"),
+            patch.object(
+                GitHubAdapter,
+                "_run",
+                side_effect=responses,
+            ) as run,
+            patch.object(LocalTestAdapter, "run") as tests,
+        ):
             result = adapter.preflight()
 
         self.assertEqual(result.status, "preflight_failed")
@@ -391,8 +474,12 @@ class NodeContractTests(unittest.TestCase):
     def test_github_adapter_redacts_pr_text_and_limits_environment(self) -> None:
         adapter = GitHubAdapter(Path("/tmp/shanks"), initial_dirty_files=())
         responses = [
-            subprocess.CompletedProcess(args=(), returncode=0, stdout="branch", stderr=""),
-            subprocess.CompletedProcess(args=(), returncode=0, stdout="pushed", stderr=""),
+            subprocess.CompletedProcess(
+                args=(), returncode=0, stdout="branch", stderr=""
+            ),
+            subprocess.CompletedProcess(
+                args=(), returncode=0, stdout="pushed", stderr=""
+            ),
             subprocess.CompletedProcess(args=(), returncode=0, stdout="[]", stderr=""),
             subprocess.CompletedProcess(
                 args=(),
@@ -402,14 +489,20 @@ class NodeContractTests(unittest.TestCase):
             ),
         ]
 
-        with patch.dict(
-            "os.environ",
-            {"GH_TOKEN": "ghp_test_secret_123456", "UNRELATED_SECRET": "do-not-pass"},
-            clear=True,
-        ), patch(
-            "workflow.adapters.subprocess.run",
-            side_effect=responses,
-        ) as run:
+        with (
+            patch.dict(
+                "os.environ",
+                {
+                    "GH_TOKEN": "ghp_test_secret_123456",
+                    "UNRELATED_SECRET": "do-not-pass",
+                },
+                clear=True,
+            ),
+            patch(
+                "workflow.adapters.subprocess.run",
+                side_effect=responses,
+            ) as run,
+        ):
             result = adapter.publish_pr("Ship ghp_test_secret_123456")
 
         self.assertEqual(result.status, "pr_created")
@@ -513,7 +606,12 @@ class NodeContractTests(unittest.TestCase):
                 args=(), returncode=0, stdout="?? item.py\n", stderr=""
             ),
             subprocess.CompletedProcess(args=(), returncode=0, stdout="", stderr=""),
-            subprocess.CompletedProcess(args=(), returncode=0, stdout="diff", stderr=""),
+            subprocess.CompletedProcess(
+                args=(), returncode=0, stdout="diff", stderr=""
+            ),
+            subprocess.CompletedProcess(
+                args=(), returncode=0, stdout="Quality gates passed.", stderr=""
+            ),
             subprocess.CompletedProcess(
                 args=(), returncode=1, stdout="", stderr="commit failed"
             ),
@@ -523,7 +621,7 @@ class NodeContractTests(unittest.TestCase):
             result = adapter.commit_item("item-1", "First item", ["item.py"])
 
         self.assertEqual(result.status, "failed")
-        self.assertEqual(run.call_count, 4)
+        self.assertEqual(run.call_count, 5)
 
     def test_github_adapter_stops_after_push_failure(self) -> None:
         adapter = GitHubAdapter(

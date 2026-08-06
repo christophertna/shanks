@@ -32,5 +32,8 @@
   "30": "RalphAdapter",
   "31": "planning",
   "32": "CheapCriticAdapter",
-  "33": "_apply_failure_policy"
+  "33": "_apply_failure_policy",
+  "34": "CheapCriticAdapter",
+  "35": "build_error_handler",
+  "36": "DebuggerAdapter"
 }

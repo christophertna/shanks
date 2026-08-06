@@ -14,7 +14,6 @@ from pathlib import Path
 
 from .contracts import AgentAdapter, AgentRequest, AgentResult
 
-
 GPT56_LUNA_MODEL = "gpt-5.6-luna"
 GPT56_LUNA_REASONING_EFFORT = "max"
 CLAUDE_OPUS_48_MODEL = "claude-opus-4-8"
@@ -23,9 +22,7 @@ CRITIC_OUTPUT_SCHEMA_PATH = Path(__file__).with_name("critic_output.schema.json"
 DEBUGGER_OUTPUT_SCHEMA_PATH = Path(__file__).with_name("debugger_output.schema.json")
 ITEM_BUILT_MARKER = "<promise>ITEM_BUILT</promise>"
 UNCERTAINTIES_MARKER = "RALPH_UNCERTAINTIES:"
-ALLOWED_AGENT_EXECUTABLES = frozenset(
-    {"bash", "claude", "codex", "python", "python3"}
-)
+ALLOWED_AGENT_EXECUTABLES = frozenset({"bash", "claude", "codex", "python", "python3"})
 GITHUB_ENVIRONMENT_KEYS = frozenset(
     {
         "GH_HOST",
@@ -133,7 +130,7 @@ class SubprocessAgentAdapter:
                 commands=[audit_command],
             )
 
-        timeout = self.timeout_seconds
+        timeout: float = self.timeout_seconds
         if request.timeout_seconds is not None:
             timeout = min(timeout, request.timeout_seconds)
         if timeout <= 0:
@@ -222,7 +219,9 @@ class SubprocessAgentAdapter:
             if not path.is_absolute() and cwd is not None:
                 path = Path(cwd) / path
             if not roots or not _path_within_any(_resolve_path(path), roots):
-                return "Refusing to use a command path outside the configured directories."
+                return (
+                    "Refusing to use a command path outside the configured directories."
+                )
         return None
 
 
@@ -307,14 +306,20 @@ class RalphAdapter(SubprocessAgentAdapter):
         payload: dict[str, object] = {}
         if prd_file.exists():
             payload = json.loads(prd_file.read_text(encoding="utf-8"))
-        existing_stories = {
-            story.get("id"): story
-            for story in payload.get("userStories", [])
-            if isinstance(story, dict) and story.get("id")
-        }
-        stories = []
+        raw_stories = payload.get("userStories", [])
+        if not isinstance(raw_stories, list):
+            raw_stories = []
+        existing_stories: dict[str, dict[str, object]] = {}
+        for raw_story in raw_stories:
+            if not isinstance(raw_story, dict):
+                continue
+            story_id = raw_story.get("id")
+            if isinstance(story_id, str) and story_id:
+                existing_stories[story_id] = raw_story
+        stories: list[dict[str, object]] = []
         for item in request.prd_items:
-            story = dict(existing_stories.get(item.get("id"), {}))
+            item_id = item.get("id") or ""
+            story = dict(existing_stories.get(item_id, {}))
             story.update(item)
             if "acceptance_criteria" in item:
                 story["acceptanceCriteria"] = item["acceptance_criteria"]
@@ -427,7 +432,7 @@ class DebuggerAdapter(SubprocessAgentAdapter):
             schema = json.dumps(
                 json.loads(DEBUGGER_OUTPUT_SCHEMA_PATH.read_text(encoding="utf-8"))
             )
-            command = (
+            command: tuple[str, ...] = (
                 "claude",
                 "--print",
                 "--permission-mode",
@@ -523,8 +528,7 @@ class GitHubAdapter:
         commands.extend(auth.commands)
         if auth.status == "failed":
             return _preflight_failure(
-                "GitHub CLI authentication failed: "
-                + (auth.error or auth.feedback),
+                "GitHub CLI authentication failed: " + (auth.error or auth.feedback),
                 commands,
             )
 
@@ -534,8 +538,15 @@ class GitHubAdapter:
         commands.extend(tests.commands)
         if tests.status != "validated":
             return _preflight_failure(
-                "Preflight test suite failed: "
-                + (tests.error or tests.feedback),
+                "Preflight test suite failed: " + (tests.error or tests.feedback),
+                commands,
+            )
+        quality = self._run(self._quality_gate_command())
+        commands.extend(quality.commands)
+        if quality.status == "failed":
+            return _preflight_failure(
+                "Preflight quality gates failed: "
+                + (quality.error or quality.feedback),
                 commands,
             )
         return AgentResult(
@@ -543,7 +554,7 @@ class GitHubAdapter:
             assigned_model=self.model_name,
             feedback=(
                 f"branch={branch_name}; working tree clean; GitHub auth ready; "
-                "test suite passed"
+                "test suite and quality gates passed"
             ),
             commands=commands,
             test_output=tests.feedback,
@@ -586,10 +597,14 @@ class GitHubAdapter:
             return _attach_commands(diff_result, commands)
         diff = diff_result.feedback
 
+        quality = self._run(self._quality_gate_command(staged=True))
+        commands.extend(quality.commands)
+        if quality.status == "failed":
+            quality.diff = diff
+            return _attach_commands(quality, commands)
+
         message = f"feat: {item_id} - {item_title}".strip()
-        committed = self._run(
-            ("git", "commit", "--only", "-m", message, "--", *files)
-        )
+        committed = self._run(("git", "commit", "--only", "-m", message, "--", *files))
         commands.extend(committed.commands)
         if committed.status == "failed":
             output = (committed.error or committed.feedback).lower()
@@ -673,11 +688,7 @@ class GitHubAdapter:
             )
         if existing_prs:
             first_pr = existing_prs[0]
-            pr_url = (
-                first_pr.get("url", "")
-                if isinstance(first_pr, dict)
-                else ""
-            )
+            pr_url = first_pr.get("url", "") if isinstance(first_pr, dict) else ""
             if not isinstance(pr_url, str) or not pr_url:
                 return AgentResult(
                     status="failed",
@@ -846,6 +857,15 @@ class GitHubAdapter:
             commands=[_audit_command(command)],
         )
 
+    def _quality_gate_command(self, *, staged: bool = False) -> tuple[str, ...]:
+        command = (
+            sys.executable,
+            "scripts/quality_gates.py",
+            "--diff-base",
+            f"{self.remote}/{self.base_branch}",
+        )
+        return (*command, "--staged") if staged else command
+
     def _validate_command(self, command: tuple[str, ...]) -> str | None:
         if command == ("git", "status", "--short", "--untracked-files=all"):
             return None
@@ -860,6 +880,14 @@ class GitHubAdapter:
         ):
             return None
         if command == ("gh", "auth", "status"):
+            return None
+        if (
+            len(command) in {4, 5}
+            and command[:3]
+            == (sys.executable, "scripts/quality_gates.py", "--diff-base")
+            and self._safe_ref(command[3])
+            and (len(command) == 4 or command[4] == "--staged")
+        ):
             return None
         if command[:3] == ("git", "add", "--") and self._safe_files(command[3:]):
             return None
@@ -882,7 +910,8 @@ class GitHubAdapter:
             len(command) == 11
             and command[:4] == ("gh", "pr", "list", "--head")
             and self._safe_ref(command[4])
-            and command[5:] == (
+            and command[5:]
+            == (
                 "--state",
                 "all",
                 "--json",
@@ -907,7 +936,9 @@ class GitHubAdapter:
         return "Refusing to run an unapproved Git or GitHub command."
 
     def _safe_files(self, files: tuple[str, ...]) -> bool:
-        return bool(files) and all(self._normalize_file(file) is not None for file in files)
+        return bool(files) and all(
+            self._normalize_file(file) is not None for file in files
+        )
 
     @staticmethod
     def _safe_ref(value: str) -> bool:
@@ -966,7 +997,9 @@ def redact_secrets(value: str) -> str:
     redacted = value
     for pattern in _SECRET_PATTERNS:
         if pattern.groups:
-            redacted = pattern.sub(lambda match: f"{match.group(1)}[REDACTED]", redacted)
+            redacted = pattern.sub(
+                lambda match: f"{match.group(1)}[REDACTED]", redacted
+            )
         else:
             redacted = pattern.sub("[REDACTED]", redacted)
     return redacted

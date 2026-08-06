@@ -10,9 +10,10 @@ Priority 1 - Observability and quality
     Classify failures and use targeted retry policies with backoff instead of
     retrying every error identically.
 
-3- Stronger quality gates.
+3- Stronger quality gates. [implemented; awaiting merge]
     Add formatting, typing, linting, dependency/security scans, and diff-size
-    checks.
+    checks. CI, GitHub preflight, and staged commits now run the shared quality
+    runner; source diffs are limited to 50 files and 1,000 changed lines.
 
 4- Fault-injection tests.
      Exercise Git, GitHub, validation, checkpoint, and agent failures.

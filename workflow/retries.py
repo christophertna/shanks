@@ -5,7 +5,6 @@ from __future__ import annotations
 import subprocess
 from typing import Literal
 
-
 FailureClass = Literal[
     "transient",
     "validation",

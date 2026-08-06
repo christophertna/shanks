@@ -6,7 +6,6 @@ from collections.abc import Callable, Mapping
 from datetime import datetime, timezone
 from typing import Any, Literal, TypedDict, cast
 
-
 CURRENT_STATE_SCHEMA_VERSION = 4
 DEFAULT_MAX_RUNTIME_SECONDS = 3600.0
 DEFAULT_MAX_ATTEMPTS = 3
@@ -104,9 +103,7 @@ def acceptance_criteria_for_item(item: Mapping[str, Any]) -> list[str]:
     if not isinstance(criteria, (list, tuple)):
         return []
     return [
-        value.strip()
-        for value in criteria
-        if isinstance(value, str) and value.strip()
+        value.strip() for value in criteria if isinstance(value, str) and value.strip()
     ]
 
 
@@ -215,8 +212,7 @@ def migrate_state(state: Mapping[str, Any]) -> WorkflowState:
     raw_version = migrated.get("state_schema_version", 0)
     if isinstance(raw_version, bool) or not isinstance(raw_version, int):
         raise StateSchemaError(
-            "state_schema_version must be an integer; "
-            f"got {raw_version!r}"
+            "state_schema_version must be an integer; " f"got {raw_version!r}"
         )
     if raw_version < 0:
         raise StateSchemaError(

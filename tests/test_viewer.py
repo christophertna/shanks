@@ -32,15 +32,13 @@ def stub_dependencies() -> NodeDependencies:
 
 class GraphViewerTests(unittest.TestCase):
     def test_viewer_refreshes_after_server_reconnect(self) -> None:
-        content = (Path(__file__).parents[1] / "graph.html").read_text(
-            encoding="utf-8"
-        )
+        content = (Path(__file__).parents[1] / "graph.html").read_text(encoding="utf-8")
 
         self.assertIn('graphEvents.addEventListener("open"', content)
         self.assertIn('lastDefinition = "";', content)
         self.assertIn('id="thread-id"', content)
         self.assertIn('id="execution-budget"', content)
-        self.assertIn('fetch(`/graph-state?', content)
+        self.assertIn("fetch(`/graph-state?", content)
         self.assertIn("Checkpoint history", content)
         self.assertIn("Run manifest", content)
 
@@ -105,7 +103,9 @@ class GraphViewerTests(unittest.TestCase):
         self.assertEqual(result["total_cost_usd"], 0.25)
         self.assertEqual(result["last_error"], "Validation failed")
         self.assertEqual(result["model"], "ralph-model")
-        self.assertEqual(result["checkpoint_history"][0]["checkpoint_id"], "checkpoint-1")
+        self.assertEqual(
+            result["checkpoint_history"][0]["checkpoint_id"], "checkpoint-1"
+        )
         self.assertEqual(result["run_manifest"][0]["node"], "planning")
 
     def test_default_graphs_share_sqlite_checkpoints(self) -> None:
