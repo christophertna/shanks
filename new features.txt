@@ -1,35 +1,38 @@
 Shanks feature roadmap
 
-Priority 1 - Observability and quality
+Priority 1 - Execution safety and recovery
 
-1- Item-scoped validation. [completed]
-    Add acceptance criteria and per-item validation commands, with the full
-    test suite as a fallback.
+1- Branch and worktree isolation.
+    Give each run its own branch and worktree, preventing concurrent runs from
+    modifying the same project directory or checkpoint thread.
 
-2- Failure classification and targeted retries. [completed]
-    Classify failures and use targeted retry policies with backoff instead of
-    retrying every error identically.
+2- Checkpoint and run lifecycle safety.
+    Add run leases, stale-run recovery, checkpoint retention and cleanup, and
+    clear handling for abandoned or interrupted runs.
 
-3- Stronger quality gates. [implemented; awaiting merge]
-    Add formatting, typing, linting, dependency/security scans, and diff-size
-    checks. CI, GitHub preflight, and staged commits now run the shared quality
-    runner; source diffs are limited to 50 files and 1,000 changed lines.
+Priority 2 - GitHub delivery and integration confidence
 
-4- Fault-injection tests. [implemented; awaiting merge]
-     Exercise Git, GitHub, validation, checkpoint, and agent failures. The
-     dedicated suite injects process errors, PR failures, validation timeouts,
-     agent crashes/timeouts, and checkpoint read/write failures.
+3- Pull request lifecycle management.
+    Reconcile existing pull requests, distinguish open, closed, and merged
+    requests, update PR text, detect stale branches, and apply reviewer and
+    label policies idempotently.
 
-Priority 2 - Scale and workflow operations
+4- Git and GitHub integration tests.
+    Exercise real temporary Git repositories and a fake gh executable to verify
+    worktree creation, commits, pushes, PR reuse, and failure recovery beyond
+    mocked subprocess calls.
 
-5- Branch and worktree isolation.
-     Prevent concurrent runs from modifying the same working tree.
+Priority 3 - Reproducibility and maintenance
 
-6- Pull request lifecycle management.
-     Update existing PRs, detect stale branches, assign reviewers, and apply
-     labels automatically.
+5- Reproducible development environments.
+    Lock runtime and development dependency versions and provide one documented
+    bootstrap command for a fresh virtual environment.
+
+6- Security and permission hardening.
+    Review GitHub token permissions, branch protections, reviewer and label
+    allowlists, and dry-run behavior as lifecycle automation expands.
 
 Deferred
 
-- Parallelism and additional agent roles. Reliability and observability should
-  come first.
+- Parallelism and additional agent roles. Revisit after isolation, recovery,
+  and pull-request lifecycle behavior are reliable.
