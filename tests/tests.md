@@ -1,7 +1,7 @@
 # Test coverage
 
 This document summarizes the behavior covered by the repository's tracked test
-files. The Python suite contains **95 unittest methods** across five modules;
+files. The Python suite contains **102 unittest methods** across six modules;
 `hooks/test-guard.sh` is a separate shell regression harness with eight command
 checks.
 
@@ -31,6 +31,7 @@ Run the repository quality gates from a feature branch with:
 | [`test_state_schema.py`](test_state_schema.py) | 8 | State migration, retry metadata, versioned checkpoints, and legacy resume behavior |
 | [`test_viewer.py`](test_viewer.py) | 5 | Viewer HTML, execution-state data, checkpoint sharing, and Mermaid output |
 | [`test_quality_gates.py`](test_quality_gates.py) | 9 | Quality command definitions, safe diff refs, numstat parsing, generated-output handling, diff limits, and gate failure reporting |
+| [`test_fault_injection.py`](test_fault_injection.py) | 7 | Injected Git, GitHub, validation, checkpoint, and agent process failures |
 | [`../hooks/test-guard.sh`](../hooks/test-guard.sh) | 8 shell checks | Dangerous-command blocking and safe-command allowlisting |
 
 ## Workflow orchestration
@@ -117,6 +118,22 @@ Sources: [`test_quality_gates.py`](test_quality_gates.py),
   commit` if any gate fails.
 - CI fetches the complete Git history so the diff gate can compare each push or
   pull request with `origin/main`.
+
+## Fault-injection tests
+
+Source: [`test_fault_injection.py`](test_fault_injection.py).
+
+- GitHub adapter Git execution errors are injected as operating-system failures
+  and must become classified adapter failures with an audit command.
+- GitHub pull-request creation failures are injected after a successful push and
+  lookup; the adapter stops without reporting a PR URL.
+- Validation subprocess timeouts become transient validation failures with the
+  failing output preserved.
+- Agent subprocess timeouts are classified as transient, while an injected
+  builder exception reaches the terminal build-failure route and records an
+  `agent_error` manifest event.
+- Checkpoint read and write failures are injected into the versioned SQLite
+  saver and are asserted to propagate instead of being silently swallowed.
 
 ### Budgets, cancellation, and run state
 

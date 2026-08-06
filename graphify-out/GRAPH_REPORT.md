@@ -1,16 +1,16 @@
 # Graph Report - shanks  (2026-08-05)
 
 ## Corpus Check
-- 37 files · ~29,044 words
+- 38 files · ~29,593 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 625 nodes · 1498 edges · 37 communities (34 shown, 3 thin omitted)
-- Extraction: 91% EXTRACTED · 9% INFERRED · 0% AMBIGUOUS · INFERRED: 142 edges (avg confidence: 0.57)
+- 640 nodes · 1561 edges · 37 communities (34 shown, 3 thin omitted)
+- Extraction: 90% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 159 edges (avg confidence: 0.57)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `5fd13800`
+- Built from commit: `a0ac91f7`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -51,28 +51,28 @@
 - DebuggerAdapter
 
 ## God Nodes (most connected - your core abstractions)
-1. `AgentResult` - 75 edges
-2. `NodeDependencies` - 65 edges
-3. `WorkflowState` - 63 edges
-4. `AgentRequest` - 60 edges
+1. `AgentResult` - 79 edges
+2. `NodeDependencies` - 69 edges
+3. `AgentRequest` - 66 edges
+4. `WorkflowState` - 63 edges
 5. `NodeContractTests` - 51 edges
-6. `GraphRoutingTests` - 41 edges
-7. `StubAgentAdapter` - 41 edges
-8. `GitHubAdapter` - 36 edges
+6. `StubAgentAdapter` - 45 edges
+7. `GraphRoutingTests` - 41 edges
+8. `GitHubAdapter` - 41 edges
 9. `build_graph()` - 34 edges
-10. `build_graph()` - 26 edges
+10. `build_graph()` - 28 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `VersionedSqliteSaver` --uses--> `NodeDependencies`  [INFERRED]
   graph.py → workflow/nodes.py
 - `VersionedSqliteSaver` --uses--> `WorkflowState`  [INFERRED]
   graph.py → workflow/state.py
+- `ExplodingBuilder` --uses--> `VersionedSqliteSaver`  [INFERRED]
+  tests/test_fault_injection.py → graph.py
+- `FaultInjectionTests` --uses--> `VersionedSqliteSaver`  [INFERRED]
+  tests/test_fault_injection.py → graph.py
 - `build_graph()` --indirect_call--> `build_error_handler()`  [INFERRED]
   graph.py → workflow/nodes.py
-- `SequenceAdapter` --uses--> `AgentRequest`  [INFERRED]
-  tests/test_graph.py → workflow/contracts.py
-- `RecordingRepository` --uses--> `AgentRequest`  [INFERRED]
-  tests/test_graph.py → workflow/contracts.py
 
 ## Import Cycles
 - None detected.
@@ -100,8 +100,8 @@ Cohesion: 0.18
 Nodes (6): initialize_metadata_file(), mark_item_built(), RALPH_BASE_DIR, RALPH_PROJECT_DIR, ralph.sh script, upsert_metadata()
 
 ### Community 5 - "VersionedSqliteSaver"
-Cohesion: 0.11
-Nodes (42): Translate common agent output into shared workflow state fields., state_update_from_result(), _apply_failure_policy(), _approval_denied(), _audit_result(), building(), commit_item(), create_nodes() (+34 more)
+Cohesion: 0.13
+Nodes (34): Translate common agent output into shared workflow state fields., state_update_from_result(), _apply_failure_policy(), _approval_denied(), _audit_result(), building(), commit_item(), critic_auditor() (+26 more)
 
 ### Community 6 - "Ralph Agent Instructions"
 Cohesion: 0.17
@@ -124,8 +124,8 @@ Cohesion: 0.17
 Nodes (11): approved, feedback, additionalProperties, type, type, properties, approved, feedback (+3 more)
 
 ### Community 12 - "GitHubAdapter"
-Cohesion: 0.14
-Nodes (16): ValueError, ClaudeAdapter, CodexAdapter, _command_path_arguments(), _critic_result(), _debugger_result(), _parse_json_object(), _path_within_any() (+8 more)
+Cohesion: 0.12
+Nodes (18): _command_path_arguments(), _critic_request(), _critic_result(), _debugger_request(), _debugger_result(), _estimate_tokens(), _format_request(), _parse_json_object() (+10 more)
 
 ### Community 13 - "NodeContractTests"
 Cohesion: 0.22
@@ -140,88 +140,88 @@ Cohesion: 0.12
 Nodes (15): builder_instructions, root_cause, additionalProperties, minLength, type, type, properties, builder_instructions (+7 more)
 
 ### Community 19 - "adapters.py"
-Cohesion: 0.13
-Nodes (13): ClaudeOpus48CriticAdapter, GPT56LunaCriticAdapter, Normalize a read-only CLI critic into the common agent result shape., Run the critic_auditor as a read-only GPT-5.6 Luna Codex subagent., Run the critic_auditor as a read-only Claude Opus 4.8 subagent., StructuredCriticAdapter, claude_opus_4_8_dependencies(), default_dependencies() (+5 more)
+Cohesion: 0.08
+Nodes (23): CheapCriticAdapter, ClaudeAdapter, ClaudeOpus48CriticAdapter, CodexAdapter, GPT56LunaCriticAdapter, Adapter for direct Codex CLI execution., Adapter for direct Claude Code CLI execution., Normalize a read-only CLI critic into the common agent result shape. (+15 more)
 
 ### Community 22 - "GitHubAdapter"
-Cohesion: 0.13
-Nodes (5): NodeContractTests, _attach_commands(), GitHubAdapter, Keep the full command trail when a multi-command operation fails., Commit validated items, then push the branch and open its PR.
+Cohesion: 0.09
+Nodes (11): NodeContractTests, _attach_commands(), _audit_command(), GitHubAdapter, _preflight_failure(), Return a redacted command suitable for the persisted run manifest., Keep the full command trail when a multi-command operation fails., Commit validated items, then push the branch and open its PR. (+3 more)
 
 ### Community 23 - "WorkflowState"
-Cohesion: 0.18
-Nodes (6): _critic_request(), LocalTestAdapter, _preflight_failure(), Add the shared read-only audit instructions to a critic request., Run an item's validation command or the full local suite as a fallback., Check tools, branch state, GitHub auth, and the test environment.
+Cohesion: 0.16
+Nodes (11): _checkpoint_payload(), _dependencies(), ExplodingBuilder, FaultInjectionTests, _initial_state(), LocalTestAdapter, Run a configured CLI backend through the common adapter contract., Run an item's validation command or the full local suite as a fallback. (+3 more)
 
 ### Community 24 - "Test coverage"
 Cohesion: 0.07
-Nodes (27): Agent and adapter contracts, Approval and handoff behavior, Budgets, cancellation, and run state, Commit scope and resume safety, Common agent and subprocess behavior, Dependency factories and critic models, Entry, intake, and item routing, GitHub commit and pull-request delivery (+19 more)
+Nodes (28): Agent and adapter contracts, Approval and handoff behavior, Budgets, cancellation, and run state, Commit scope and resume safety, Common agent and subprocess behavior, Dependency factories and critic models, Entry, intake, and item routing, Fault-injection tests (+20 more)
 
 ### Community 25 - "graph.py"
-Cohesion: 0.12
-Nodes (16): TypedDict, Common interfaces shared by agent adapters and graph nodes., Reusable workflow state, agent contracts, adapters, and nodes., _item_complete(), item_router(), _mark_current_item_built(), _mark_current_item_validated(), Select the first item that is not both built and validated. (+8 more)
+Cohesion: 0.20
+Nodes (11): TypedDict, _item_complete(), item_router(), _mark_current_item_built(), _mark_current_item_validated(), Select the first item that is not both built and validated., Treat legacy passes-only items as complete while honoring validation., Prepare the decision to start another item or finish the workflow. (+3 more)
 
 ### Community 26 - "nodes.py"
-Cohesion: 0.10
-Nodes (24): attempt_limit(), _default_plan(), failed_build(), _invalid_budget(), _nonnegative_float(), _nonnegative_int(), _pull_request_id(), Standardized LangGraph node implementations. (+16 more)
+Cohesion: 0.17
+Nodes (15): _invalid_budget(), _nonnegative_float(), _nonnegative_int(), _pull_request_id(), Standardized LangGraph node implementations., Extract the numeric or opaque ID at the end of a pull-request URL., Redact strings recursively before they enter persisted state., Return the first configured cancellation or budget stop reason. (+7 more)
 
 ### Community 27 - "RepositoryAdapter"
-Cohesion: 0.14
-Nodes (13): Exception, FailureClass, Classify failures at the shared adapter boundary., _exception_failure_class(), BaseException, Classify the original exception carried by LangGraph's NodeError., classify_failure(), BaseException (+5 more)
+Cohesion: 0.16
+Nodes (14): Exception, FailureClass, Common interfaces shared by agent adapters and graph nodes., Classify failures at the shared adapter boundary., classify_failure(), BaseException, Failure classification and bounded retry helpers., Use the same classifier for LangGraph's native node retry policy. (+6 more)
 
 ### Community 28 - "create_nodes"
-Cohesion: 0.12
-Nodes (15): _migrate_checkpoint_tuple(), Open the SQLite checkpoint store shared by workflow and viewer processes., Return a checkpoint tuple whose state channels use the current schema., SqliteSaver that migrates workflow state on reads and writes., shared_checkpointer(), VersionedSqliteSaver, NodeFunction, SqliteSaver (+7 more)
+Cohesion: 0.09
+Nodes (19): _migrate_checkpoint_tuple(), Return a checkpoint tuple whose state channels use the current schema., SqliteSaver that migrates workflow state on reads and writes., VersionedSqliteSaver, SqliteSaver, StateSchemaTests, migrate_state(), _migrate_v0_to_v1() (+11 more)
 
 ### Community 29 - "Any"
-Cohesion: 0.13
-Nodes (11): _format_request(), _parse_uncertainties(), RalphAdapter, Run a configured CLI backend through the common adapter contract., Extract the builder's concise uncertainty bullets from Ralph output., Create a stable prompt envelope for CLI-backed adapters., Adapter for the project-local Ralph runner., Persist the graph's full PRD before Ralph reads its next story. (+3 more)
+Cohesion: 0.20
+Nodes (5): _parse_uncertainties(), RalphAdapter, Extract the builder's concise uncertainty bullets from Ralph output., Adapter for the project-local Ralph runner., Persist the graph's full PRD before Ralph reads its next story.
 
 ### Community 30 - "RalphAdapter"
 Cohesion: 0.22
 Nodes (6): Protocol, Push the branch and create its pull request., Interface for local commits and the final GitHub handoff., Check the repository and execution environment before intake., Commit one validated item's intended files., RepositoryAdapter
 
 ### Community 31 - "planning"
-Cohesion: 0.10
-Nodes (31): build_graph(), LangGraph workflow assembled from standardized agent nodes., Build the workflow with optional adapters or a Claude/Codex choice., agent_error_handler_for(), Retry transient learn failures without asking for a new mode., Enter intake only after preflight succeeds or is explicitly skipped., Retry transient review failures but never turn them into rebuilds., Send failures to debugging and successes to the commit checkpoint. (+23 more)
+Cohesion: 0.11
+Nodes (32): build_graph(), LangGraph workflow assembled from standardized agent nodes., Open the SQLite checkpoint store shared by workflow and viewer processes., Build the workflow with optional adapters or a Claude/Codex choice., shared_checkpointer(), agent_error_handler_for(), Retry transient learn failures without asking for a new mode., Enter intake only after preflight succeeds or is explicitly skipped. (+24 more)
 
 ### Community 32 - "CheapCriticAdapter"
-Cohesion: 0.33
-Nodes (6): _audit_command(), _estimate_tokens(), Return a redacted command suitable for the persisted run manifest., Use a conservative four-characters-per-token estimate for CLI text., Remove common credentials before command output enters workflow state., redact_secrets()
+Cohesion: 0.12
+Nodes (17): NodeFunction, attempt_limit(), create_nodes(), failed_build(), failed_run(), intake(), Migrate state, enforce run budgets, and stamp every checkpoint., Create state-only node callables with injected agent backends. (+9 more)
 
 ### Community 33 - "_apply_failure_policy"
-Cohesion: 0.15
-Nodes (13): Any, acceptance_criteria_for_item(), _migrate_v0_to_v1(), _migrate_v1_to_v2(), _migrate_v2_to_v3(), _migrate_v3_to_v4(), Read an optional per-item validation command from a PRD item., Mark an unversioned legacy state as the first supported schema. (+5 more)
+Cohesion: 0.40
+Nodes (5): Any, acceptance_criteria_for_item(), Read an optional per-item validation command from a PRD item., Read acceptance criteria from either Python or Ralph PRD field names., validation_command_for_item()
 
 ### Community 34 - "CheapCriticAdapter"
-Cohesion: 0.29
-Nodes (5): CheapCriticAdapter, Deterministic low-cost critic used by the default graph., AgentAdapter, Interface implemented by Ralph, model CLIs, and test doubles., Run the backend for one workflow node invocation.
+Cohesion: 0.40
+Nodes (5): _debugger_details(), _default_plan(), planning(), Format new debugger findings for the current PRD requirement., Plan the current incomplete item without losing retry context.
 
 ### Community 35 - "build_error_handler"
-Cohesion: 0.33
-Nodes (7): NodeError, agent_error_handler(), build_error_handler(), Route an exhausted native build-node failure to the terminal path., Classify an exhausted non-build node exception and stop safely., append_run_manifest(), Append one timestamped, persisted audit event to the current run.
+Cohesion: 0.29
+Nodes (8): NodeError, agent_error_handler(), build_error_handler(), _exception_failure_class(), BaseException, Classify the original exception carried by LangGraph's NodeError., Route an exhausted native build-node failure to the terminal path., Classify an exhausted non-build node exception and stop safely.
 
 ### Community 36 - "DebuggerAdapter"
-Cohesion: 0.33
-Nodes (4): _debugger_request(), DebuggerAdapter, Give the debugger failure evidence and a read-only analysis mandate., Analyze validation failures with a read-only structured Codex run.
+Cohesion: 0.24
+Nodes (4): ValueError, DebuggerAdapter, Path, Analyze validation failures with a read-only structured Codex run.
 
 ## Knowledge Gaps
-- **91 isolated node(s):** `RALPH_BASE_DIR`, `RALPH_PROJECT_DIR`, `$schema`, `type`, `additionalProperties` (+86 more)
+- **92 isolated node(s):** `RALPH_BASE_DIR`, `RALPH_PROJECT_DIR`, `$schema`, `type`, `additionalProperties` (+87 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **3 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `AgentResult` connect `NodeDependencies` to `CheapCriticAdapter`, `CheapCriticAdapter`, `DebuggerAdapter`, `VersionedSqliteSaver`, `GitHubAdapter`, `adapters.py`, `GitHubAdapter`, `WorkflowState`, `graph.py`, `nodes.py`, `RepositoryAdapter`, `Any`, `RalphAdapter`?**
-  _High betweenness centrality (0.077) - this node is a cross-community bridge._
-- **Why does `NodeDependencies` connect `NodeDependencies` to `GraphRequestHandler`, `CheapCriticAdapter`, `DebuggerAdapter`, `VersionedSqliteSaver`, `GitHubAdapter`, `adapters.py`, `GitHubAdapter`, `WorkflowState`, `graph.py`, `nodes.py`, `create_nodes`, `Any`, `RalphAdapter`, `planning`?**
-  _High betweenness centrality (0.076) - this node is a cross-community bridge._
-- **Why does `AgentRequest` connect `Any` to `NodeDependencies`, `CheapCriticAdapter`, `CheapCriticAdapter`, `DebuggerAdapter`, `VersionedSqliteSaver`, `GitHubAdapter`, `adapters.py`, `GitHubAdapter`, `WorkflowState`, `graph.py`, `nodes.py`?**
-  _High betweenness centrality (0.051) - this node is a cross-community bridge._
-- **Are the 20 inferred relationships involving `AgentResult` (e.g. with `GraphRoutingTests` and `PreflightOnlyRepository`) actually correct?**
-  _`AgentResult` has 20 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 21 inferred relationships involving `NodeDependencies` (e.g. with `VersionedSqliteSaver` and `GraphRoutingTests`) actually correct?**
-  _`NodeDependencies` has 21 INFERRED edges - model-reasoned connections that need verification._
+- **Why does `AgentResult` connect `NodeDependencies` to `DebuggerAdapter`, `VersionedSqliteSaver`, `GitHubAdapter`, `adapters.py`, `GitHubAdapter`, `WorkflowState`, `graph.py`, `nodes.py`, `RepositoryAdapter`, `Any`, `RalphAdapter`?**
+  _High betweenness centrality (0.078) - this node is a cross-community bridge._
+- **Why does `NodeDependencies` connect `NodeDependencies` to `CheapCriticAdapter`, `GraphRequestHandler`, `CheapCriticAdapter`, `DebuggerAdapter`, `VersionedSqliteSaver`, `adapters.py`, `GitHubAdapter`, `WorkflowState`, `graph.py`, `nodes.py`, `create_nodes`, `Any`, `RalphAdapter`, `planning`?**
+  _High betweenness centrality (0.075) - this node is a cross-community bridge._
+- **Why does `AgentRequest` connect `WorkflowState` to `NodeDependencies`, `DebuggerAdapter`, `VersionedSqliteSaver`, `GitHubAdapter`, `adapters.py`, `GitHubAdapter`, `graph.py`, `nodes.py`, `RepositoryAdapter`, `Any`?**
+  _High betweenness centrality (0.057) - this node is a cross-community bridge._
+- **Are the 22 inferred relationships involving `AgentResult` (e.g. with `ExplodingBuilder` and `FaultInjectionTests`) actually correct?**
+  _`AgentResult` has 22 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 23 inferred relationships involving `NodeDependencies` (e.g. with `VersionedSqliteSaver` and `ExplodingBuilder`) actually correct?**
+  _`NodeDependencies` has 23 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 22 inferred relationships involving `AgentRequest` (e.g. with `ExplodingBuilder` and `FaultInjectionTests`) actually correct?**
+  _`AgentRequest` has 22 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 6 inferred relationships involving `WorkflowState` (e.g. with `VersionedSqliteSaver` and `AgentAdapter`) actually correct?**
   _`WorkflowState` has 6 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 20 inferred relationships involving `AgentRequest` (e.g. with `GraphRoutingTests` and `PreflightOnlyRepository`) actually correct?**
-  _`AgentRequest` has 20 INFERRED edges - model-reasoned connections that need verification._

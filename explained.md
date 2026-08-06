@@ -312,9 +312,10 @@ Checks that the graph works.
 
 The tests cover retries, validation failures, item progress, attempt limits,
 failed-build routing, idempotent GitHub handoff, viewer state inspection, agent
-adapters, and the quality-gate parser/runner. GitHub Actions installs the
-development quality tools, runs the unittest suite, and runs every quality gate
-on pushes and pull requests.
+adapters, the quality-gate parser/runner, and fault-injection behavior. The
+fault suite injects Git/GitHub, validation, checkpoint, and agent failures.
+GitHub Actions installs the development quality tools, runs the unittest suite,
+and runs every quality gate on pushes and pull requests.
 
 ### `graphify-out/`
 
