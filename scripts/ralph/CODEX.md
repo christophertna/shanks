@@ -37,7 +37,7 @@ back to normal file inspection. After changing code, run `graphify update .`.
 2. Check that you are on the branch from the PRD `branchName`. If necessary, create or check out that branch from `main`.
 3. Pick the highest-priority user story where `passes` or `validation` is `false`.
 4. Implement that single user story.
-5. Run the target project’s documented validation command and all other relevant quality checks. For this repository, validation is `.venv/bin/python -m unittest discover -s tests`.
+5. Run the current story’s `validationCommand` when the PRD provides one, plus any other relevant quality checks. If it is absent, use the target project’s full validation command; for this repository, that fallback is `.venv/bin/python -m unittest discover -s tests`.
    The graph’s validation node is the final gate; do not commit from Ralph.
 6. For UI stories, verify the result in a browser when browser tooling is available.
 7. Update nearby `AGENTS.md` files only with genuinely reusable project knowledge discovered during the work.

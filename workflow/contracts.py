@@ -17,6 +17,8 @@ class AgentRequest:
     item_id: str = ""
     item_title: str = ""
     item_description: str = ""
+    acceptance_criteria: list[str] = field(default_factory=list)
+    validation_command: str = ""
     prd_items: list[PRDItem] = field(default_factory=list)
     instructions: str = ""
     context: str = ""

@@ -153,6 +153,7 @@ Think of the state as a shared notebook. It stores things like:
 - The selected learn or implement mode.
 - Whether preflight passed before intake.
 - The current PRD item.
+- Each item's acceptance criteria and optional validation command.
 - Whether each item passed building and validation.
 - The plan.
 - Files changed.
@@ -180,9 +181,10 @@ current version. If a checkpoint comes from a newer version than this code
 understands, the workflow stops with a clear error instead of guessing at the
 state shape.
 
-The authoritative validator currently runs the local unittest suite. The
-workflow tracks validation per PRD item, but item-specific acceptance criteria
-and validation commands are future work.
+The authoritative validator runs the current PRD item's `validationCommand`
+when one is present and falls back to the local unittest suite otherwise.
+`acceptanceCriteria` is carried with the current item into planning, building,
+critic review, and debugging requests.
 
 ### `workflow/contracts.py`
 
@@ -192,7 +194,8 @@ Every agent gets an `AgentRequest` and returns an `AgentResult`.
 
 This lets different agents fit into the same graph.
 
-`AgentRequest` carries the remaining run timeout. `AgentResult` can report input
+`AgentRequest` carries the current item's acceptance criteria, optional
+validation command, and remaining run timeout. `AgentResult` can report input
 tokens, output tokens, cost, the redacted prompt, executed commands, and a
 staged diff; CLI adapters estimate tokens from text when a provider does not
 expose usage directly.
@@ -212,8 +215,10 @@ There are adapters for:
 The default graph uses fake agents. They do not call an outside AI service.
 Real agents must be passed into `build_graph()` on purpose.
 
-`LocalTestAdapter` is the default validation adapter for real project runs and
-reports test failures back to the graph as structured validation errors.
+`LocalTestAdapter` is the default validation adapter for real project runs. It
+runs an item's validation command when present, otherwise the full local
+unittest suite, and reports failures back to the graph as structured validation
+errors.
 `RalphAdapter` parses the builder's `RALPH_UNCERTAINTIES` section into the
 current item's uncertainty list.
 `GitHubAdapter.preflight()` checks required tools, the current branch and

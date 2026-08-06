@@ -12,6 +12,7 @@
         "Generate and run migration successfully",
         "Typecheck passes"
       ],
+      "validationCommand": "python -m unittest tests.test_priority_database",
       "priority": 1,
       "passes": false,
       "validation": false,
@@ -27,6 +28,7 @@
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
       ],
+      "validationCommand": "python -m unittest tests.test_priority_cards",
       "priority": 2,
       "passes": false,
       "validation": false,
@@ -43,6 +45,7 @@
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
       ],
+      "validationCommand": "python -m unittest tests.test_priority_edit",
       "priority": 3,
       "passes": false,
       "validation": false,
@@ -59,6 +62,7 @@
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
       ],
+      "validationCommand": "python -m unittest tests.test_priority_filter",
       "priority": 4,
       "passes": false,
       "validation": false,

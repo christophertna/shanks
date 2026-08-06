@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -315,6 +316,12 @@ class RalphAdapter(SubprocessAgentAdapter):
         for item in request.prd_items:
             story = dict(existing_stories.get(item.get("id"), {}))
             story.update(item)
+            if "acceptance_criteria" in item:
+                story["acceptanceCriteria"] = item["acceptance_criteria"]
+                story.pop("acceptance_criteria", None)
+            if "validation_command" in item:
+                story["validationCommand"] = item["validation_command"]
+                story.pop("validation_command", None)
             story.setdefault("passes", False)
             story.setdefault("validation", False)
             stories.append(story)
@@ -339,7 +346,7 @@ class RalphAdapter(SubprocessAgentAdapter):
 
 
 class LocalTestAdapter(SubprocessAgentAdapter):
-    """Run the target project's local unittest suite for validation."""
+    """Run an item's validation command or the full local suite as a fallback."""
 
     def __init__(self, project_directory: Path) -> None:
         super().__init__(
@@ -350,6 +357,19 @@ class LocalTestAdapter(SubprocessAgentAdapter):
         )
 
     def run(self, request: AgentRequest) -> AgentResult:
+        try:
+            self._command_for(request)
+        except ValueError as error:
+            message = f"Invalid validation command: {error}"
+            return AgentResult(
+                status="validation_failed",
+                assigned_model=self.model_name,
+                error=message,
+                feedback=message,
+                validation_passed=False,
+                validation_errors=[message],
+                test_output=message,
+            )
         result = super().run(request)
         if result.status == "failed":
             output = result.error or result.feedback or "Local tests failed."
@@ -379,6 +399,13 @@ class LocalTestAdapter(SubprocessAgentAdapter):
             commands=result.commands,
             test_output=result.feedback,
         )
+
+    def _command_for(self, request: AgentRequest) -> tuple[str, ...]:
+        command = request.validation_command.strip()
+        if not command:
+            return self.command
+        parsed = tuple(shlex.split(command))
+        return parsed or self.command
 
 
 class DebuggerAdapter(SubprocessAgentAdapter):
@@ -1172,6 +1199,8 @@ def _critic_request(request: AgentRequest) -> AgentRequest:
         item_id=request.item_id,
         item_title=request.item_title,
         item_description=request.item_description,
+        acceptance_criteria=request.acceptance_criteria,
+        validation_command=request.validation_command,
         prd_items=request.prd_items,
         instructions="\n".join(
             part
@@ -1202,6 +1231,8 @@ def _debugger_request(request: AgentRequest) -> AgentRequest:
         item_id=request.item_id,
         item_title=request.item_title,
         item_description=request.item_description,
+        acceptance_criteria=request.acceptance_criteria,
+        validation_command=request.validation_command,
         prd_items=request.prd_items,
         instructions="\n".join(
             part
@@ -1319,6 +1350,9 @@ def _format_request(request: AgentRequest) -> str:
             f"Task: {request.task}",
             f"PRD item: {request.item_id} - {request.item_title}",
             f"PRD requirement: {request.item_description}",
+            f"Acceptance criteria: {json.dumps(request.acceptance_criteria)}",
+            "Validation command: "
+            + (request.validation_command or "<full test suite fallback>"),
             f"PRD list: {json.dumps(request.prd_items, sort_keys=True)}",
             f"Instructions: {request.instructions}",
             f"Context: {request.context}",

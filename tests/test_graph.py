@@ -187,6 +187,62 @@ class GraphRoutingTests(unittest.TestCase):
         self.assertTrue(result["prd_items"][0]["passes"])
         self.assertEqual(result["current_item_id"], "item-1")
 
+    def test_item_metadata_reaches_planning_and_validation(self) -> None:
+        planner = SequenceAdapter(
+            "planner",
+            [
+                AgentResult(
+                    status="planned",
+                    assigned_model="planner",
+                    plan=["Build the item"],
+                    builder_instructions="Implement the item.",
+                )
+            ],
+        )
+        validator = SequenceAdapter(
+            "validator",
+            [
+                AgentResult(
+                    status="validated",
+                    assigned_model="validator",
+                    validation_passed=True,
+                )
+            ],
+        )
+        dependencies = NodeDependencies(
+            planner=planner,
+            builder=StubAgentAdapter("builder", "builder"),
+            critic=StubAgentAdapter("critic", "critic"),
+            validator=validator,
+            debugger=StubAgentAdapter("debugger", "debugger"),
+        )
+
+        build_graph(dependencies).invoke(
+            {
+                "task": "Build the item",
+                "workflow_mode": "implement",
+                "prd_items": [
+                    {
+                        "id": "item-1",
+                        "title": "First item",
+                        "description": "Build the item.",
+                        "acceptanceCriteria": ["The item is covered."],
+                        "validationCommand": ".venv/bin/python -m unittest tests.test_graph",
+                        "passes": False,
+                        "validation": False,
+                    }
+                ],
+            },
+            {"configurable": {"thread_id": "item-metadata"}},
+        )
+
+        for request in (planner.requests[0], validator.requests[0]):
+            self.assertEqual(request.acceptance_criteria, ["The item is covered."])
+            self.assertEqual(
+                request.validation_command,
+                ".venv/bin/python -m unittest tests.test_graph",
+            )
+
     def test_run_manifest_records_prompts_models_and_pull_request_id(self) -> None:
         repository = RecordingRepository()
 

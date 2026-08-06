@@ -38,8 +38,10 @@ from .state import (
     DEFAULT_MAX_TOTAL_ATTEMPTS,
     PRDItem,
     WorkflowState,
+    acceptance_criteria_for_item,
     append_run_manifest,
     migrate_state,
+    validation_command_for_item,
 )
 
 
@@ -971,6 +973,8 @@ def _request_for(
         item_id=item_id,
         item_title=item.get("title", ""),
         item_description=item.get("description", ""),
+        acceptance_criteria=acceptance_criteria_for_item(item),
+        validation_command=validation_command_for_item(item),
         prd_items=[dict(prd_item) for prd_item in state.get("prd_items", [])],
         instructions=(
             instructions
@@ -1005,6 +1009,8 @@ def _audit_result(
                     "item_id": request.item_id,
                     "item_title": request.item_title,
                     "item_description": request.item_description,
+                    "acceptance_criteria": request.acceptance_criteria,
+                    "validation_command": request.validation_command,
                     "prd_items": request.prd_items,
                     "instructions": request.instructions,
                     "context": request.context,

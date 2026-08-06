@@ -32,7 +32,7 @@ back to normal file inspection. After changing code, run `graphify update .`.
 3. Check you're on the correct branch from PRD `branchName`. If not, check it out or create from main.
 4. Pick the **highest priority** user story where `passes: false` or `validation: false`
 5. Implement that single user story
-6. Run the target project’s documented validation command and all other quality checks (e.g., typecheck and lint). For this repository, validation is `.venv/bin/python -m unittest discover -s tests`.
+6. Run the current story’s `validationCommand` when the PRD provides one, plus any other quality checks (e.g., typecheck and lint). If it is absent, use the target project’s full validation command; for this repository, that fallback is `.venv/bin/python -m unittest discover -s tests`.
    The graph’s validation node is the final gate; do not commit from Ralph.
 7. Update CLAUDE.md files if you discover reusable patterns (see below)
 8. Leave only files created or changed by this story in the working tree. Leave files that were already dirty at iteration start, unrelated files, and unrelated generated files untouched. Do not commit or push; the graph commits this item only after `validation` passes.

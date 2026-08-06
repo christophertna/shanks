@@ -124,6 +124,12 @@ the enriched requirement to the builder.
 In each PRD item, `passes` means Ralph finished the build and `validation`
 means the graph’s authoritative test gate passed.
 
+Each PRD item may also include an `acceptanceCriteria` list and a
+`validationCommand`. The validation node runs the current item's command from
+the project directory when one is provided; otherwise it falls back to the
+full `.venv/bin/python -m unittest discover -s tests` suite. Commands are
+tokenized and executed without a shell.
+
 Validated implement runs pause for human approval before committing each item.
 After the last item, they pause again before pushing the branch and opening a
 pull request. Resume an approval interrupt with `Command(resume="approve")` or

@@ -10,18 +10,18 @@
     "semantic_hash": ""
   },
   "serve_graph.py": {
-    "mtime": 1785975191.3076544,
+    "mtime": 1785976226.1468637,
     "ast_hash": "7f5b24790153c605e63d701c176d8fb6",
     "semantic_hash": ""
   },
   "tests/test_graph.py": {
-    "mtime": 1785975313.433726,
-    "ast_hash": "e549897ece44f61bd27fce659ab381bc",
+    "mtime": 1785977651.4660764,
+    "ast_hash": "dc8e055779b5969d7f4d1a09804be26b",
     "semantic_hash": ""
   },
   "tests/test_node_contracts.py": {
-    "mtime": 1785975884.183869,
-    "ast_hash": "71f975defe60cfa0c3058bfd53c1ebb5",
+    "mtime": 1785977669.575778,
+    "ast_hash": "83f339eaee081a2cc45f26a3515cc8ed",
     "semantic_hash": ""
   },
   "workflow/__init__.py": {
@@ -30,23 +30,23 @@
     "semantic_hash": ""
   },
   "workflow/adapters.py": {
-    "mtime": 1785975874.8045104,
-    "ast_hash": "dfaad67f0c6d65ea37b61a5fd54bcfa7",
+    "mtime": 1785977599.3336804,
+    "ast_hash": "4724d071557f2ed559741818be7dec91",
     "semantic_hash": ""
   },
   "workflow/contracts.py": {
-    "mtime": 1785975856.3048747,
-    "ast_hash": "bedc8a21c21a6e54fb08499649b04cc2",
+    "mtime": 1785977599.1575236,
+    "ast_hash": "6e1b5c00ceb0dfacb9ac5b00d25d0158",
     "semantic_hash": ""
   },
   "workflow/nodes.py": {
-    "mtime": 1785975856.6618273,
-    "ast_hash": "f21830efaeecd4768b0a8c2b769f48f4",
+    "mtime": 1785977800.7864547,
+    "ast_hash": "2450b56f070a738b0ce5f9ec7179d718",
     "semantic_hash": ""
   },
   "workflow/state.py": {
-    "mtime": 1785975183.3602476,
-    "ast_hash": "1c65519f95e55f07f4d7459ae3d0ca72",
+    "mtime": 1785977800.9622357,
+    "ast_hash": "8b395ab78c941951a98ed98d5a99398a",
     "semantic_hash": ""
   },
   ".codex/hooks.json": {
@@ -65,7 +65,7 @@
     "semantic_hash": ""
   },
   "graph.html": {
-    "mtime": 1785975218.8000717,
+    "mtime": 1785976226.1423712,
     "ast_hash": "ea35984d6a411e8de8a4e855cfc3b49a",
     "semantic_hash": ""
   },
@@ -75,17 +75,17 @@
     "semantic_hash": ""
   },
   "scripts/ralph/CLAUDE.md": {
-    "mtime": 1785909035.750986,
-    "ast_hash": "8554e5f6de0ec4a1bb15acb5224405e8",
+    "mtime": 1785977746.9168372,
+    "ast_hash": "ef1ceca6a947c96d025ec59089d77e00",
     "semantic_hash": ""
   },
   "scripts/ralph/CODEX.md": {
-    "mtime": 1785909035.751283,
-    "ast_hash": "7a0a378f2f9d94d1ed98de0348784417",
+    "mtime": 1785977746.7423089,
+    "ast_hash": "62a7d3610608688ccab7a651e9264feb",
     "semantic_hash": ""
   },
   "tests/test_viewer.py": {
-    "mtime": 1785975321.2058125,
+    "mtime": 1785976226.148506,
     "ast_hash": "b2bc0188c2412134f55fee88f6369a88",
     "semantic_hash": ""
   },
@@ -110,8 +110,8 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1785975387.814541,
-    "ast_hash": "02bfd195c4dfdd760c24b3573ab08029",
+    "mtime": 1785977746.3844962,
+    "ast_hash": "4ef9cc46415d549ca66a92b2c51b73ed",
     "semantic_hash": ""
   },
   ".agents/skills/github-commit-pr/SKILL.md": {
@@ -185,7 +185,7 @@
     "semantic_hash": ""
   },
   "tests/test_state_schema.py": {
-    "mtime": 1785975296.5905678,
+    "mtime": 1785976226.1479886,
     "ast_hash": "0d47390eb45bdfe8eb5f346a10b892e1",
     "semantic_hash": ""
   },
@@ -202,6 +202,11 @@
   "hooks/dangerous-patterns.txt": {
     "mtime": 1785971169.4325278,
     "ast_hash": "a3725625f64211da180462dfe16f66a3",
+    "semantic_hash": ""
+  },
+  "tests/tests.md": {
+    "mtime": 1785977757.1576865,
+    "ast_hash": "8790d00b74a866075e2aefcdb395b6b8",
     "semantic_hash": ""
   }
 }
