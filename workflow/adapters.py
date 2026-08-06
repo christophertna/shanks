@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -432,6 +433,62 @@ class GitHubAdapter:
         if self.initial_dirty_files is None:
             self.initial_dirty_files = tuple(self._status_files())
 
+    def preflight(self) -> AgentResult:
+        """Check tools, branch state, GitHub auth, and the test environment."""
+
+        required_tools = ("git", "gh", "bash")
+        missing = [tool for tool in required_tools if shutil.which(tool) is None]
+        if not Path(sys.executable).exists():
+            missing.append(sys.executable)
+        if missing:
+            return AgentResult(
+                status="preflight_failed",
+                assigned_model=self.model_name,
+                error=f"Missing required tools: {', '.join(missing)}.",
+            )
+
+        branch = self._run(("git", "branch", "--show-current"))
+        if branch.status == "failed":
+            return _preflight_failure(branch.error or branch.feedback)
+        branch_name = branch.feedback.strip()
+        if not branch_name or branch_name == self.base_branch:
+            return _preflight_failure(
+                f"Run from a non-{self.base_branch} branch; current branch is "
+                f"{branch_name or 'unknown'}."
+            )
+
+        status = self._run(("git", "status", "--short", "--untracked-files=all"))
+        if status.status == "failed":
+            return _preflight_failure(status.error or status.feedback)
+        if status.feedback.strip():
+            return _preflight_failure(
+                "Working tree is not clean:\n" + status.feedback.strip()
+            )
+
+        auth = self._run(("gh", "auth", "status"))
+        if auth.status == "failed":
+            return _preflight_failure(
+                "GitHub CLI authentication failed: "
+                + (auth.error or auth.feedback)
+            )
+
+        tests = LocalTestAdapter(self.project_directory).run(
+            AgentRequest(task="Run the preflight test suite.")
+        )
+        if tests.status != "validated":
+            return _preflight_failure(
+                "Preflight test suite failed: "
+                + (tests.error or tests.feedback)
+            )
+        return AgentResult(
+            status="preflight_passed",
+            assigned_model=self.model_name,
+            feedback=(
+                f"branch={branch_name}; working tree clean; GitHub auth ready; "
+                "test suite passed"
+            ),
+        )
+
     def commit_item(
         self,
         item_id: str,
@@ -660,14 +717,16 @@ class GitHubAdapter:
                 error=redact_secrets(str(error)),
             )
 
-        output = "\n".join(
-            part
-            for part in (
-                redact_secrets((completed.stdout or "").strip()),
-                redact_secrets((completed.stderr or "").strip()),
-            )
-            if part
-        )
+        stdout = redact_secrets((completed.stdout or "").strip())
+        stderr = redact_secrets((completed.stderr or "").strip())
+        if completed.returncode == 0 and command in {
+            ("git", "status", "--short", "--untracked-files=all"),
+            ("git", "branch", "--show-current"),
+            ("git", "rev-parse", "HEAD"),
+        }:
+            output = stdout
+        else:
+            output = "\n".join(part for part in (stdout, stderr) if part)
         if completed.returncode != 0:
             return AgentResult(
                 status="failed",
@@ -1162,6 +1221,14 @@ def _estimate_tokens(value: str) -> int:
     """Use a conservative four-characters-per-token estimate for CLI text."""
 
     return (len(value) + 3) // 4
+
+
+def _preflight_failure(message: str) -> AgentResult:
+    return AgentResult(
+        status="preflight_failed",
+        assigned_model="github",
+        error=message or "Preflight check failed.",
+    )
 
 
 __all__ = [

@@ -62,6 +62,11 @@ class AgentAdapter(Protocol):
 class RepositoryAdapter(Protocol):
     """Interface for local commits and the final GitHub handoff."""
 
+    def preflight(self) -> AgentResult:
+        """Check the repository and execution environment before intake."""
+
+        ...
+
     def commit_item(
         self,
         item_id: str,

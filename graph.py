@@ -22,6 +22,7 @@ from workflow.nodes import (
     route_after_intake,
     route_after_item_router,
     route_after_planning,
+    route_after_preflight,
     route_after_validation,
 )
 from workflow.state import WorkflowState, migrate_state
@@ -98,6 +99,7 @@ def build_graph(
         dependencies or default_dependencies(tool=tool)
     )
     builder = StateGraph(WorkflowState)
+    builder.add_node("preflight", nodes["preflight"])
     builder.add_node("intake", nodes["intake"])
     builder.add_node("learning", nodes["learning"])
     builder.add_node("planning", nodes["planning"])
@@ -118,7 +120,12 @@ def build_graph(
     builder.add_node("attempt_limit", nodes["attempt_limit"])
     builder.add_node("stop_run", nodes["stop_run"])
 
-    builder.add_edge(START, "intake")
+    builder.add_edge(START, "preflight")
+    builder.add_conditional_edges(
+        "preflight",
+        route_after_preflight,
+        ["intake", END],
+    )
     builder.add_conditional_edges(
         "intake",
         route_after_intake,

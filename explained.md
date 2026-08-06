@@ -10,6 +10,10 @@ as prompt context, and Graphify excludes it from the code map.
 ## The main flow
 
 ```text
+preflight
+   ├─ fail ──→ Complete
+   └─ pass
+          ↓
 intake
    ├─ learn ──→ learning ──→ intake
    └─ implement
@@ -30,6 +34,7 @@ more items? ──→ Complete
    └──────────→ planning
 ```
 
+- `preflight` checks the tools, branch, GitHub authentication, and test suite.
 - `intake` asks whether the run should learn the codebase or implement a feature.
 - `learning` records reusable codebase context and returns to `intake`.
 - `planning` picks the next unfinished PRD item.
@@ -49,6 +54,24 @@ There are per-item and whole-run attempt limits. The workflow also tracks a
 wall-clock deadline, estimated token usage, and reported cost. When a limit is
 reached, or when `cancel_run(...)` is applied to a checkpoint, the graph takes
 the terminal `stop_run` path without invoking another backend.
+
+## LIMITS
+
+These defaults are defined in `workflow/state.py` and apply to new or migrated
+runs:
+
+| Limit | Default | Meaning |
+| --- | ---: | --- |
+| `max_runtime_seconds` | `3600` (1 hour) | Wall-clock budget for the whole run. |
+| `max_attempts` | `3` per item | Build/rework attempts allowed for one PRD item. |
+| `max_total_attempts` | `20` | Build attempts allowed across the whole run. |
+| `max_tokens` | `100000` estimated tokens | Combined estimated input and output token budget. |
+| `max_cost_usd` | `0.0` (disabled) | Enabled only when set to a positive value and adapters report cost. |
+| CLI/GitHub subprocess timeout | `3600` seconds | Per-command adapter timeout, also capped by remaining run time for agent adapters. |
+| `cancel_requested` | `False` | Set with `cancel_run(...)` to stop at the next safe checkpoint. |
+
+Adapters that do not expose provider usage use a conservative text estimate;
+custom adapters can report exact token and cost values through `AgentResult`.
 
 ## Critic
 
@@ -110,8 +133,9 @@ Builds the LangGraph flow.
 
 It connects the nodes and controls where each step goes next.
 
-`validation` and `more items` are shown as diamonds in the viewer because they
-are decision steps. The default graph uses a shared SQLite checkpoint store at
+`preflight`, `validation`, and `more items` are shown as decision steps in the
+viewer because they can route to another node or stop. The default graph uses a
+shared SQLite checkpoint store at
 `.shanks/checkpoints.sqlite`; set `SHANKS_CHECKPOINT_DB` to override the path.
 
 ### `workflow/state.py`
@@ -121,6 +145,7 @@ Defines the shared state.
 Think of the state as a shared notebook. It stores things like:
 
 - The selected learn or implement mode.
+- Whether preflight passed before intake.
 - The current PRD item.
 - Whether each item passed building and validation.
 - The plan.
@@ -183,6 +208,9 @@ Real agents must be passed into `build_graph()` on purpose.
 reports test failures back to the graph as structured validation errors.
 `RalphAdapter` parses the builder's `RALPH_UNCERTAINTIES` section into the
 current item's uncertainty list.
+`GitHubAdapter.preflight()` checks required tools, the current branch and
+working tree, GitHub CLI authentication, and the local unittest suite before
+intake.
 
 Security guardrails are enforced at the adapter boundary. Agent subprocesses
 use an executable allowlist and configured working-directory roots. The GitHub
@@ -197,6 +225,7 @@ additional denylist for catastrophic shell commands issued inside a CLI agent;
 
 Contains the work done by each graph node:
 
+- Preflight.
 - Planning.
 - Building.
 - Critic review.

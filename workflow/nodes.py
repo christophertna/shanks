@@ -299,6 +299,7 @@ def create_nodes(
     deps = dependencies or default_dependencies()
 
     nodes = {
+        "preflight": lambda state: preflight(state, deps),
         "intake": intake,
         "learning": lambda state: learning(state, deps),
         "planning": lambda state: planning(state, deps),
@@ -314,6 +315,19 @@ def create_nodes(
         "stop_run": stop_run,
     }
     return {name: _versioned_node(node) for name, node in nodes.items()}
+
+
+def preflight(
+    state: WorkflowState,
+    dependencies: NodeDependencies,
+) -> WorkflowState:
+    """Run repository preflight checks before asking for workflow mode."""
+
+    repository = dependencies.repository
+    check = getattr(repository, "preflight", None)
+    if check is None:
+        return {"status": "preflight_skipped"}
+    return state_update_from_result(check())
 
 
 def intake(state: WorkflowState) -> WorkflowState:
@@ -804,6 +818,16 @@ def route_after_intake(
     return "learning" if state.get("workflow_mode") == "learn" else "planning"
 
 
+def route_after_preflight(
+    state: WorkflowState,
+) -> Literal["intake", "__end__"]:
+    """Enter intake only after preflight succeeds or is explicitly skipped."""
+
+    if _run_stopped(state) or state.get("status") == "preflight_failed":
+        return "__end__"
+    return "intake"
+
+
 def route_after_validation(
     state: WorkflowState,
 ) -> Literal["debugger", "commit_item", "stop_run"]:
@@ -1015,6 +1039,8 @@ __all__ = [
     "attempt_limit",
     "build_error_handler",
     "planning",
+    "preflight",
+    "route_after_preflight",
     "route_after_intake",
     "route_after_building",
     "route_after_commit",

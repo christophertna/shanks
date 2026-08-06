@@ -28,5 +28,8 @@
   "26": "PRDItem",
   "27": "RepositoryAdapter",
   "28": "github_node",
-  "29": "Any"
+  "29": "Any",
+  "30": "RalphAdapter",
+  "31": "LocalTestAdapter",
+  "32": "AgentAdapter"
 }

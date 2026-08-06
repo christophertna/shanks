@@ -24,23 +24,26 @@ GRAPH_CHECK_INTERVAL_SECONDS = 0.5
 EXECUTION_HISTORY_LIMIT = 20
 GRAPH_NODE_ORDER = {
     "__start__": 0,
-    "intake": 1,
-    "learning": 2,
-    "planning": 3,
-    "building": 4,
-    "critic_auditor": 5,
-    "validation": 6,
-    "commit_item": 7,
-    "debugger": 8,
-    "item_router": 9,
-    "github_node": 10,
-    "attempt_limit": 11,
-    "failed_build": 12,
-    "__end__": 13,
+    "preflight": 1,
+    "intake": 2,
+    "learning": 3,
+    "planning": 4,
+    "building": 5,
+    "critic_auditor": 6,
+    "validation": 7,
+    "commit_item": 8,
+    "debugger": 9,
+    "item_router": 10,
+    "github_node": 11,
+    "attempt_limit": 12,
+    "failed_build": 13,
+    "stop_run": 14,
+    "__end__": 15,
 }
 
 VIEW_NODE_LABELS = {
     "__start__": "Start",
+    "preflight": "Preflight",
     "intake": "Intake",
     "learning": "Learn codebase",
     "planning": "planning",
@@ -53,10 +56,12 @@ VIEW_NODE_LABELS = {
     "github_node": "github node",
     "attempt_limit": "Attempt limit",
     "failed_build": "Failed build",
+    "stop_run": "Stop run",
     "__end__": "Complete",
 }
 VIEW_MAIN_FLOW = (
     "__start__",
+    "preflight",
     "intake",
     "planning",
     "building",
@@ -68,6 +73,7 @@ VIEW_MAIN_FLOW = (
 )
 VIEW_MAIN_NODES = (
     "__start__",
+    "preflight",
     "intake",
     "learning",
     "planning",
@@ -88,14 +94,22 @@ VIEW_INTAKE_EDGES = (
     ("learning", "intake", "-.->"),
 )
 VIEW_MAIN_RECOVERY_EDGES = (("item_router", "planning"),)
-VIEW_RECOVERY_NODES = ("debugger", "attempt_limit", "failed_build")
+VIEW_RECOVERY_NODES = (
+    "debugger",
+    "attempt_limit",
+    "failed_build",
+    "stop_run",
+)
 VIEW_RECOVERY_EDGES = (
+    ("validation", "debugger"),
     ("validation", "debugger"),
     ("debugger", "planning"),
     ("building", "attempt_limit"),
     ("attempt_limit", "__end__"),
     ("building", "failed_build"),
     ("failed_build", "__end__"),
+    ("preflight", "__end__"),
+    ("stop_run", "__end__"),
 )
 VIEW_NODE_DECLARATION = re.compile(
     r"^\s*([A-Za-z0-9_]+)(?=\(|\[|\{)",

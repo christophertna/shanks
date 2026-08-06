@@ -3,7 +3,8 @@
 Shanks is a small LangGraph-based workflow project for running Ralph-style agent tasks.
 It turns a task plan into a repeatable workflow that can plan work, build or revise it,
 ask a critic for feedback, validate the result, and move on to the next item.
-Runs begin with an intake choice: learn the codebase or implement a feature.
+Runs perform preflight checks before asking whether to learn the codebase or
+implement a feature.
 The learn branch records reusable codebase context and returns to intake; the
 implement branch continues through planning, building, review, validation, and
 the next unfinished item.
@@ -54,6 +55,11 @@ default. Set `max_runtime_seconds`, `max_attempts`, `max_total_attempts`,
 adapters estimate token usage from their prompt and output; custom adapters can
 report exact `input_tokens`, `output_tokens`, and `cost_usd` in `AgentResult`.
 
+Default limits are: `max_runtime_seconds=3600`, `max_attempts=3` per item,
+`max_total_attempts=20`, `max_tokens=100000`, and `max_cost_usd=0.0` (cost
+enforcement disabled until a positive limit is configured). Each CLI and GitHub
+subprocess also has a 3600-second adapter timeout.
+
 Stop a checkpointed run cleanly at its next safe boundary:
 
 ```python
@@ -71,10 +77,19 @@ the current node, PRD item, attempt count, budget usage, last error, model, and
 checkpoint history. Use the same thread ID when starting the workflow and
 inspecting it.
 
+## Preflight checks
+
+The default GitHub-backed graph checks that `git`, `gh`, and `bash` are
+available, the run is on a non-`main` clean branch, GitHub CLI authentication
+works, and the unittest suite passes. A failed check ends with
+`status="preflight_failed"` before intake or agent work. Lightweight injected
+test repositories can omit the preflight capability and are explicitly marked
+`preflight_skipped`.
+
 ## Interactive workflow
 
-The first graph invocation pauses at intake. Resume the same thread with the
-user's label:
+The first graph invocation runs preflight and then pauses at intake. Resume the
+same thread with the user's label:
 
 ```python
 from langgraph.types import Command
