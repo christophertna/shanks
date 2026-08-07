@@ -37,6 +37,7 @@ from workflow.retries import (
     retry_on_exception,
 )
 from workflow.state import DEFAULT_MAX_ATTEMPTS, WorkflowState, migrate_state
+from workflow.workspaces import RunWorkspaceManager
 
 DEFAULT_CHECKPOINT_DB = (
     Path(__file__).resolve().parent / ".shanks" / "checkpoints.sqlite"
@@ -112,10 +113,23 @@ def build_graph(
     *,
     checkpointer=None,
     tool: Literal["claude", "codex"] = "codex",
+    project_directory: Path | None = None,
+    workspace_manager: RunWorkspaceManager | None = None,
+    base_branch: str = "main",
+    worktree_root: Path | None = None,
 ):
     """Build the workflow with optional adapters or a Claude/Codex choice."""
 
-    nodes = create_nodes(dependencies or default_dependencies(tool=tool))
+    nodes = create_nodes(
+        dependencies
+        or default_dependencies(
+            tool=tool,
+            project_directory=project_directory,
+            workspace_manager=workspace_manager,
+            base_branch=base_branch,
+            worktree_root=worktree_root,
+        )
+    )
     builder = StateGraph(WorkflowState)
     builder.add_node(
         "preflight",

@@ -259,6 +259,9 @@ def _snapshot_summary(snapshot: object, *, include_manifest: bool = True) -> dic
         "last_error": _json_safe(values.get("last_error", "")),
         "model": _json_safe(model),
         "status": _json_safe(values.get("status", "")),
+        "run_id": _json_safe(values.get("run_id", "")),
+        "run_branch": _json_safe(values.get("run_branch", "")),
+        "workspace_directory": _json_safe(values.get("workspace_directory", "")),
     }
     if include_manifest:
         summary["run_manifest"] = _json_safe(values.get("run_manifest", []))

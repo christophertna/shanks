@@ -69,6 +69,12 @@ are treated as v0 and migrated to the current schema when loaded; new checkpoint
 are written with the current version. Checkpoints from a newer unsupported version
 fail clearly instead of being interpreted incorrectly.
 
+Default graphs derive a run identity from the configured `thread_id`. Each run gets
+an isolated branch and Git worktree under `.shanks/worktrees/`, and the persisted
+state records `run_id`, `run_branch`, and `workspace_directory`. Agent and GitHub
+subprocesses use that worktree for the run, so separate runs do not share a mutable
+project directory.
+
 Agent failures are classified as `transient`, `validation`, `guardrail`,
 `budget`, `cancelled`, or `permanent`. Safe agent and validation nodes retry only
 `transient` failures with bounded exponential backoff (0.5, 1, 2 seconds, capped

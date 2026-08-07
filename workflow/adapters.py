@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .contracts import AgentAdapter, AgentRequest, AgentResult
+from .workspaces import current_workspace_directory
 
 GPT56_LUNA_MODEL = "gpt-5.6-luna"
 GPT56_LUNA_REASONING_EFFORT = "max"
@@ -117,7 +118,11 @@ class SubprocessAgentAdapter:
 
     def run(self, request: AgentRequest) -> AgentResult:
         prompt = _format_request(request)
-        cwd = request.working_directory or self.working_directory
+        cwd = (
+            request.working_directory
+            or current_workspace_directory()
+            or self.working_directory
+        )
         command = self._command_for(request)
         audit_command = _audit_command(command)
         guardrail_error = self._validate_execution(command, cwd)
@@ -193,7 +198,15 @@ class SubprocessAgentAdapter:
         )
 
     def _command_for(self, request: AgentRequest) -> tuple[str, ...]:
-        return self.command
+        directory = request.working_directory or current_workspace_directory()
+        if directory is None or "--cd" not in self.command:
+            return self.command
+        index = self.command.index("--cd") + 1
+        if index >= len(self.command):
+            return self.command
+        command = list(self.command)
+        command[index] = str(directory)
+        return tuple(command)
 
     def _validate_execution(
         self,
@@ -299,9 +312,13 @@ class RalphAdapter(SubprocessAgentAdapter):
 
         if not request.prd_items:
             return
-        prd_file = Path(self.command[1]).parent / "prd.json"
-        if not prd_file.parent.is_dir():
-            return
+        if request.working_directory:
+            prd_file = request.working_directory / ".shanks" / "ralph" / "prd.json"
+            prd_file.parent.mkdir(parents=True, exist_ok=True)
+        else:
+            prd_file = Path(self.command[1]).parent / "prd.json"
+            if not prd_file.parent.is_dir():
+                return
 
         payload: dict[str, object] = {}
         if prd_file.exists():
@@ -341,8 +358,17 @@ class RalphAdapter(SubprocessAgentAdapter):
         temporary_file.replace(prd_file)
 
     def _command_for(self, request: AgentRequest) -> tuple[str, ...]:
+        directory = request.working_directory or current_workspace_directory()
+        command = list(self.command)
+        if directory is not None and "--project-dir" in command:
+            index = command.index("--project-dir") + 1
+            if index < len(command):
+                command[index] = str(directory)
+        if directory is not None:
+            run_directory = directory / ".shanks" / "ralph"
+            command.extend(("--run-dir", str(run_directory)))
         return (
-            *self.command,
+            *command,
             "--graph-item-id",
             request.item_id,
             "--graph-instructions",
@@ -532,8 +558,12 @@ class GitHubAdapter:
                 commands,
             )
 
-        tests = LocalTestAdapter(self.project_directory).run(
-            AgentRequest(task="Run the preflight test suite.")
+        project_directory = self._project_directory()
+        tests = LocalTestAdapter(project_directory).run(
+            AgentRequest(
+                task="Run the preflight test suite.",
+                working_directory=project_directory,
+            )
         )
         commands.extend(tests.commands)
         if tests.status != "validated":
@@ -791,10 +821,13 @@ class GitHubAdapter:
                 files.append(path)
         return files
 
+    def _project_directory(self) -> Path:
+        return current_workspace_directory() or self.project_directory
+
     def _normalize_file(self, file: str) -> str | None:
         if not isinstance(file, str) or not file.strip():
             return None
-        root = self.project_directory.resolve()
+        root = self._project_directory().resolve()
         path = Path(file)
         candidate = _resolve_path(path if path.is_absolute() else root / path)
         try:
@@ -817,7 +850,7 @@ class GitHubAdapter:
         try:
             completed = subprocess.run(
                 command,
-                cwd=self.project_directory,
+                cwd=self._project_directory(),
                 text=True,
                 capture_output=True,
                 timeout=self.timeout_seconds,
@@ -983,7 +1016,7 @@ def _command_path_arguments(command: tuple[str, ...]) -> tuple[str, ...]:
     if Path(command[0]).name == "bash" and len(command) > 1:
         if not command[1].startswith("-"):
             paths.append(command[1])
-    for flag in ("--cd", "--project-dir", "--output-schema"):
+    for flag in ("--cd", "--project-dir", "--run-dir", "--output-schema"):
         if flag in command:
             index = command.index(flag) + 1
             if index < len(command):

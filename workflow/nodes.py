@@ -9,6 +9,7 @@ from typing import Literal
 
 from langgraph.errors import NodeError
 from langgraph.types import Command, interrupt
+from langchain_core.runnables import RunnableConfig
 
 from .adapters import (
     ClaudeAdapter,
@@ -44,6 +45,12 @@ from .state import (
     validation_command_for_item,
 )
 from .retries import classify_failure, retry_delay, retryable_failure
+from .workspaces import (
+    RunWorkspaceManager,
+    WorkspaceError,
+    current_workspace_directory,
+    workspace_scope,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,6 +63,7 @@ class NodeDependencies:
     validator: AgentAdapter
     debugger: AgentAdapter
     repository: RepositoryAdapter | None = None
+    workspace_manager: RunWorkspaceManager | None = None
 
 
 LEARN_PROMPT = """
@@ -76,12 +84,20 @@ def default_dependencies(
     critic: AgentAdapter | None = None,
     project_directory: Path | None = None,
     tool: Literal["claude", "codex"] = "codex",
+    workspace_manager: RunWorkspaceManager | None = None,
+    base_branch: str = "main",
+    worktree_root: Path | None = None,
 ) -> NodeDependencies:
     """Return a complete Claude- or Codex-backed workflow configuration."""
 
     if tool not in {"claude", "codex"}:
         raise ValueError("tool must be 'claude' or 'codex'")
     project_directory = project_directory or Path.cwd()
+    workspace_manager = workspace_manager or RunWorkspaceManager(
+        project_directory,
+        base_branch=base_branch,
+        worktree_root=worktree_root,
+    )
     if tool == "claude":
         planner = ClaudeAdapter(project_directory)
         default_critic = ClaudeOpus48CriticAdapter(project_directory)
@@ -95,6 +111,7 @@ def default_dependencies(
         validator=LocalTestAdapter(project_directory),
         debugger=DebuggerAdapter(project_directory, tool=tool),
         repository=GitHubAdapter(project_directory),
+        workspace_manager=workspace_manager,
     )
 
 
@@ -138,11 +155,66 @@ def _item_complete(item: PRDItem) -> bool:
     return item.get("validation", True)
 
 
-def _versioned_node(node: NodeFunction) -> NodeFunction:
+def _versioned_node(
+    node: NodeFunction,
+    workspace_manager: RunWorkspaceManager | None = None,
+) -> NodeFunction:
     """Migrate state, enforce run budgets, and stamp every checkpoint."""
 
-    def run(state: WorkflowState) -> WorkflowState:
+    def run(
+        state: WorkflowState, config: RunnableConfig | None = None
+    ) -> WorkflowState:
         current = migrate_state(state)
+        thread_id = _thread_id(config)
+        stored_run_id = current.get("run_id", "")
+        if stored_run_id and thread_id and stored_run_id != thread_id:
+            return {
+                "run_id": stored_run_id,
+                "status": "run_locked",
+                "last_error": "Checkpoint run identity does not match thread_id.",
+                "failure_class": "guardrail",
+                "state_schema_version": CURRENT_STATE_SCHEMA_VERSION,
+            }
+        run_id = stored_run_id or thread_id
+        workspace = None
+        if workspace_manager is not None and run_id:
+            try:
+                workspace = workspace_manager.ensure(run_id)
+            except WorkspaceError as error:
+                failure: WorkflowState = {
+                    "run_id": run_id,
+                    "status": "preflight_failed",
+                    "last_error": f"Could not create isolated workspace: {error}",
+                    "failure_class": "guardrail",
+                    "failure_node": "workspace",
+                    "state_schema_version": CURRENT_STATE_SCHEMA_VERSION,
+                }
+                failure.update(
+                    append_run_manifest(
+                        current,
+                        "workspace",
+                        run_id=run_id,
+                        status="failed",
+                        error=str(error),
+                    )
+                )
+                return failure
+        workspace_directory = (
+            workspace.directory
+            if workspace is not None
+            else _state_workspace_directory(current)
+        )
+        workspace_update: WorkflowState = {}
+        if run_id:
+            workspace_update["run_id"] = run_id
+        if workspace is not None:
+            workspace_update.update(
+                {
+                    "run_branch": workspace.branch,
+                    "workspace_directory": str(workspace.directory),
+                }
+            )
+        current = {**current, **workspace_update}
         started_at = current.get("run_started_at")
         if (
             isinstance(started_at, bool)
@@ -152,11 +224,17 @@ def _versioned_node(node: NodeFunction) -> NodeFunction:
             started_at = time.time()
         current = {**current, "run_started_at": float(started_at)}
 
-        reason = _stop_reason(current)
-        if reason:
-            return _stop_update(current, reason)
-
-        update = dict(node(current))
+        with workspace_scope(workspace_directory):
+            reason = _stop_reason(current)
+            if reason:
+                return {
+                    **workspace_update,
+                    **_stop_update(current, reason),
+                }
+            update = {
+                **workspace_update,
+                **dict(node(current)),
+            }
         update["run_started_at"] = float(started_at)
         update.update(_usage_totals(current, update))
         merged = {**current, **update}
@@ -169,7 +247,24 @@ def _versioned_node(node: NodeFunction) -> NodeFunction:
     return run
 
 
-_STOP_STATUSES = frozenset({"cancelled", "budget_exceeded"})
+def _thread_id(config: RunnableConfig | None) -> str:
+    if not isinstance(config, dict):
+        return ""
+    configurable = config.get("configurable", {})
+    if not isinstance(configurable, dict):
+        return ""
+    thread_id = configurable.get("thread_id", "")
+    return thread_id.strip() if isinstance(thread_id, str) else ""
+
+
+def _state_workspace_directory(state: WorkflowState) -> Path | None:
+    directory = state.get("workspace_directory", "")
+    if not isinstance(directory, str) or not directory.strip():
+        return current_workspace_directory()
+    return Path(directory)
+
+
+_STOP_STATUSES = frozenset({"cancelled", "budget_exceeded", "run_locked"})
 
 
 def _stop_reason(state: WorkflowState) -> str | None:
@@ -391,7 +486,13 @@ def create_nodes(
         "failed_run": failed_run,
         "stop_run": stop_run,
     }
-    return {name: _versioned_node(node) for name, node in nodes.items()}
+    return {
+        name: _versioned_node(
+            node,
+            deps.workspace_manager,
+        )
+        for name, node in nodes.items()
+    }
 
 
 def preflight(
@@ -1227,6 +1328,7 @@ def _request_for(
             else state.get("builder_instructions", "")
         ),
         context=state.get("root_cause", ""),
+        working_directory=_state_workspace_directory(state),
         timeout_seconds=remaining_runtime_seconds(state),
     )
 

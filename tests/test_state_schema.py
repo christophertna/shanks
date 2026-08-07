@@ -72,6 +72,17 @@ class StateSchemaTests(unittest.TestCase):
         self.assertEqual(migrated["retry_target"], "")
         self.assertEqual(migrated["retry_delay_seconds"], 0.0)
 
+    def test_v4_state_migrates_run_identity_and_workspace_fields(self) -> None:
+        migrated = migrate_state({"state_schema_version": 4})
+
+        self.assertEqual(
+            migrated["state_schema_version"],
+            CURRENT_STATE_SCHEMA_VERSION,
+        )
+        self.assertEqual(migrated["run_id"], "")
+        self.assertEqual(migrated["run_branch"], "")
+        self.assertEqual(migrated["workspace_directory"], "")
+
     def test_sqlite_saver_migrates_legacy_checkpoint_on_read(self) -> None:
         connection = sqlite3.connect(":memory:", check_same_thread=False)
         legacy_saver = SqliteSaver(connection)
