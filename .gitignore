@@ -24,5 +24,4 @@ __pycache__/
 # Shared LangGraph checkpoints
 .shanks/
 
-new features.txt
 dev/
