@@ -1385,6 +1385,11 @@ def _request_approval(
 
     prompt: dict[str, object] = {
         "type": "approval",
+        "message": (
+            "I don't have automatic permission because Shanks is not in "
+            "development mode; explicit approval is required for this side "
+            "effect."
+        ),
         "action": action,
         "question": question,
         "options": [

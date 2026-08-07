@@ -90,7 +90,7 @@ class WorkspaceTests(unittest.TestCase):
             manager.remove("thread/one")
 
             with patch.dict("os.environ", {"SHANKS_MODE": "runtime"}):
-                with self.assertRaises(WorkspaceError):
+                with self.assertRaisesRegex(WorkspaceError, "not in development mode"):
                     manager.delete_branch("thread/one")
 
             with patch.dict(

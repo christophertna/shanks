@@ -1,16 +1,16 @@
 # Graph Report - shanks  (2026-08-07)
 
 ## Corpus Check
-- 43 files · ~34,041 words
+- 43 files · ~34,102 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 763 nodes · 1901 edges · 41 communities (37 shown, 4 thin omitted)
+- 763 nodes · 1901 edges · 40 communities (36 shown, 4 thin omitted)
 - Extraction: 89% EXTRACTED · 11% INFERRED · 0% AMBIGUOUS · INFERRED: 205 edges (avg confidence: 0.56)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `06f8bf75`
+- Built from commit: `e0900a69`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -35,7 +35,6 @@
 - adapters.py
 - test-guard.sh
 - GitHubAdapter
-- WorkflowState
 - Test coverage
 - graph.py
 - nodes.py
@@ -81,7 +80,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (41 total, 4 thin omitted)
+## Communities (40 total, 4 thin omitted)
 
 ### Community 0 - "NodeDependencies"
 Cohesion: 0.11
@@ -104,8 +103,8 @@ Cohesion: 0.15
 Nodes (8): initialize_metadata_file(), mark_item_built(), RALPH_BASE_DIR, RALPH_PRD_FILE, RALPH_PROJECT_DIR, RALPH_RUN_DIR, ralph.sh script, upsert_metadata()
 
 ### Community 5 - "VersionedSqliteSaver"
-Cohesion: 0.15
-Nodes (23): TypedDict, building(), _current_item(), _item_complete(), item_router(), _mark_current_item_built(), _mark_current_item_validated(), _merge_files() (+15 more)
+Cohesion: 0.13
+Nodes (17): TypedDict, Common interfaces shared by agent adapters and graph nodes., Interface for local commits and the final GitHub handoff., RepositoryAdapter, Reusable workflow state, agent contracts, adapters, and nodes., _current_item(), _item_complete(), item_router() (+9 more)
 
 ### Community 6 - "Ralph Agent Instructions"
 Cohesion: 0.17
@@ -144,16 +143,12 @@ Cohesion: 0.12
 Nodes (15): builder_instructions, root_cause, additionalProperties, minLength, type, type, properties, builder_instructions (+7 more)
 
 ### Community 19 - "adapters.py"
-Cohesion: 0.10
-Nodes (19): Protocol, ClaudeAdapter, ClaudeOpus48CriticAdapter, DebuggerAdapter, GPT56LunaCriticAdapter, Adapter for direct Claude Code CLI execution., Run the critic_auditor as a read-only GPT-5.6 Luna Codex subagent., Run the critic_auditor as a read-only Claude Opus 4.8 subagent. (+11 more)
+Cohesion: 0.09
+Nodes (21): Protocol, ClaudeAdapter, ClaudeOpus48CriticAdapter, CodexAdapter, DebuggerAdapter, GPT56LunaCriticAdapter, Adapter for direct Codex CLI execution., Adapter for direct Claude Code CLI execution. (+13 more)
 
 ### Community 22 - "GitHubAdapter"
-Cohesion: 0.12
-Nodes (5): NodeContractTests, _attach_commands(), GitHubAdapter, Keep the full command trail when a multi-command operation fails., Commit validated items, then push the branch and open its PR.
-
-### Community 23 - "WorkflowState"
-Cohesion: 0.33
-Nodes (4): Common interfaces shared by agent adapters and graph nodes., Interface for local commits and the final GitHub handoff., RepositoryAdapter, Reusable workflow state, agent contracts, adapters, and nodes.
+Cohesion: 0.10
+Nodes (9): NodeContractTests, _attach_commands(), _audit_command(), GitHubAdapter, _preflight_failure(), Return a redacted command suitable for the persisted run manifest., Keep the full command trail when a multi-command operation fails., Commit validated items, then push the branch and open its PR. (+1 more)
 
 ### Community 24 - "Test coverage"
 Cohesion: 0.07
@@ -204,20 +199,20 @@ Cohesion: 0.24
 Nodes (10): NodeError, agent_error_handler(), build_error_handler(), _exception_failure_class(), BaseException, Route an exhausted native build-node failure to the terminal path., Classify an exhausted non-build node exception and stop safely., Classify the original exception carried by LangGraph's NodeError. (+2 more)
 
 ### Community 36 - "DebuggerAdapter"
-Cohesion: 0.09
-Nodes (24): ValueError, _audit_command(), CheapCriticAdapter, CodexAdapter, _command_path_arguments(), _critic_result(), _debugger_result(), _estimate_tokens() (+16 more)
+Cohesion: 0.12
+Nodes (18): ValueError, CheapCriticAdapter, _command_path_arguments(), _critic_result(), _debugger_result(), _estimate_tokens(), _parse_json_object(), _parse_uncertainties() (+10 more)
 
 ### Community 37 - "DebuggerAdapter"
-Cohesion: 0.17
-Nodes (15): Remove common credentials before command output enters workflow state., redact_secrets(), _approval_denied(), _audit_result(), commit_item(), github_node(), _pull_request_id(), Push the completed branch and create its pull request. (+7 more)
+Cohesion: 0.22
+Nodes (10): Remove common credentials before command output enters workflow state., redact_secrets(), _audit_result(), preflight(), _pull_request_id(), Capture one redacted agent or repository operation in the run manifest., Extract the numeric or opaque ID at the end of a pull-request URL., Redact strings recursively before they enter persisted state. (+2 more)
 
 ### Community 38 - "CheapCriticAdapter"
 Cohesion: 0.08
 Nodes (26): Connection, dependencies(), LifecycleTests, LeaseLostError, _lifecycle_status(), RuntimeError, Persistent run leases and lifecycle records., Extend the current owner's lease before another node runs. (+18 more)
 
 ### Community 39 - "state_update_from_result"
-Cohesion: 0.21
-Nodes (12): Translate common agent output into shared workflow state fields., state_update_from_result(), _apply_failure_policy(), critic_auditor(), debugger(), learning(), preflight(), Record a failure and schedule only safe transient retries. (+4 more)
+Cohesion: 0.13
+Nodes (27): Translate common agent output into shared workflow state fields., state_update_from_result(), _apply_failure_policy(), _approval_denied(), building(), commit_item(), critic_auditor(), debugger() (+19 more)
 
 ## Knowledge Gaps
 - **94 isolated node(s):** `RALPH_BASE_DIR`, `RALPH_PROJECT_DIR`, `RALPH_RUN_DIR`, `RALPH_PRD_FILE`, `$schema` (+89 more)
@@ -227,11 +222,11 @@ Nodes (12): Translate common agent output into shared workflow state fields., st
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `NodeDependencies` connect `NodeDependencies` to `CheapCriticAdapter`, `GraphRequestHandler`, `CheapCriticAdapter`, `_apply_failure_policy`, `DebuggerAdapter`, `VersionedSqliteSaver`, `CheapCriticAdapter`, `DebuggerAdapter`, `state_update_from_result`, `GitHubAdapter`, `adapters.py`, `GitHubAdapter`, `WorkflowState`, `nodes.py`, `create_nodes`, `Any`, `RalphAdapter`, `planning`?**
+- **Why does `NodeDependencies` connect `NodeDependencies` to `CheapCriticAdapter`, `GraphRequestHandler`, `CheapCriticAdapter`, `_apply_failure_policy`, `VersionedSqliteSaver`, `CheapCriticAdapter`, `state_update_from_result`, `DebuggerAdapter`, `GitHubAdapter`, `adapters.py`, `GitHubAdapter`, `nodes.py`, `create_nodes`, `Any`, `RalphAdapter`, `planning`?**
   _High betweenness centrality (0.096) - this node is a cross-community bridge._
-- **Why does `AgentResult` connect `NodeDependencies` to `DebuggerAdapter`, `VersionedSqliteSaver`, `DebuggerAdapter`, `state_update_from_result`, `GitHubAdapter`, `adapters.py`, `GitHubAdapter`, `WorkflowState`, `nodes.py`, `RepositoryAdapter`, `Any`, `RalphAdapter`?**
+- **Why does `AgentResult` connect `NodeDependencies` to `DebuggerAdapter`, `VersionedSqliteSaver`, `DebuggerAdapter`, `state_update_from_result`, `GitHubAdapter`, `adapters.py`, `GitHubAdapter`, `nodes.py`, `RepositoryAdapter`, `Any`, `RalphAdapter`?**
   _High betweenness centrality (0.069) - this node is a cross-community bridge._
-- **Why does `AgentRequest` connect `GitHubAdapter` to `NodeDependencies`, `DebuggerAdapter`, `VersionedSqliteSaver`, `DebuggerAdapter`, `adapters.py`, `GitHubAdapter`, `WorkflowState`, `nodes.py`, `Any`, `RalphAdapter`?**
+- **Why does `AgentRequest` connect `GitHubAdapter` to `NodeDependencies`, `DebuggerAdapter`, `VersionedSqliteSaver`, `DebuggerAdapter`, `state_update_from_result`, `adapters.py`, `GitHubAdapter`, `nodes.py`, `Any`, `RalphAdapter`?**
   _High betweenness centrality (0.054) - this node is a cross-community bridge._
 - **Are the 25 inferred relationships involving `AgentResult` (e.g. with `ExplodingBuilder` and `FaultInjectionTests`) actually correct?**
   _`AgentResult` has 25 INFERRED edges - model-reasoned connections that need verification._

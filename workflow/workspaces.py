@@ -114,7 +114,10 @@ class RunWorkspaceManager:
         """Delete this run's local branch only in explicit development mode."""
 
         if not is_development_mode():
-            raise WorkspaceError("Branch deletion requires SHANKS_MODE=development.")
+            raise WorkspaceError(
+                "I don't have permission to delete branches because Shanks is "
+                "not in development mode; set SHANKS_MODE=development."
+            )
 
         normalized_id = _normalize_component(run_id)
         if not normalized_id:

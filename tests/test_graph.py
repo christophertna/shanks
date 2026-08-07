@@ -1069,21 +1069,23 @@ class GraphRoutingTests(unittest.TestCase):
         graph = build_graph(_stub_dependencies(repository))
         config = {"configurable": {"thread_id": "commit-approval"}}
 
-        paused = graph.invoke(_initial_state(), config)
-        approval = paused["__interrupt__"][0].value
-        self.assertEqual(approval["type"], "approval")
-        self.assertEqual(approval["action"], "commit")
-        self.assertEqual(repository.commits, [])
+        with patch.dict("os.environ", {"SHANKS_MODE": "runtime"}):
+            paused = graph.invoke(_initial_state(), config)
+            approval = paused["__interrupt__"][0].value
+            self.assertEqual(approval["type"], "approval")
+            self.assertIn("not in development mode", approval["message"])
+            self.assertEqual(approval["action"], "commit")
+            self.assertEqual(repository.commits, [])
 
-        paused = graph.invoke(Command(resume="approve"), config)
+            paused = graph.invoke(Command(resume="approve"), config)
 
-        self.assertEqual(repository.commits, ["item-1"])
-        self.assertEqual(
-            paused["__interrupt__"][0].value["action"],
-            "publish_pr",
-        )
+            self.assertEqual(repository.commits, ["item-1"])
+            self.assertEqual(
+                paused["__interrupt__"][0].value["action"],
+                "publish_pr",
+            )
 
-        result = graph.invoke(Command(resume="approve"), config)
+            result = graph.invoke(Command(resume="approve"), config)
 
         self.assertEqual(result["status"], "pr_created")
 
@@ -1105,9 +1107,10 @@ class GraphRoutingTests(unittest.TestCase):
         graph = build_graph(_stub_dependencies(repository))
         config = {"configurable": {"thread_id": "commit-rejection"}}
 
-        result = graph.invoke(_initial_state(), config)
-        self.assertEqual(result["__interrupt__"][0].value["action"], "commit")
-        result = graph.invoke(Command(resume="reject"), config)
+        with patch.dict("os.environ", {"SHANKS_MODE": "runtime"}):
+            result = graph.invoke(_initial_state(), config)
+            self.assertEqual(result["__interrupt__"][0].value["action"], "commit")
+            result = graph.invoke(Command(resume="reject"), config)
 
         self.assertEqual(result["status"], "approval_denied")
         self.assertEqual(repository.commits, [])
@@ -1118,20 +1121,21 @@ class GraphRoutingTests(unittest.TestCase):
         graph = build_graph(_stub_dependencies(repository))
         config = {"configurable": {"thread_id": "publish-rejection"}}
 
-        result = graph.invoke(
-            {
-                "task": "Already complete",
-                "workflow_mode": "implement",
-                "prd_items": [{"id": "done", "passes": True}],
-            },
-            config,
-        )
-        self.assertEqual(
-            result["__interrupt__"][0].value["operations"],
-            ["push", "open_pull_request"],
-        )
+        with patch.dict("os.environ", {"SHANKS_MODE": "runtime"}):
+            result = graph.invoke(
+                {
+                    "task": "Already complete",
+                    "workflow_mode": "implement",
+                    "prd_items": [{"id": "done", "passes": True}],
+                },
+                config,
+            )
+            self.assertEqual(
+                result["__interrupt__"][0].value["operations"],
+                ["push", "open_pull_request"],
+            )
 
-        result = graph.invoke(Command(resume="reject"), config)
+            result = graph.invoke(Command(resume="reject"), config)
 
         self.assertEqual(result["status"], "approval_denied")
         self.assertEqual(repository.pull_requests, [])
