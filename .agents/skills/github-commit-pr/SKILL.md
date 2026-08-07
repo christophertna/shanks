@@ -62,9 +62,13 @@ Examples:
 ## Commit, push, and PR checks
 
 - Inspect the diff, current branch, and test results before committing.
-- Ask for explicit human approval immediately before committing. Development mode enables guarded capabilities but never counts as consent.
-- Ask for explicit human approval immediately before pushing the branch.
-- Ask for explicit human approval immediately before opening the pull request. Push approval and pull-request approval are separate decisions and must never be bundled.
+- Use the command tool's inline approval gate immediately before committing,
+  pushing, or opening the pull request; do not send a separate conversational
+  yes/no prompt. If the command would otherwise run without an approval
+  prompt, request escalated execution with a concise, operation-specific
+  justification so the user can approve or deny it in the tool UI.
+- Keep commit, push, and pull-request approvals separate and never bundle them.
+  A denied operation must stop without retrying until a new approval is given.
 - Push the feature branch with `git push -u origin <branch>`; do not push to `main` unless explicitly requested.
 - Pass the commit or PR title separately from the description when using GitHub CLI or an API.
 - Before opening the PR, state the exact title, description, and test command for auditability.
