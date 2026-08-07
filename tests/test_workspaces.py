@@ -2,6 +2,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from workflow.adapters import StubAgentAdapter
 from workflow.contracts import AgentRequest, AgentResult
@@ -10,6 +11,7 @@ from workflow.state import CURRENT_STATE_SCHEMA_VERSION, migrate_state
 from workflow.workspaces import (
     RunWorkspace,
     RunWorkspaceManager,
+    WorkspaceError,
     current_workspace_directory,
     workspace_scope,
 )
@@ -69,6 +71,37 @@ class WorkspaceTests(unittest.TestCase):
             self.assertEqual(
                 self._git(first.directory, "branch", "--show-current"),
                 first.branch,
+            )
+
+    def test_development_mode_can_delete_a_run_branch_after_worktree_removal(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._git(root, "init", "-b", "main")
+            self._git(root, "config", "user.email", "tests@example.com")
+            self._git(root, "config", "user.name", "Tests")
+            (root / "README.md").write_text("initial\n", encoding="utf-8")
+            self._git(root, "add", "README.md")
+            self._git(root, "commit", "-m", "initial")
+
+            manager = RunWorkspaceManager(root)
+            workspace = manager.ensure("thread/one")
+            manager.remove("thread/one")
+
+            with patch.dict("os.environ", {"SHANKS_MODE": "runtime"}):
+                with self.assertRaisesRegex(WorkspaceError, "not in development mode"):
+                    manager.delete_branch("thread/one")
+
+            with patch.dict(
+                "os.environ",
+                {"SHANKS_MODE": "development"},
+            ):
+                manager.delete_branch("thread/one")
+
+            self.assertEqual(
+                self._git(root, "branch", "--list", workspace.branch),
+                "",
             )
 
     def test_workspace_context_is_scoped_and_restored(self) -> None:

@@ -43,6 +43,7 @@ class SequenceAdapter:
 @dataclass
 class RecordingRepository:
     commits: list[str] = field(default_factory=list)
+    pushes: list[str] = field(default_factory=list)
     pull_requests: list[str] = field(default_factory=list)
     fail_commit: bool = False
     fail_publish: bool = False
@@ -67,7 +68,15 @@ class RecordingRepository:
             commit_sha=f"sha-{item_id}",
         )
 
-    def publish_pr(self, task: str) -> AgentResult:
+    def push_branch(self) -> AgentResult:
+        self.pushes.append("branch")
+        return AgentResult(
+            status="branch_pushed",
+            assigned_model="test-github",
+            feedback="feature/test",
+        )
+
+    def open_pull_request(self, task: str, *, branch: str = "") -> AgentResult:
         self.pull_requests.append(task)
         if self.fail_publish:
             return AgentResult(
@@ -81,6 +90,14 @@ class RecordingRepository:
             pr_url="https://github.com/example/shanks/pull/1",
             pr_state="open",
         )
+
+    def publish_pr(self, task: str) -> AgentResult:
+        """Keep the legacy test-double API covered while the graph splits handoffs."""
+
+        pushed = self.push_branch()
+        if pushed.status != "branch_pushed":
+            return pushed
+        return self.open_pull_request(task, branch=pushed.feedback)
 
 
 @dataclass
@@ -259,11 +276,17 @@ class GraphRoutingTests(unittest.TestCase):
         github_event = next(
             event for event in result["run_manifest"] if event["node"] == "github_node"
         )
+        pull_request_event = next(
+            event
+            for event in result["run_manifest"]
+            if event["node"] == "pull_request_node"
+        )
         self.assertEqual(planning_event["type"], "agent")
         self.assertEqual(planning_event["model"], "planner")
         self.assertEqual(planning_event["prompt"]["item_id"], "item-1")
-        self.assertEqual(github_event["pull_request_id"], "1")
-        self.assertEqual(github_event["pull_request_state"], "open")
+        self.assertEqual(github_event["status"], "branch_pushed")
+        self.assertEqual(pull_request_event["pull_request_id"], "1")
+        self.assertEqual(pull_request_event["pull_request_state"], "open")
         self.assertEqual(result["pr_state"], "open")
 
     def test_cancel_run_stops_before_builder(self) -> None:
@@ -1066,28 +1089,77 @@ class GraphRoutingTests(unittest.TestCase):
     def test_github_failure_stops_without_routing_to_debugger(self) -> None:
         self.assertEqual(route_after_github({"status": "failed"}), "__end__")
         self.assertEqual(route_after_github({"status": "complete"}), "__end__")
+        self.assertEqual(
+            route_after_github({"status": "branch_pushed"}),
+            "pull_request_node",
+        )
 
     def test_commit_requires_approval_before_side_effect(self) -> None:
         repository = RecordingRepository()
         graph = build_graph(_stub_dependencies(repository))
         config = {"configurable": {"thread_id": "commit-approval"}}
 
-        paused = graph.invoke(_initial_state(), config)
-        approval = paused["__interrupt__"][0].value
-        self.assertEqual(approval["type"], "approval")
-        self.assertEqual(approval["action"], "commit")
-        self.assertEqual(repository.commits, [])
+        with patch.dict("os.environ", {"SHANKS_MODE": "runtime"}):
+            paused = graph.invoke(_initial_state(), config)
+            approval = paused["__interrupt__"][0].value
+            self.assertEqual(approval["type"], "approval")
+            self.assertIn("not in development mode", approval["message"])
+            self.assertEqual(approval["action"], "commit")
+            self.assertEqual(repository.commits, [])
 
-        paused = graph.invoke(Command(resume="approve"), config)
+            paused = graph.invoke(Command(resume="approve"), config)
 
+            self.assertEqual(repository.commits, ["item-1"])
+            self.assertEqual(
+                paused["__interrupt__"][0].value["action"],
+                "push",
+            )
+            self.assertEqual(
+                paused["__interrupt__"][0].value["operations"],
+                ["push"],
+            )
+
+            paused = graph.invoke(Command(resume="approve"), config)
+            self.assertEqual(
+                paused["__interrupt__"][0].value["action"],
+                "open_pull_request",
+            )
+            self.assertEqual(
+                paused["__interrupt__"][0].value["operations"],
+                ["open_pull_request"],
+            )
+
+            result = graph.invoke(Command(resume="approve"), config)
+
+        self.assertEqual(result["status"], "pr_created")
+
+    def test_development_mode_still_requires_side_effect_approvals(self) -> None:
+        repository = RecordingRepository()
+        graph = build_graph(_stub_dependencies(repository))
+        config = {"configurable": {"thread_id": "development-mode"}}
+
+        with patch.dict("os.environ", {"SHANKS_MODE": "development"}):
+            paused = graph.invoke(_initial_state(), config)
+            self.assertIn(
+                "Development mode is enabled",
+                paused["__interrupt__"][0].value["message"],
+            )
+            self.assertEqual(paused["__interrupt__"][0].value["action"], "commit")
+
+            paused = graph.invoke(Command(resume="approve"), config)
+            self.assertEqual(paused["__interrupt__"][0].value["action"], "push")
+
+            paused = graph.invoke(Command(resume="approve"), config)
+            self.assertEqual(
+                paused["__interrupt__"][0].value["action"],
+                "open_pull_request",
+            )
+
+            result = graph.invoke(Command(resume="approve"), config)
+
+        self.assertNotIn("__interrupt__", result)
         self.assertEqual(repository.commits, ["item-1"])
-        self.assertEqual(
-            paused["__interrupt__"][0].value["action"],
-            "publish_pr",
-        )
-
-        result = graph.invoke(Command(resume="approve"), config)
-
+        self.assertEqual(repository.pull_requests, ["Build the workflow"])
         self.assertEqual(result["status"], "pr_created")
 
     def test_rejected_commit_ends_without_commit_or_pull_request(self) -> None:
@@ -1095,9 +1167,10 @@ class GraphRoutingTests(unittest.TestCase):
         graph = build_graph(_stub_dependencies(repository))
         config = {"configurable": {"thread_id": "commit-rejection"}}
 
-        result = graph.invoke(_initial_state(), config)
-        self.assertEqual(result["__interrupt__"][0].value["action"], "commit")
-        result = graph.invoke(Command(resume="reject"), config)
+        with patch.dict("os.environ", {"SHANKS_MODE": "runtime"}):
+            result = graph.invoke(_initial_state(), config)
+            self.assertEqual(result["__interrupt__"][0].value["action"], "commit")
+            result = graph.invoke(Command(resume="reject"), config)
 
         self.assertEqual(result["status"], "approval_denied")
         self.assertEqual(repository.commits, [])
@@ -1108,22 +1181,49 @@ class GraphRoutingTests(unittest.TestCase):
         graph = build_graph(_stub_dependencies(repository))
         config = {"configurable": {"thread_id": "publish-rejection"}}
 
-        result = graph.invoke(
-            {
-                "task": "Already complete",
-                "workflow_mode": "implement",
-                "prd_items": [{"id": "done", "passes": True}],
-            },
-            config,
-        )
-        self.assertEqual(
-            result["__interrupt__"][0].value["operations"],
-            ["push", "reconcile_pull_request"],
-        )
+        with patch.dict("os.environ", {"SHANKS_MODE": "runtime"}):
+            result = graph.invoke(
+                {
+                    "task": "Already complete",
+                    "workflow_mode": "implement",
+                    "prd_items": [{"id": "done", "passes": True}],
+                },
+                config,
+            )
+            self.assertEqual(
+                result["__interrupt__"][0].value["operations"],
+                ["push"],
+            )
 
-        result = graph.invoke(Command(resume="reject"), config)
+            result = graph.invoke(Command(resume="reject"), config)
 
         self.assertEqual(result["status"], "approval_denied")
+        self.assertEqual(repository.pushes, [])
+        self.assertEqual(repository.pull_requests, [])
+
+    def test_rejected_pull_request_ends_after_approved_push(self) -> None:
+        repository = RecordingRepository()
+        graph = build_graph(_stub_dependencies(repository))
+        config = {"configurable": {"thread_id": "pull-request-rejection"}}
+
+        with patch.dict("os.environ", {"SHANKS_MODE": "runtime"}):
+            result = graph.invoke(
+                {
+                    "task": "Already complete",
+                    "workflow_mode": "implement",
+                    "prd_items": [{"id": "done", "passes": True}],
+                },
+                config,
+            )
+            result = graph.invoke(Command(resume="approve"), config)
+            self.assertEqual(
+                result["__interrupt__"][0].value["action"],
+                "open_pull_request",
+            )
+            result = graph.invoke(Command(resume="reject"), config)
+
+        self.assertEqual(result["status"], "approval_denied")
+        self.assertEqual(repository.pushes, ["branch"])
         self.assertEqual(repository.pull_requests, [])
 
 

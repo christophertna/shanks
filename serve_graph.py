@@ -35,10 +35,11 @@ GRAPH_NODE_ORDER = {
     "debugger": 9,
     "item_router": 10,
     "github_node": 11,
-    "attempt_limit": 12,
-    "failed_build": 13,
-    "stop_run": 14,
-    "__end__": 15,
+    "pull_request_node": 12,
+    "attempt_limit": 13,
+    "failed_build": 14,
+    "stop_run": 15,
+    "__end__": 16,
 }
 
 VIEW_NODE_LABELS = {
@@ -54,6 +55,7 @@ VIEW_NODE_LABELS = {
     "debugger": "Debug failure",
     "item_router": "more items",
     "github_node": "github node",
+    "pull_request_node": "open pull request",
     "attempt_limit": "Attempt limit",
     "failed_build": "Failed build",
     "stop_run": "Stop run",
@@ -69,6 +71,7 @@ VIEW_MAIN_FLOW = (
     "commit_item",
     "item_router",
     "github_node",
+    "pull_request_node",
     "__end__",
 )
 VIEW_MAIN_NODES = (
@@ -83,6 +86,7 @@ VIEW_MAIN_NODES = (
     "commit_item",
     "item_router",
     "github_node",
+    "pull_request_node",
     "__end__",
 )
 VIEW_CRITIC_EDGES = (
@@ -431,7 +435,7 @@ def _view_node(node_id: str, decision_node_ids: set[str]) -> str:
     )
     if node_id in VIEW_MAIN_NODES:
         node_class = "mainNode"
-    if node_id == "github_node":
+    if node_id in {"github_node", "pull_request_node"}:
         node_class = "yellowNode"
     return f'    {node_id}["{label}"]:::{node_class}'
 

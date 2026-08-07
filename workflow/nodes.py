@@ -51,6 +51,7 @@ from .lifecycle import (
     RunLifecycleManager,
     TERMINAL_RUN_STATUSES,
 )
+from .mode import is_development_mode
 from .workspaces import (
     RunWorkspaceManager,
     WorkspaceError,
@@ -590,6 +591,7 @@ def create_nodes(
         "debugger": lambda state: debugger(state, deps),
         "item_router": item_router,
         "github_node": lambda state: github_node(state, deps),
+        "pull_request_node": lambda state: pull_request_node(state, deps),
         "retry_backoff": retry_backoff,
         "attempt_limit": attempt_limit,
         "failed_build": failed_build,
@@ -1006,7 +1008,7 @@ def github_node(
     state: WorkflowState,
     dependencies: NodeDependencies,
 ) -> WorkflowState:
-    """Push the completed branch and create its pull request."""
+    """Request approval, then push the completed branch."""
 
     repository = dependencies.repository
     if state.get("pr_url"):
@@ -1018,20 +1020,56 @@ def github_node(
         return {"status": "complete"}
 
     if not _request_approval(
-        action="publish_pr",
-        question="Approve pushing the branch and reconciling its pull request?",
+        action="push",
+        question="Approve pushing the branch?",
         details={
-            "operations": ["push", "reconcile_pull_request"],
+            "operations": ["push"],
             "task": redact_secrets(state.get("task", "")),
         },
     ):
-        return _approval_denied("push or open a pull request")
+        return _approval_denied("push")
 
-    result = repository.publish_pr(state.get("task", ""))
+    result = repository.push_branch()
     update = state_update_from_result(result)
     update.update(_audit_result(state, "github_node", result))
     if result.failure_class:
         update["failure_node"] = "github_node"
+    return update
+
+
+def pull_request_node(
+    state: WorkflowState,
+    dependencies: NodeDependencies,
+) -> WorkflowState:
+    """Request approval, then open or reuse the pull request."""
+
+    repository = dependencies.repository
+    if state.get("pr_url"):
+        return {
+            "status": "pr_created",
+            "pr_url": state["pr_url"],
+        }
+    if repository is None:
+        return {"status": "complete"}
+
+    if not _request_approval(
+        action="open_pull_request",
+        question="Approve opening the pull request?",
+        details={
+            "operations": ["open_pull_request"],
+            "task": redact_secrets(state.get("task", "")),
+        },
+    ):
+        return _approval_denied("opening a pull request")
+
+    result = repository.open_pull_request(
+        state.get("task", ""),
+        branch=state.get("run_branch", ""),
+    )
+    update = state_update_from_result(result)
+    update.update(_audit_result(state, "pull_request_node", result))
+    if result.failure_class:
+        update["failure_node"] = "pull_request_node"
     return update
 
 
@@ -1339,10 +1377,10 @@ def route_after_item_router(
 
 def route_after_github(
     state: WorkflowState,
-) -> Literal["__end__"]:
-    """Stop after the handoff; debugger is reserved for validation failures."""
+) -> Literal["pull_request_node", "__end__"]:
+    """Route a successful push to its separately approved PR handoff."""
 
-    return "__end__"
+    return "pull_request_node" if state.get("status") == "branch_pushed" else "__end__"
 
 
 def _debugger_details(
@@ -1377,10 +1415,23 @@ def _request_approval(
     question: str,
     details: dict[str, object],
 ) -> bool:
-    """Pause until a human explicitly approves or rejects a side effect."""
+    """Pause for human approval before every side effect."""
+
+    if is_development_mode():
+        message = (
+            "Development mode is enabled, but human approval is still required "
+            "before this side effect."
+        )
+    else:
+        message = (
+            "I don't have automatic permission because Shanks is not in "
+            "development mode; explicit approval is required for this side "
+            "effect."
+        )
 
     prompt: dict[str, object] = {
         "type": "approval",
+        "message": message,
         "action": action,
         "question": question,
         "options": [
@@ -1596,6 +1647,7 @@ __all__ = [
     "claude_opus_4_8_dependencies",
     "gpt_5_6_luna_dependencies",
     "github_node",
+    "pull_request_node",
     "intake",
     "learning",
     "item_router",

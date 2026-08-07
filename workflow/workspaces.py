@@ -13,6 +13,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterator
 
+from .mode import is_development_mode
+
 _CURRENT_WORKSPACE: ContextVar[Path | None] = ContextVar(
     "shanks_current_workspace",
     default=None,
@@ -107,6 +109,36 @@ class RunWorkspaceManager:
         parts.append(str(directory))
         with self._lock:
             self._run(tuple(parts), cwd=self.project_directory)
+
+    def delete_branch(self, run_id: str, *, force: bool = False) -> None:
+        """Delete this run's local branch only in explicit development mode."""
+
+        if not is_development_mode():
+            raise WorkspaceError(
+                "I don't have permission to delete branches because Shanks is "
+                "not in development mode; set SHANKS_MODE=development."
+            )
+
+        normalized_id = _normalize_component(run_id)
+        if not normalized_id:
+            return
+        branch = f"{self.branch_prefix}/{normalized_id}"
+        if branch == self.base_branch:
+            raise WorkspaceError("Refusing to delete the base branch.")
+
+        directory = self.worktree_root / normalized_id
+        with self._lock:
+            if directory.exists():
+                raise WorkspaceError(
+                    f"Remove worktree {directory} before deleting its branch."
+                )
+            if not self._branch_exists(branch):
+                return
+            command = ["git", "branch", "--delete"]
+            if force:
+                command.append("--force")
+            command.append(branch)
+            self._run(tuple(command), cwd=self.project_directory)
 
     def _validate_existing(
         self,

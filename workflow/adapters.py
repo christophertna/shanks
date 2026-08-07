@@ -679,7 +679,7 @@ class GitHubAdapter:
             diff=diff,
         )
 
-    def publish_pr(self, task: str) -> AgentResult:
+    def push_branch(self) -> AgentResult:
         commands: list[list[str]] = []
         branch_result = self._run(("git", "branch", "--show-current"))
         commands.extend(branch_result.commands)
@@ -698,6 +698,36 @@ class GitHubAdapter:
         commands.extend(pushed.commands)
         if pushed.status == "failed":
             return _attach_commands(pushed, commands)
+
+        return AgentResult(
+            status="branch_pushed",
+            assigned_model=self.model_name,
+            feedback=branch,
+            commands=commands,
+        )
+
+    def open_pull_request(self, task: str, *, branch: str = "") -> AgentResult:
+        commands: list[list[str]] = []
+        if not branch:
+            branch_result = self._run(("git", "branch", "--show-current"))
+            commands.extend(branch_result.commands)
+            if branch_result.status == "failed":
+                return _attach_commands(branch_result, commands)
+            branch = branch_result.feedback.strip()
+        if not branch or branch == self.base_branch:
+            return AgentResult(
+                status="failed",
+                assigned_model=self.model_name,
+                error="Refusing to push or open a PR from the base branch.",
+                commands=commands,
+            )
+        if not self._safe_ref(branch):
+            return AgentResult(
+                status="failed",
+                assigned_model=self.model_name,
+                error="Refusing to open a PR for an unsafe branch name.",
+                commands=commands,
+            )
 
         existing = self._run(self._pull_request_list_command(branch))
         commands.extend(existing.commands)
@@ -775,6 +805,15 @@ class GitHubAdapter:
             pr_reviewers=list(self.reviewers),
             pr_labels=list(self.labels),
         )
+
+    def publish_pr(self, task: str) -> AgentResult:
+        """Push and open a PR for callers that do not need approval boundaries."""
+
+        pushed = self.push_branch()
+        if pushed.status != "branch_pushed":
+            return pushed
+        opened = self.open_pull_request(task, branch=pushed.feedback.strip())
+        return _attach_commands(opened, [*pushed.commands, *opened.commands])
 
     def _reconcile_existing_prs(
         self,
