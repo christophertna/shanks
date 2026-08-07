@@ -54,6 +54,11 @@ class AgentResult:
     diff: str = ""
     test_output: str = ""
     failure_class: FailureClass | None = None
+    pr_state: str = ""
+    pr_stale: bool = False
+    pr_number: str = ""
+    pr_reviewers: list[str] = field(default_factory=list)
+    pr_labels: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         """Classify failures at the shared adapter boundary."""
@@ -100,7 +105,7 @@ class RepositoryAdapter(Protocol):
         ...
 
     def publish_pr(self, task: str) -> AgentResult:
-        """Push the branch and create its pull request."""
+        """Push the branch and reconcile its pull request lifecycle."""
 
         ...
 
@@ -137,6 +142,13 @@ def state_update_from_result(result: AgentResult) -> WorkflowState:
         update["commit_sha"] = result.commit_sha
     if result.pr_url:
         update["pr_url"] = result.pr_url
+    if result.pr_state:
+        update["pr_state"] = result.pr_state
+        update["pr_stale"] = result.pr_stale
+    if result.pr_reviewers:
+        update["pr_reviewers"] = list(result.pr_reviewers)
+    if result.pr_labels:
+        update["pr_labels"] = list(result.pr_labels)
     if result.input_tokens:
         update["last_input_tokens"] = result.input_tokens
     if result.output_tokens:

@@ -85,6 +85,10 @@ class WorkflowState(TypedDict, total=False):
     retry_delay_seconds: float
     commit_sha: str
     pr_url: str
+    pr_state: str
+    pr_stale: bool
+    pr_reviewers: list[str]
+    pr_labels: list[str]
     run_id: str
     run_branch: str
     workspace_directory: str
@@ -277,6 +281,10 @@ def migrate_state(state: Mapping[str, Any]) -> WorkflowState:
     migrated.setdefault("run_id", "")
     migrated.setdefault("run_branch", "")
     migrated.setdefault("workspace_directory", "")
+    migrated.setdefault("pr_state", "")
+    migrated.setdefault("pr_stale", False)
+    migrated.setdefault("pr_reviewers", [])
+    migrated.setdefault("pr_labels", [])
     migrated.setdefault("run_lifecycle_status", "")
     migrated.setdefault("run_lease_expires_at", 0.0)
     migrated.setdefault("run_last_heartbeat_at", 0.0)

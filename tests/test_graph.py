@@ -79,6 +79,7 @@ class RecordingRepository:
             status="pr_created",
             assigned_model="test-github",
             pr_url="https://github.com/example/shanks/pull/1",
+            pr_state="open",
         )
 
 
@@ -262,6 +263,8 @@ class GraphRoutingTests(unittest.TestCase):
         self.assertEqual(planning_event["model"], "planner")
         self.assertEqual(planning_event["prompt"]["item_id"], "item-1")
         self.assertEqual(github_event["pull_request_id"], "1")
+        self.assertEqual(github_event["pull_request_state"], "open")
+        self.assertEqual(result["pr_state"], "open")
 
     def test_cancel_run_stops_before_builder(self) -> None:
         builder = SequenceAdapter(
@@ -1115,7 +1118,7 @@ class GraphRoutingTests(unittest.TestCase):
         )
         self.assertEqual(
             result["__interrupt__"][0].value["operations"],
-            ["push", "open_pull_request"],
+            ["push", "reconcile_pull_request"],
         )
 
         result = graph.invoke(Command(resume="reject"), config)

@@ -1,7 +1,7 @@
 # Test coverage
 
 This document summarizes the behavior covered by the repository's tracked test
-files. The Python suite contains **102 unittest methods** across six modules;
+files. The Python suite contains **116 unittest methods** across eight modules;
 `hooks/test-guard.sh` is a separate shell regression harness with eight command
 checks.
 
@@ -27,8 +27,10 @@ Run the repository quality gates from a feature branch with:
 | File | Tests | Main areas |
 | --- | ---: | --- |
 | [`test_graph.py`](test_graph.py) | 36 | Workflow orchestration, item metadata, targeted retries, budgets, approvals, and GitHub handoff |
-| [`test_node_contracts.py`](test_node_contracts.py) | 37 | Agent, failure-classification, subprocess, Ralph, local-test, critic, quality-gate, and GitHub adapter contracts |
-| [`test_state_schema.py`](test_state_schema.py) | 8 | State migration, retry metadata, versioned checkpoints, and legacy resume behavior |
+| [`test_node_contracts.py`](test_node_contracts.py) | 41 | Agent, failure-classification, subprocess, Ralph, local-test, critic, quality-gate, and GitHub adapter contracts |
+| [`test_state_schema.py`](test_state_schema.py) | 9 | State migration, retry metadata, versioned checkpoints, and legacy resume behavior |
+| [`test_lifecycle.py`](test_lifecycle.py) | 5 | Run leases, stale recovery, interruption/resume, terminal release, and checkpoint cleanup |
+| [`test_workspaces.py`](test_workspaces.py) | 4 | Run identity, Git worktree creation/reuse, workspace context, and workspace state migration |
 | [`test_viewer.py`](test_viewer.py) | 5 | Viewer HTML, execution-state data, checkpoint sharing, and Mermaid output |
 | [`test_quality_gates.py`](test_quality_gates.py) | 9 | Quality command definitions, safe diff refs, numstat parsing, generated-output handling, diff limits, and gate failure reporting |
 | [`test_fault_injection.py`](test_fault_injection.py) | 7 | Injected Git, GitHub, validation, checkpoint, and agent process failures |
@@ -108,7 +110,7 @@ Sources: [`test_quality_gates.py`](test_quality_gates.py),
   checks the same paths; Mypy checks the production modules; and pip-audit
   scans both runtime and development requirement files.
 - The diff gate parses `git diff --numstat`, counts binary files safely, rejects
-  malformed output, and enforces limits of 50 changed files and 1,000 changed
+  malformed output, and enforces limits of 50 changed files and 2,000 changed
   lines by default. Derived `graphify-out/` artifacts are excluded from those
   source-diff limits.
 - Diff-base refs are validated before they enter a subprocess argument list,
@@ -212,9 +214,13 @@ Sources: [`test_graph.py`](test_graph.py) and
 - Publishing uses a restricted environment: Git receives the non-interactive
   prompt setting, GitHub receives only the GitHub token, unrelated secrets are
   omitted, and pull-request text is redacted.
-- Publishing pushes the validation branch before creating a PR against `main`
-  and returns the created PR URL.
-- An existing PR for the branch is reused instead of creating a duplicate.
+- Publishing pushes the validation branch before creating or reconciling a PR
+  against `main` and returns its URL plus lifecycle state.
+- Existing open PR text and reviewer/label policies are updated only when
+  needed; closed unmerged PRs are reported without reopening by default, merged
+  PRs are reported as merged, and behind or aged branches are reported as
+  stale. Reopening is an explicit adapter option.
+- A second reconciliation with the same text and policy performs no PR edit.
 - Commit failure is reported and stops before pull-request creation.
 - Push failure stops before PR lookup or creation.
 - PR creation failure is reported after the preceding push and lookup steps.
@@ -223,7 +229,7 @@ Sources: [`test_graph.py`](test_graph.py) and
 ### Approval and handoff behavior
 
 - Commit approval is requested before any commit side effect; approval then
-  leads to a publish approval and pull-request creation.
+  leads to a publish approval and pull-request reconciliation.
 - Rejecting commit approval ends with no commit or pull request.
 - Rejecting publish approval ends with no push or pull request.
 - GitHub failure and completed GitHub states terminate rather than entering
@@ -302,6 +308,8 @@ also covered in [`test_viewer.py`](test_viewer.py).
 - Version 2 state receives an initialized run manifest.
 - Version 3 state receives failure classification, retry counters, retry target,
   and backoff fields for resumable targeted retries.
+- Migrating v4 to v5 adds the run identity, branch, and isolated workspace
+  fields; migrating v5 to v6 adds lease, heartbeat, and recovery metadata.
 
 ### SQLite checkpoints and compatibility
 
@@ -311,6 +319,25 @@ also covered in [`test_viewer.py`](test_viewer.py).
 - A checkpoint created with the legacy saver can be resumed through the current
   graph, including an intake interrupt and a later implement command, while
   retaining the current schema version.
+- Terminal checkpoints release their run lease, and explicit cleanup retains
+  recent checkpoint history while deleting associated writes.
+
+## Run isolation and lifecycle safety
+
+Sources: [`test_workspaces.py`](test_workspaces.py) and
+[`test_lifecycle.py`](test_lifecycle.py).
+
+- Each configured `thread_id` becomes a persisted run identity with its own
+  Git branch and worktree; repeated invocations of the same run reuse that
+  workspace.
+- Workspace context routes agent, Ralph, and GitHub subprocesses into the run's
+  directory, and Ralph metadata is stored under the isolated run directory.
+- Live leases block a second owner of the same run; expired leases are recovered
+  and their recovery count is persisted.
+- Interruptions are recorded as resumable lifecycle state, and resuming the
+  same run preserves ownership until a terminal checkpoint releases the lease.
+- Checkpoint cleanup keeps the configured recent history and removes associated
+  writes instead of leaving orphaned SQLite rows.
 
 ## Viewer and observability
 
@@ -326,8 +353,8 @@ Source: [`test_viewer.py`](test_viewer.py).
 - `execution_state` reads the current checkpoint and bounded history using the
   requested thread ID and history limit.
 - The execution payload exposes current node, item identity, attempt counts,
-  token and cost totals, last error, assigned model, checkpoint IDs, and run
-  manifest entries.
+  token and cost totals, run identity, branch, workspace, lease/recovery
+  metadata, last error, assigned model, checkpoint IDs, and run manifest entries.
 - Default graph instances share the configured SQLite checkpoint database, so a
   later graph instance can read an earlier instance's state and history.
 

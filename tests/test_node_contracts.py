@@ -520,6 +520,8 @@ class NodeContractTests(unittest.TestCase):
         adapter = GitHubAdapter(
             Path("/tmp/shanks"),
             initial_dirty_files=(),
+            reviewers=("alice",),
+            labels=("enhancement",),
         )
         responses = [
             subprocess.CompletedProcess(
@@ -544,6 +546,8 @@ class NodeContractTests(unittest.TestCase):
 
         self.assertEqual(result.status, "pr_created")
         self.assertEqual(result.pr_url, "https://github.com/example/shanks/pull/1")
+        self.assertEqual(result.pr_reviewers, ["alice"])
+        self.assertEqual(result.pr_labels, ["enhancement"])
         self.assertEqual(
             run.call_args_list[1].args[0],
             ("git", "push", "-u", "origin", "validation-node"),
@@ -551,6 +555,10 @@ class NodeContractTests(unittest.TestCase):
         self.assertEqual(
             run.call_args_list[3].args[0][:5],
             ("gh", "pr", "create", "--base", "main"),
+        )
+        self.assertEqual(
+            run.call_args_list[3].args[0][-4:],
+            ("--label", "enhancement", "--reviewer", "alice"),
         )
 
     def test_github_adapter_reuses_an_existing_pr_for_the_branch(self) -> None:
@@ -590,11 +598,182 @@ class NodeContractTests(unittest.TestCase):
                 "--state",
                 "all",
                 "--json",
-                "url",
+                "number,url,state,mergedAt,title,body,updatedAt,mergeStateStatus,"
+                "labels,reviewRequests,latestReviews,headRefName",
                 "--limit",
-                "1",
+                "20",
             ),
         )
+
+    def test_github_adapter_reconciles_open_pr_text_policy_and_staleness(self) -> None:
+        adapter = GitHubAdapter(
+            Path("/tmp/shanks"),
+            initial_dirty_files=(),
+            reviewers=("alice",),
+            labels=("needs-review",),
+            stale_after_days=None,
+        )
+        title, body = adapter._pull_request_text("Build the workflow")
+        responses = [
+            subprocess.CompletedProcess(
+                args=(), returncode=0, stdout="validation-node\n", stderr=""
+            ),
+            subprocess.CompletedProcess(
+                args=(), returncode=0, stdout="pushed\n", stderr=""
+            ),
+            subprocess.CompletedProcess(
+                args=(),
+                returncode=0,
+                stdout=json.dumps(
+                    [
+                        {
+                            "number": 7,
+                            "url": "https://github.com/example/shanks/pull/7",
+                            "state": "OPEN",
+                            "mergedAt": None,
+                            "title": "Old title",
+                            "body": "Old body",
+                            "mergeStateStatus": "BEHIND",
+                            "labels": [{"name": "existing"}],
+                            "reviewRequests": [{"login": "alice"}],
+                        }
+                    ]
+                ),
+                stderr="",
+            ),
+            subprocess.CompletedProcess(
+                args=(), returncode=0, stdout="edited\n", stderr=""
+            ),
+        ]
+
+        with patch("workflow.adapters.subprocess.run", side_effect=responses) as run:
+            result = adapter.publish_pr("Build the workflow")
+
+        self.assertEqual(result.status, "pr_stale")
+        self.assertEqual(result.pr_state, "open")
+        self.assertTrue(result.pr_stale)
+        self.assertEqual(result.pr_number, "7")
+        self.assertEqual(
+            run.call_args_list[3].args[0],
+            (
+                "gh",
+                "pr",
+                "edit",
+                "7",
+                "--title",
+                title,
+                "--body",
+                body,
+                "--add-label",
+                "needs-review",
+            ),
+        )
+
+    def test_github_adapter_policy_updates_are_idempotent(self) -> None:
+        adapter = GitHubAdapter(
+            Path("/tmp/shanks"),
+            initial_dirty_files=(),
+            reviewers=("alice",),
+            labels=("needs-review",),
+            stale_after_days=None,
+        )
+        title, body = adapter._pull_request_text("Build the workflow")
+        responses = [
+            subprocess.CompletedProcess(
+                args=(), returncode=0, stdout="validation-node\n", stderr=""
+            ),
+            subprocess.CompletedProcess(
+                args=(), returncode=0, stdout="pushed\n", stderr=""
+            ),
+            subprocess.CompletedProcess(
+                args=(),
+                returncode=0,
+                stdout=json.dumps(
+                    [
+                        {
+                            "number": 7,
+                            "url": "https://github.com/example/shanks/pull/7",
+                            "state": "OPEN",
+                            "title": title,
+                            "body": body,
+                            "mergeStateStatus": "CLEAN",
+                            "labels": [{"name": "Needs-Review"}],
+                            "reviewRequests": [],
+                            "latestReviews": [{"author": {"login": "Alice"}}],
+                        }
+                    ]
+                ),
+                stderr="",
+            ),
+        ]
+
+        with patch("workflow.adapters.subprocess.run", side_effect=responses) as run:
+            result = adapter.publish_pr("Build the workflow")
+
+        self.assertEqual(result.status, "pr_created")
+        self.assertFalse(result.pr_stale)
+        self.assertEqual(run.call_count, 3)
+
+    def test_github_adapter_reopens_closed_pr_but_stops_on_merged_pr(self) -> None:
+        closed_adapter = GitHubAdapter(
+            Path("/tmp/shanks"),
+            initial_dirty_files=(),
+            stale_after_days=None,
+            reopen_closed=True,
+        )
+        closed_responses = [
+            subprocess.CompletedProcess(
+                args=(), returncode=0, stdout="validation-node\n", stderr=""
+            ),
+            subprocess.CompletedProcess(
+                args=(), returncode=0, stdout="pushed\n", stderr=""
+            ),
+            subprocess.CompletedProcess(
+                args=(),
+                returncode=0,
+                stdout='[{"number":7,"url":"https://github.com/example/shanks/pull/7",'
+                '"state":"CLOSED","mergedAt":null}]',
+                stderr="",
+            ),
+            subprocess.CompletedProcess(
+                args=(), returncode=0, stdout="reopened\n", stderr=""
+            ),
+        ]
+        with patch(
+            "workflow.adapters.subprocess.run", side_effect=closed_responses
+        ) as run:
+            closed = closed_adapter.publish_pr("Build the workflow")
+
+        self.assertEqual(closed.status, "pr_reopened")
+        self.assertEqual(closed.pr_state, "open")
+        self.assertEqual(run.call_args_list[3].args[0], ("gh", "pr", "reopen", "7"))
+
+        merged_adapter = GitHubAdapter(
+            Path("/tmp/shanks"), initial_dirty_files=(), stale_after_days=None
+        )
+        merged_responses = [
+            subprocess.CompletedProcess(
+                args=(), returncode=0, stdout="validation-node\n", stderr=""
+            ),
+            subprocess.CompletedProcess(
+                args=(), returncode=0, stdout="pushed\n", stderr=""
+            ),
+            subprocess.CompletedProcess(
+                args=(),
+                returncode=0,
+                stdout='[{"number":7,"url":"https://github.com/example/shanks/pull/7",'
+                '"state":"CLOSED","mergedAt":"2026-08-01T00:00:00Z"}]',
+                stderr="",
+            ),
+        ]
+        with patch(
+            "workflow.adapters.subprocess.run", side_effect=merged_responses
+        ) as run:
+            merged = merged_adapter.publish_pr("Build the workflow")
+
+        self.assertEqual(merged.status, "pr_merged")
+        self.assertEqual(merged.pr_state, "merged")
+        self.assertEqual(run.call_count, 3)
 
     def test_github_adapter_reports_commit_failure(self) -> None:
         adapter = GitHubAdapter(
