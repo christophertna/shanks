@@ -69,6 +69,20 @@ are treated as v0 and migrated to the current schema when loaded; new checkpoint
 are written with the current version. Checkpoints from a newer unsupported version
 fail clearly instead of being interpreted incorrectly.
 
+Default graphs derive a run identity from the configured `thread_id`. Each run gets
+an isolated branch and Git worktree under `.shanks/worktrees/`, and the persisted
+state records `run_id`, `run_branch`, and `workspace_directory`. Agent and GitHub
+subprocesses use that worktree for the run, so separate runs do not share a mutable
+project directory.
+
+The shared SQLite checkpoint store also owns a durable run lease. A live lease
+blocks a second owner of the same thread, an interrupted run remains resumable,
+and an expired lease is marked abandoned before a later owner recovers it. Lease
+duration is configurable with `SHANKS_RUN_LEASE_SECONDS`. Terminal checkpoints
+release their lease and use the configured retention limit (default 100); call
+`VersionedSqliteSaver.cleanup(...)` for explicit count/age-based cleanup, or set
+`SHANKS_CHECKPOINT_RETENTION` for the automatic limit.
+
 Agent failures are classified as `transient`, `validation`, `guardrail`,
 `budget`, `cancelled`, or `permanent`. Safe agent and validation nodes retry only
 `transient` failures with bounded exponential backoff (0.5, 1, 2 seconds, capped

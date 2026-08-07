@@ -832,6 +832,40 @@ class NodeContractTests(unittest.TestCase):
         self.assertIn("Leave this requirement unchanged.", command[-1])
         self.assertIn("Add the setup before rerunning tests.", command[-1])
 
+    def test_ralph_adapter_isolates_run_metadata_with_a_worktree(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "target"
+            base = root / "engine"
+            target.mkdir()
+            base.mkdir()
+            adapter = RalphAdapter(target, base_directory=base)
+            request = AgentRequest(
+                task="Isolate this run",
+                item_id="item-1",
+                prd_items=[{"id": "item-1", "title": "Item"}],
+                working_directory=target,
+            )
+            completed = subprocess.CompletedProcess(
+                args=adapter.command,
+                returncode=0,
+                stdout="<promise>ITEM_BUILT</promise>\n",
+                stderr="",
+            )
+
+            with patch(
+                "workflow.adapters.subprocess.run", return_value=completed
+            ) as run:
+                adapter.run(request)
+
+            command = run.call_args.args[0]
+            self.assertIn("--run-dir", command)
+            self.assertEqual(
+                Path(command[command.index("--run-dir") + 1]),
+                target / ".shanks" / "ralph",
+            )
+            self.assertTrue((target / ".shanks" / "ralph" / "prd.json").exists())
+
     def test_ralph_adapter_requires_the_item_built_signal(self) -> None:
         adapter = RalphAdapter(
             Path("/tmp/target-project"),

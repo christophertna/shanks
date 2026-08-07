@@ -1,6 +1,6 @@
 #!/bin/bash
 # Ralph Wiggum - Long-running AI agent loop
-# Usage: ./ralph.sh [--project-dir path] [--tool claude|codex] [--skill skill-name|--no-skill] [max_iterations]
+# Usage: ./ralph.sh [--project-dir path] [--run-dir path] [--tool claude|codex] [--skill skill-name|--no-skill] [max_iterations]
 
 set -e
 set -o pipefail
@@ -9,6 +9,7 @@ set -o pipefail
 TOOL="codex"
 SKILL_NAME="ponytail"
 TARGET_DIR_ARG=""
+RUN_DIR_ARG=""
 GRAPH_ITEM_ID=""
 GRAPH_INSTRUCTIONS=""
 MAX_ITERATIONS=10
@@ -33,6 +34,18 @@ while [[ $# -gt 0 ]]; do
       ;;
     --project-dir=*)
       TARGET_DIR_ARG="${1#*=}"
+      shift
+      ;;
+    --run-dir)
+      if [[ $# -lt 2 ]]; then
+        echo "Error: --run-dir requires a path."
+        exit 1
+      fi
+      RUN_DIR_ARG="$2"
+      shift 2
+      ;;
+    --run-dir=*)
+      RUN_DIR_ARG="${1#*=}"
       shift
       ;;
     --skill)
@@ -106,11 +119,31 @@ fi
 cd "$TARGET_DIR"
 export RALPH_BASE_DIR="$BASE_DIR"
 export RALPH_PROJECT_DIR="$TARGET_DIR"
+if [ -z "$RUN_DIR_ARG" ]; then
+  RUN_DIR="$SCRIPT_DIR"
+elif [[ "$RUN_DIR_ARG" = /* ]]; then
+  RUN_DIR="$RUN_DIR_ARG"
+else
+  RUN_DIR="$BASE_DIR/$RUN_DIR_ARG"
+fi
+if ! mkdir -p "$RUN_DIR"; then
+  echo "Error: Could not create run directory: $RUN_DIR"
+  exit 1
+fi
+export RALPH_RUN_DIR="$RUN_DIR"
 PRD_FILE="$SCRIPT_DIR/prd.json"
 PROGRESS_FILE="$SCRIPT_DIR/progress.txt"
 METADATA_FILE="$SCRIPT_DIR/metadata.txt"
 ARCHIVE_DIR="$SCRIPT_DIR/archive"
 LAST_BRANCH_FILE="$SCRIPT_DIR/.last-branch"
+if [ -n "$RUN_DIR_ARG" ]; then
+  PRD_FILE="$RUN_DIR/prd.json"
+  PROGRESS_FILE="$RUN_DIR/progress.txt"
+  METADATA_FILE="$RUN_DIR/metadata.txt"
+  ARCHIVE_DIR="$RUN_DIR/archive"
+  LAST_BRANCH_FILE="$RUN_DIR/.last-branch"
+fi
+export RALPH_PRD_FILE="$PRD_FILE"
 
 resolve_skill_file() {
   local skill_name="$1"

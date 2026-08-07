@@ -35,5 +35,9 @@
   "33": "_apply_failure_policy",
   "34": "CheapCriticAdapter",
   "35": "build_error_handler",
-  "36": "DebuggerAdapter"
+  "36": "DebuggerAdapter",
+  "37": "DebuggerAdapter",
+  "38": "CheapCriticAdapter",
+  "41": "RepositoryAdapter",
+  "42": "DebuggerAdapter"
 }

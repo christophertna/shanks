@@ -6,7 +6,7 @@ from collections.abc import Callable, Mapping
 from datetime import datetime, timezone
 from typing import Any, Literal, TypedDict, cast
 
-CURRENT_STATE_SCHEMA_VERSION = 4
+CURRENT_STATE_SCHEMA_VERSION = 6
 DEFAULT_MAX_RUNTIME_SECONDS = 3600.0
 DEFAULT_MAX_ATTEMPTS = 3
 DEFAULT_MAX_TOTAL_ATTEMPTS = 20
@@ -85,6 +85,13 @@ class WorkflowState(TypedDict, total=False):
     retry_delay_seconds: float
     commit_sha: str
     pr_url: str
+    run_id: str
+    run_branch: str
+    workspace_directory: str
+    run_lifecycle_status: str
+    run_lease_expires_at: float
+    run_last_heartbeat_at: float
+    run_recovery_count: int
 
 
 class StateSchemaError(ValueError):
@@ -165,11 +172,34 @@ def _migrate_v3_to_v4(state: dict[str, Any]) -> dict[str, Any]:
     return state
 
 
+def _migrate_v4_to_v5(state: dict[str, Any]) -> dict[str, Any]:
+    """Add the persisted run identity and isolated workspace fields."""
+
+    state.setdefault("run_id", "")
+    state.setdefault("run_branch", "")
+    state.setdefault("workspace_directory", "")
+    state["state_schema_version"] = CURRENT_STATE_SCHEMA_VERSION
+    return state
+
+
+def _migrate_v5_to_v6(state: dict[str, Any]) -> dict[str, Any]:
+    """Add persisted run lease and recovery metadata."""
+
+    state.setdefault("run_lifecycle_status", "")
+    state.setdefault("run_lease_expires_at", 0.0)
+    state.setdefault("run_last_heartbeat_at", 0.0)
+    state.setdefault("run_recovery_count", 0)
+    state["state_schema_version"] = CURRENT_STATE_SCHEMA_VERSION
+    return state
+
+
 _STATE_MIGRATIONS: dict[int, StateMigration] = {
     0: _migrate_v0_to_v1,
     1: _migrate_v1_to_v2,
     2: _migrate_v2_to_v3,
     3: _migrate_v3_to_v4,
+    4: _migrate_v4_to_v5,
+    5: _migrate_v5_to_v6,
 }
 
 
@@ -201,6 +231,7 @@ def cancel_run(reason: str = "Cancelled by user.") -> WorkflowState:
         "cancel_requested": True,
         "cancel_reason": message,
         "status": "cancelled",
+        "run_lifecycle_status": "cancelled",
         "last_error": message,
     }
 
@@ -243,4 +274,11 @@ def migrate_state(state: Mapping[str, Any]) -> WorkflowState:
     migrated.setdefault("retry_counts", {})
     migrated.setdefault("retry_target", "")
     migrated.setdefault("retry_delay_seconds", 0.0)
+    migrated.setdefault("run_id", "")
+    migrated.setdefault("run_branch", "")
+    migrated.setdefault("workspace_directory", "")
+    migrated.setdefault("run_lifecycle_status", "")
+    migrated.setdefault("run_lease_expires_at", 0.0)
+    migrated.setdefault("run_last_heartbeat_at", 0.0)
+    migrated.setdefault("run_recovery_count", 0)
     return cast(WorkflowState, migrated)

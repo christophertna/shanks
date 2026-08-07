@@ -27,8 +27,8 @@ back to normal file inspection. After changing code, run `graphify update .`.
 
 ## Your Task
 
-1. Read the PRD at `$RALPH_BASE_DIR/scripts/ralph/prd.json`
-2. Read the progress log at `$RALPH_BASE_DIR/scripts/ralph/progress.txt` (check Codebase Patterns section first)
+1. Read the PRD at `$RALPH_PRD_FILE`
+2. Read the progress log beside it (check Codebase Patterns section first)
 3. Check you're on the correct branch from PRD `branchName`. If not, check it out or create from main.
 4. Pick the **highest priority** user story where `passes: false` or `validation: false`
 5. Implement that single user story

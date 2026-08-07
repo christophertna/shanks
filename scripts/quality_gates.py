@@ -14,7 +14,7 @@ from typing import Callable, Sequence
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 PYTHON_PATHS = ("graph.py", "serve_graph.py", "workflow", "tests", "scripts")
 DEFAULT_MAX_FILES = 50
-DEFAULT_MAX_LINES = 1000
+DEFAULT_MAX_LINES = 2000
 IGNORED_DIFF_PREFIXES = ("graphify-out/",)
 _SAFE_REF = re.compile(r"[A-Za-z0-9._/@:+-]+")
 Runner = Callable[..., subprocess.CompletedProcess[str]]
