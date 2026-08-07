@@ -51,6 +51,9 @@ Examples:
 
 - Inspect the diff, current branch, and test results before committing.
 - Before committing, check whether related documentation (for example `README.md` or `explained.md`) also needs updating, and include those changes when relevant.
+- Ask for explicit human approval immediately before committing. Development mode enables guarded capabilities but never counts as consent.
+- Ask for explicit human approval immediately before pushing the branch.
+- Ask for explicit human approval immediately before opening the pull request. Push approval and pull-request approval are separate decisions and must never be bundled.
 - Push the feature branch with `git push -u origin <branch>`; do not push to `main` unless explicitly requested.
 - Pass the commit or PR title separately from the description when using GitHub CLI or an API.
 - Before opening the PR, state the exact title, description, and test command for auditability.

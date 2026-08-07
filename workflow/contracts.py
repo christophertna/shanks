@@ -99,8 +99,23 @@ class RepositoryAdapter(Protocol):
 
         ...
 
+    def push_branch(self) -> AgentResult:
+        """Push the validated branch without opening a pull request."""
+
+        ...
+
+    def open_pull_request(
+        self,
+        task: str,
+        *,
+        branch: str = "",
+    ) -> AgentResult:
+        """Open or reuse the pull request for an already-pushed branch."""
+
+        ...
+
     def publish_pr(self, task: str) -> AgentResult:
-        """Push the branch and create its pull request."""
+        """Push the branch and create its pull request as one adapter call."""
 
         ...
 

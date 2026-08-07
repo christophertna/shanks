@@ -182,6 +182,10 @@ class GraphViewerTests(unittest.TestCase):
         self.assertIn('validation{"Validate"}:::yellowNode', content)
         self.assertIn('commit_item["commit item"]:::mainNode', content)
         self.assertIn('github_node["github node"]:::yellowNode', content)
+        self.assertIn(
+            'pull_request_node["open pull request"]:::yellowNode',
+            content,
+        )
         self.assertIn('critic_auditor["critic_auditor"]', content)
         main_section = content.split("  end", 1)[0]
         self.assertIn("building --> critic_auditor", main_section)
@@ -193,7 +197,8 @@ class GraphViewerTests(unittest.TestCase):
         self.assertNotIn("building --> building", main_section)
         self.assertIn("item_router -.-> planning", main_section)
         self.assertIn("item_router --> github_node", main_section)
-        self.assertIn("github_node --> __end__", main_section)
+        self.assertIn("github_node --> pull_request_node", main_section)
+        self.assertIn("pull_request_node --> __end__", main_section)
         self.assertNotIn("critic_auditor -.-> validation", content)
         self.assertNotIn("critic_auditor -.-> item_router", content)
 

@@ -22,6 +22,7 @@
   "20": "skills/decisions/SKILL.md",
   "21": "test-guard.sh",
   "22": "GitHubAdapter",
+  "23": "main",
   "24": "Test coverage",
   "25": "graph.py",
   "26": "nodes.py",
@@ -38,5 +39,6 @@
   "37": "DebuggerAdapter",
   "38": "CheapCriticAdapter",
   "39": "state_update_from_result",
-  "40": "_migrate_checkpoint_tuple"
+  "40": "_migrate_checkpoint_tuple",
+  "41": "shanks"
 }

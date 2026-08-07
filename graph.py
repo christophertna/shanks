@@ -356,6 +356,7 @@ def build_graph(
     )
     builder.add_node("item_router", nodes["item_router"])
     builder.add_node("github_node", nodes["github_node"])
+    builder.add_node("pull_request_node", nodes["pull_request_node"])
     builder.add_node("retry_backoff", nodes["retry_backoff"])
     builder.add_node("attempt_limit", nodes["attempt_limit"])
     builder.add_node("stop_run", nodes["stop_run"])
@@ -421,8 +422,9 @@ def build_graph(
     builder.add_conditional_edges(
         "github_node",
         route_after_github,
-        [END],
+        ["pull_request_node", END],
     )
+    builder.add_edge("pull_request_node", END)
     builder.add_conditional_edges(
         "retry_backoff",
         route_after_retry_backoff,

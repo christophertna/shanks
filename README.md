@@ -120,12 +120,23 @@ checkpoint history, and run manifest. Expand an audit event to inspect its
 recorded prompt, commands, output, diff, commit, or pull-request details. Use
 the same thread ID when starting the workflow and inspecting it.
 
-For local Shanks development, set `SHANKS_MODE=development`. This skips the
-commit and pull-request approval interrupts and permits deletion of local
-run-scoped branches through `RunWorkspaceManager.delete_branch(...)`. The
-mode does not disable quality gates, project/path checks, secret redaction,
-base-branch protection, or the catastrophic-command hook. Unset the variable
-or set it to `runtime` to restore the normal approval flow.
+For local Shanks development, set `SHANKS_MODE=development`. This enables
+guarded local capabilities such as deletion of local run-scoped branches
+through `RunWorkspaceManager.delete_branch(...)`; it does not approve side
+effects. Human approval is still required separately before each commit, push,
+and pull-request creation. The mode does not disable quality gates,
+project/path checks, secret redaction, base-branch protection, or the
+catastrophic-command hook. Unset the variable or set it to `runtime` to
+restore safe/normal mode.
+
+Check the current mode from the repository root:
+
+```bash
+./shanks --mode
+./shanks -mode
+```
+
+The equivalent subcommand is `./shanks mode`.
 
 ## Preflight checks
 
