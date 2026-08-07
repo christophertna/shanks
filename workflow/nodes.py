@@ -51,6 +51,7 @@ from .lifecycle import (
     RunLifecycleManager,
     TERMINAL_RUN_STATUSES,
 )
+from .mode import is_development_mode
 from .workspaces import (
     RunWorkspaceManager,
     WorkspaceError,
@@ -1377,7 +1378,10 @@ def _request_approval(
     question: str,
     details: dict[str, object],
 ) -> bool:
-    """Pause until a human explicitly approves or rejects a side effect."""
+    """Pause for approval unless explicit local development mode is enabled."""
+
+    if is_development_mode():
+        return True
 
     prompt: dict[str, object] = {
         "type": "approval",

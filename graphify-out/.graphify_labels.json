@@ -38,6 +38,6 @@
   "36": "DebuggerAdapter",
   "37": "DebuggerAdapter",
   "38": "CheapCriticAdapter",
-  "41": "RepositoryAdapter",
-  "42": "DebuggerAdapter"
+  "39": "state_update_from_result",
+  "40": "_migrate_checkpoint_tuple"
 }

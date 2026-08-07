@@ -1087,6 +1087,19 @@ class GraphRoutingTests(unittest.TestCase):
 
         self.assertEqual(result["status"], "pr_created")
 
+    def test_development_mode_auto_approves_side_effects(self) -> None:
+        repository = RecordingRepository()
+        graph = build_graph(_stub_dependencies(repository))
+        config = {"configurable": {"thread_id": "development-mode"}}
+
+        with patch.dict("os.environ", {"SHANKS_MODE": "development"}):
+            result = graph.invoke(_initial_state(), config)
+
+        self.assertNotIn("__interrupt__", result)
+        self.assertEqual(repository.commits, ["item-1"])
+        self.assertEqual(repository.pull_requests, ["Build the workflow"])
+        self.assertEqual(result["status"], "pr_created")
+
     def test_rejected_commit_ends_without_commit_or_pull_request(self) -> None:
         repository = RecordingRepository()
         graph = build_graph(_stub_dependencies(repository))

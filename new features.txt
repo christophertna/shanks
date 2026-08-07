@@ -2,33 +2,29 @@ Shanks feature roadmap
 
 Priority 1 - Execution safety and recovery
 
-1- Branch and worktree isolation.
-    Give each run its own branch and worktree, preventing concurrent runs from
-    modifying the same project directory or checkpoint thread.
-
-2- Checkpoint and run lifecycle safety.
+1- Checkpoint and run lifecycle safety.
     Add run leases, stale-run recovery, checkpoint retention and cleanup, and
     clear handling for abandoned or interrupted runs.
 
 Priority 2 - GitHub delivery and integration confidence
 
-3- Pull request lifecycle management.
+2- Pull request lifecycle management.
     Reconcile existing pull requests, distinguish open, closed, and merged
     requests, update PR text, detect stale branches, and apply reviewer and
     label policies idempotently.
 
-4- Git and GitHub integration tests.
+3- Git and GitHub integration tests.
     Exercise real temporary Git repositories and a fake gh executable to verify
     worktree creation, commits, pushes, PR reuse, and failure recovery beyond
     mocked subprocess calls.
 
 Priority 3 - Reproducibility and maintenance
 
-5- Reproducible development environments.
+4- Reproducible development environments.
     Lock runtime and development dependency versions and provide one documented
     bootstrap command for a fresh virtual environment.
 
-6- Security and permission hardening.
+5- Security and permission hardening.
     Review GitHub token permissions, branch protections, reviewer and label
     allowlists, and dry-run behavior as lifecycle automation expands.
 
