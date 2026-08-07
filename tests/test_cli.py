@@ -29,6 +29,17 @@ class ShanksCliTests(unittest.TestCase):
         self.assertIn("development", output.getvalue())
         self.assertIn("human approval still required", output.getvalue())
 
+    def test_mode_reports_dry_run_preview(self) -> None:
+        output = io.StringIO()
+        with (
+            patch.dict("os.environ", {"SHANKS_MODE": "dry-run"}),
+            redirect_stdout(output),
+        ):
+            self.assertEqual(main(["--mode"]), 0)
+
+        self.assertIn("dry-run", output.getvalue())
+        self.assertIn("previewed and skipped", output.getvalue())
+
     def test_mode_subcommand_is_supported(self) -> None:
         output = io.StringIO()
         with (

@@ -13,6 +13,7 @@ TERMINAL_RUN_STATUSES = frozenset(
     {
         "complete",
         "pr_created",
+        "pull_request_preview",
         "failed",
         "preflight_failed",
         "cancelled",
@@ -411,7 +412,7 @@ class RunLifecycleManager:
 
 
 def _lifecycle_status(status: str) -> str:
-    if status in {"complete", "pr_created"}:
+    if status in {"complete", "pr_created", "pull_request_preview"}:
         return "complete"
     if status in {"cancelled", "budget_exceeded"}:
         return "cancelled"

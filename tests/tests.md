@@ -1,7 +1,7 @@
 # Test coverage
 
 This document summarizes the behavior covered by the repository's tracked test
-files. The Python suite contains **116 unittest methods** across eight modules;
+files. The Python suite contains **125 unittest methods** across nine modules;
 `hooks/test-guard.sh` is a separate shell regression harness with eight command
 checks.
 
@@ -26,11 +26,12 @@ Run the repository quality gates from a feature branch with:
 
 | File | Tests | Main areas |
 | --- | ---: | --- |
-| [`test_graph.py`](test_graph.py) | 36 | Workflow orchestration, item metadata, targeted retries, budgets, approvals, and GitHub handoff |
-| [`test_node_contracts.py`](test_node_contracts.py) | 41 | Agent, failure-classification, subprocess, Ralph, local-test, critic, quality-gate, and GitHub adapter contracts |
+| [`test_cli.py`](test_cli.py) | 4 | Execution-mode reporting, including dry-run preview mode |
+| [`test_graph.py`](test_graph.py) | 39 | Workflow orchestration, item metadata, targeted retries, budgets, approvals, dry-run previews, and GitHub handoff |
+| [`test_node_contracts.py`](test_node_contracts.py) | 42 | Agent, failure-classification, subprocess, Ralph, local-test, critic, quality-gate, and GitHub adapter contracts |
 | [`test_state_schema.py`](test_state_schema.py) | 9 | State migration, retry metadata, versioned checkpoints, and legacy resume behavior |
 | [`test_lifecycle.py`](test_lifecycle.py) | 5 | Run leases, stale recovery, interruption/resume, terminal release, and checkpoint cleanup |
-| [`test_workspaces.py`](test_workspaces.py) | 4 | Run identity, Git worktree creation/reuse, workspace context, and workspace state migration |
+| [`test_workspaces.py`](test_workspaces.py) | 5 | Run identity, Git worktree creation/reuse, workspace context, and workspace state migration |
 | [`test_viewer.py`](test_viewer.py) | 5 | Viewer HTML, execution-state data, checkpoint sharing, and Mermaid output |
 | [`test_quality_gates.py`](test_quality_gates.py) | 9 | Quality command definitions, safe diff refs, numstat parsing, generated-output handling, diff limits, and gate failure reporting |
 | [`test_fault_injection.py`](test_fault_injection.py) | 7 | Injected Git, GitHub, validation, checkpoint, and agent process failures |
@@ -232,6 +233,9 @@ Sources: [`test_graph.py`](test_graph.py) and
   leads to a publish approval and pull-request reconciliation.
 - Rejecting commit approval ends with no commit or pull request.
 - Rejecting publish approval ends with no push or pull request.
+- `SHANKS_MODE=dry-run` skips handoff approval pauses, previews commit/push/PR
+  actions, records planned commands and file diffs, and makes no repository or
+  GitHub side-effect calls.
 - GitHub failure and completed GitHub states terminate rather than entering
   debugger recovery.
 - The multi-item workflow commits each passing item and publishes one pull

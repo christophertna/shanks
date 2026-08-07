@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .contracts import AgentAdapter, AgentRequest, AgentResult
+from .mode import is_dry_run
 from .workspaces import current_workspace_directory
 
 GPT56_LUNA_MODEL = "gpt-5.6-luna"
@@ -615,6 +616,8 @@ class GitHubAdapter:
         item_title: str,
         files_touched: list[str],
     ) -> AgentResult:
+        if is_dry_run():
+            return self.preview_commit_item(item_id, item_title, files_touched)
         invalid_files = [
             file for file in files_touched if self._normalize_file(file) is None
         ]
@@ -679,7 +682,72 @@ class GitHubAdapter:
             diff=diff,
         )
 
+    def preview_commit_item(
+        self,
+        item_id: str,
+        item_title: str,
+        files_touched: list[str],
+    ) -> AgentResult:
+        """Describe the commit without staging or committing anything."""
+
+        invalid_files = [
+            file for file in files_touched if self._normalize_file(file) is None
+        ]
+        if invalid_files:
+            return AgentResult(
+                status="failed",
+                assigned_model=self.model_name,
+                error="Refusing to preview a path outside the project directory.",
+            )
+        commands: list[list[str]] = []
+        files = self._candidate_files(files_touched, commands=commands)
+        if not files:
+            return AgentResult(
+                status="no_changes",
+                assigned_model=self.model_name,
+                commands=commands,
+            )
+
+        diff_result = self._run(("git", "diff", "HEAD", "--no-ext-diff", "--", *files))
+        commands.extend(diff_result.commands)
+        if diff_result.status == "failed":
+            return _attach_commands(diff_result, commands)
+        diffs = [diff_result.feedback] if diff_result.feedback else []
+        untracked = self._untracked_files(files, commands=commands)
+        for file in untracked:
+            untracked_diff = self._run(
+                ("git", "diff", "--no-index", "--", "/dev/null", file),
+                allow_exit_1=True,
+            )
+            commands.extend(untracked_diff.commands)
+            if untracked_diff.status == "failed":
+                return _attach_commands(untracked_diff, commands)
+            if untracked_diff.feedback:
+                diffs.append(untracked_diff.feedback)
+
+        message = f"feat: {item_id} - {item_title}".strip()
+        commands.extend(
+            _audit_command(command)
+            for command in (
+                ("git", "add", "--", *files),
+                ("git", "diff", "--cached", "--no-ext-diff", "--", *files),
+                self._quality_gate_command(staged=True),
+                ("git", "commit", "--only", "-m", message, "--", *files),
+                ("git", "rev-parse", "HEAD"),
+            )
+        )
+        return AgentResult(
+            status="commit_preview",
+            assigned_model=self.model_name,
+            files_touched=files,
+            feedback=f"Dry-run: would commit {message}.",
+            commands=commands,
+            diff="\n".join(diffs),
+        )
+
     def push_branch(self) -> AgentResult:
+        if is_dry_run():
+            return self.preview_push_branch()
         commands: list[list[str]] = []
         branch_result = self._run(("git", "branch", "--show-current"))
         commands.extend(branch_result.commands)
@@ -706,7 +774,34 @@ class GitHubAdapter:
             commands=commands,
         )
 
+    def preview_push_branch(self) -> AgentResult:
+        """Describe the branch push without contacting the remote."""
+
+        commands: list[list[str]] = []
+        branch_result = self._run(("git", "branch", "--show-current"))
+        commands.extend(branch_result.commands)
+        if branch_result.status == "failed":
+            return _attach_commands(branch_result, commands)
+        branch = branch_result.feedback.strip()
+        if not branch or branch == self.base_branch:
+            return AgentResult(
+                status="failed",
+                assigned_model=self.model_name,
+                error="Refusing to preview a push from the base branch.",
+                commands=commands,
+            )
+
+        commands.append(_audit_command(("git", "push", "-u", self.remote, branch)))
+        return AgentResult(
+            status="branch_push_preview",
+            assigned_model=self.model_name,
+            feedback=branch,
+            commands=commands,
+        )
+
     def open_pull_request(self, task: str, *, branch: str = "") -> AgentResult:
+        if is_dry_run():
+            return self.preview_open_pull_request(task, branch=branch)
         commands: list[list[str]] = []
         if not branch:
             branch_result = self._run(("git", "branch", "--show-current"))
@@ -806,11 +901,78 @@ class GitHubAdapter:
             pr_labels=list(self.labels),
         )
 
+    def preview_open_pull_request(
+        self,
+        task: str,
+        *,
+        branch: str = "",
+    ) -> AgentResult:
+        """Describe PR lookup/creation without changing GitHub."""
+
+        commands: list[list[str]] = []
+        if not branch:
+            branch_result = self._run(("git", "branch", "--show-current"))
+            commands.extend(branch_result.commands)
+            if branch_result.status == "failed":
+                return _attach_commands(branch_result, commands)
+            branch = branch_result.feedback.strip()
+        if not branch or branch == self.base_branch:
+            return AgentResult(
+                status="failed",
+                assigned_model=self.model_name,
+                error="Refusing to preview a PR from the base branch.",
+                commands=commands,
+            )
+        if not self._safe_ref(branch):
+            return AgentResult(
+                status="failed",
+                assigned_model=self.model_name,
+                error="Refusing to preview a PR for an unsafe branch name.",
+                commands=commands,
+            )
+
+        title, body = self._pull_request_text(task)
+        create_command = [
+            "gh",
+            "pr",
+            "create",
+            "--base",
+            self.base_branch,
+            "--head",
+            branch,
+            "--title",
+            title,
+            "--body",
+            body,
+        ]
+        for label in self.labels:
+            create_command.extend(("--label", label))
+        for reviewer in self.reviewers:
+            create_command.extend(("--reviewer", reviewer))
+        commands.extend(
+            [
+                _audit_command(self._pull_request_list_command(branch)),
+                _audit_command(tuple(create_command)),
+            ]
+        )
+        return AgentResult(
+            status="pull_request_preview",
+            assigned_model=self.model_name,
+            feedback=(
+                "Dry-run: would inspect the branch pull request and create or "
+                "reconcile it."
+            ),
+            commands=commands,
+            pr_state="preview",
+            pr_reviewers=list(self.reviewers),
+            pr_labels=list(self.labels),
+        )
+
     def publish_pr(self, task: str) -> AgentResult:
         """Push and open a PR for callers that do not need approval boundaries."""
 
         pushed = self.push_branch()
-        if pushed.status != "branch_pushed":
+        if pushed.status not in {"branch_pushed", "branch_push_preview"}:
             return pushed
         opened = self.open_pull_request(task, branch=pushed.feedback.strip())
         return _attach_commands(opened, [*pushed.commands, *opened.commands])
@@ -1092,6 +1254,21 @@ class GitHubAdapter:
                 files.append(path)
         return files
 
+    def _untracked_files(
+        self,
+        files: list[str],
+        *,
+        commands: list[list[str]] | None = None,
+    ) -> list[str]:
+        result = self._run(
+            ("git", "ls-files", "--others", "--exclude-standard", "--", *files)
+        )
+        if commands is not None:
+            commands.extend(result.commands)
+        if result.status == "failed":
+            return []
+        return [path for path in result.feedback.splitlines() if path]
+
     def _project_directory(self) -> Path:
         return current_workspace_directory() or self.project_directory
 
@@ -1109,7 +1286,12 @@ class GitHubAdapter:
             return None
         return relative.as_posix()
 
-    def _run(self, command: tuple[str, ...]) -> AgentResult:
+    def _run(
+        self,
+        command: tuple[str, ...],
+        *,
+        allow_exit_1: bool = False,
+    ) -> AgentResult:
         guardrail_error = self._validate_command(command)
         if guardrail_error:
             return AgentResult(
@@ -1136,7 +1318,12 @@ class GitHubAdapter:
                 commands=[_audit_command(command)],
             )
 
-        stdout = redact_secrets((completed.stdout or "").strip())
+        raw_stdout = redact_secrets(completed.stdout or "")
+        stdout = (
+            raw_stdout
+            if command == ("git", "status", "--short", "--untracked-files=all")
+            else raw_stdout.strip()
+        )
         stderr = redact_secrets((completed.stderr or "").strip())
         if completed.returncode == 0 and command in {
             ("git", "status", "--short", "--untracked-files=all"),
@@ -1146,7 +1333,8 @@ class GitHubAdapter:
             output = stdout
         else:
             output = "\n".join(part for part in (stdout, stderr) if part)
-        if completed.returncode != 0:
+        expected_difference = allow_exit_1 and completed.returncode == 1
+        if completed.returncode != 0 and not expected_difference:
             return AgentResult(
                 status="failed",
                 assigned_model=self.model_name,
@@ -1181,6 +1369,26 @@ class GitHubAdapter:
             len(command) >= 6
             and command[:5] == ("git", "diff", "--cached", "--no-ext-diff", "--")
             and self._safe_files(command[5:])
+        ):
+            return None
+        if (
+            len(command) >= 6
+            and command[:5] == ("git", "diff", "HEAD", "--no-ext-diff", "--")
+            and self._safe_files(command[5:])
+        ):
+            return None
+        if (
+            len(command) >= 6
+            and command[:4] == ("git", "ls-files", "--others", "--exclude-standard")
+            and command[4] == "--"
+            and self._safe_files(command[5:])
+        ):
+            return None
+        if (
+            len(command) == 6
+            and command[:4] == ("git", "diff", "--no-index", "--")
+            and command[4] == "/dev/null"
+            and self._safe_files((command[5],))
         ):
             return None
         if command == ("gh", "auth", "status"):

@@ -332,6 +332,62 @@ class NodeContractTests(unittest.TestCase):
             [sys.executable, "scripts/quality_gates.py", "--diff-base"],
         )
 
+    def test_github_adapter_dry_run_previews_without_mutating(self) -> None:
+        adapter = GitHubAdapter(
+            Path("/tmp/shanks"),
+            initial_dirty_files=(),
+        )
+        responses = [
+            subprocess.CompletedProcess(
+                args=(), returncode=0, stdout="?? item.py\n", stderr=""
+            ),
+            subprocess.CompletedProcess(
+                args=(),
+                returncode=0,
+                stdout="",
+                stderr="",
+            ),
+            subprocess.CompletedProcess(
+                args=(),
+                returncode=0,
+                stdout="item.py\n",
+                stderr="",
+            ),
+            subprocess.CompletedProcess(
+                args=(),
+                returncode=1,
+                stdout="diff --git a/item.py b/item.py\n",
+                stderr="",
+            ),
+            subprocess.CompletedProcess(
+                args=(), returncode=0, stdout="validation-node\n", stderr=""
+            ),
+        ]
+
+        with (
+            patch.dict("os.environ", {"SHANKS_MODE": "dry-run"}),
+            patch("workflow.adapters.subprocess.run", side_effect=responses) as run,
+        ):
+            commit = adapter.commit_item("item-1", "First item", ["item.py"])
+            push = adapter.push_branch()
+            pull_request = adapter.open_pull_request(
+                "Build the workflow",
+                branch="validation-node",
+            )
+
+        self.assertEqual(commit.status, "commit_preview")
+        self.assertIn("diff --git", commit.diff)
+        self.assertEqual(push.status, "branch_push_preview")
+        self.assertEqual(push.feedback, "validation-node")
+        self.assertEqual(pull_request.status, "pull_request_preview")
+        self.assertEqual(run.call_count, 5)
+        executed = [call.args[0] for call in run.call_args_list]
+        self.assertNotIn(("git", "add", "--", "item.py"), executed)
+        self.assertNotIn(("git", "push", "-u", "origin", "validation-node"), executed)
+        self.assertFalse(
+            any(command[:3] == ("gh", "pr", "create") for command in executed)
+        )
+
     def test_github_adapter_rejects_paths_outside_the_project(self) -> None:
         with TemporaryDirectory() as directory:
             root = Path(directory) / "project"

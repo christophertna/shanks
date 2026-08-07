@@ -51,7 +51,7 @@ from .lifecycle import (
     RunLifecycleManager,
     TERMINAL_RUN_STATUSES,
 )
-from .mode import is_development_mode
+from .mode import is_development_mode, is_dry_run
 from .workspaces import (
     RunWorkspaceManager,
     WorkspaceError,
@@ -365,7 +365,7 @@ def _state_workspace_directory(state: WorkflowState) -> Path | None:
 
 
 def _run_lifecycle_status(status: str) -> str:
-    if status in {"complete", "pr_created"}:
+    if status in {"complete", "pr_created", "pull_request_preview"}:
         return "complete"
     if status in {"cancelled", "budget_exceeded"}:
         return "cancelled"
@@ -965,6 +965,18 @@ def item_router(state: WorkflowState) -> WorkflowState:
     }
 
 
+def _preview_repository_action(
+    repository: RepositoryAdapter,
+    action: str,
+    arguments: tuple[object, ...],
+    fallback: AgentResult,
+) -> AgentResult:
+    """Use an adapter's detailed preview or a safe generic handoff preview."""
+
+    preview = getattr(repository, f"preview_{action}", None)
+    return preview(*arguments) if callable(preview) else fallback
+
+
 def commit_item(
     state: WorkflowState,
     dependencies: NodeDependencies,
@@ -992,11 +1004,27 @@ def commit_item(
     ):
         return _approval_denied("commit")
 
-    result = repository.commit_item(
-        item_id,
-        state.get("current_item_title", ""),
-        list(state.get("files_touched_by_item", {}).get(item_id, [])),
-    )
+    item_title = state.get("current_item_title", "")
+    files_touched = list(state.get("files_touched_by_item", {}).get(item_id, []))
+    if is_dry_run():
+        message = f"feat: {item_id} - {item_title}".strip()
+        result = _preview_repository_action(
+            repository,
+            "commit_item",
+            (item_id, item_title, files_touched),
+            AgentResult(
+                status="commit_preview",
+                assigned_model=str(getattr(repository, "model_name", "repository")),
+                files_touched=files_touched,
+                feedback=f"Dry-run: would commit {message}.",
+                commands=[
+                    ["git", "add", "--", *files_touched],
+                    ["git", "commit", "--only", "-m", message, "--", *files_touched],
+                ],
+            ),
+        )
+    else:
+        result = repository.commit_item(item_id, item_title, files_touched)
     update = state_update_from_result(result)
     update.update(_audit_result(state, "commit_item", result))
     if result.failure_class:
@@ -1029,7 +1057,21 @@ def github_node(
     ):
         return _approval_denied("push")
 
-    result = repository.push_branch()
+    if is_dry_run():
+        branch = state.get("run_branch", "") or "<current branch>"
+        result = _preview_repository_action(
+            repository,
+            "push_branch",
+            (),
+            AgentResult(
+                status="branch_push_preview",
+                assigned_model=str(getattr(repository, "model_name", "repository")),
+                feedback=f"Dry-run: would push branch {branch}.",
+                commands=[["git", "push", "-u", "origin", branch]],
+            ),
+        )
+    else:
+        result = repository.push_branch()
     update = state_update_from_result(result)
     update.update(_audit_result(state, "github_node", result))
     if result.failure_class:
@@ -1062,10 +1104,39 @@ def pull_request_node(
     ):
         return _approval_denied("opening a pull request")
 
-    result = repository.open_pull_request(
-        state.get("task", ""),
-        branch=state.get("run_branch", ""),
-    )
+    task = state.get("task", "")
+    branch = state.get("run_branch", "")
+    if is_dry_run():
+        title = f"feat: {redact_secrets(' '.join(task.split()))}".strip()
+        result = _preview_repository_action(
+            repository,
+            "open_pull_request",
+            (task, branch),
+            AgentResult(
+                status="pull_request_preview",
+                assigned_model=str(getattr(repository, "model_name", "repository")),
+                feedback=(
+                    "Dry-run: would inspect the branch pull request and create or "
+                    "reconcile it."
+                ),
+                commands=[
+                    [
+                        "gh",
+                        "pr",
+                        "create",
+                        "--base",
+                        "main",
+                        "--head",
+                        branch or "<current branch>",
+                        "--title",
+                        title,
+                    ]
+                ],
+                pr_state="preview",
+            ),
+        )
+    else:
+        result = repository.open_pull_request(task, branch=branch)
     update = state_update_from_result(result)
     update.update(_audit_result(state, "pull_request_node", result))
     if result.failure_class:
@@ -1360,7 +1431,8 @@ def route_after_commit(
         return "stop_run"
     return (
         "item_router"
-        if state.get("status") in {"committed", "no_changes", "commit_skipped"}
+        if state.get("status")
+        in {"committed", "no_changes", "commit_skipped", "commit_preview"}
         else "__end__"
     )
 
@@ -1380,7 +1452,11 @@ def route_after_github(
 ) -> Literal["pull_request_node", "__end__"]:
     """Route a successful push to its separately approved PR handoff."""
 
-    return "pull_request_node" if state.get("status") == "branch_pushed" else "__end__"
+    return (
+        "pull_request_node"
+        if state.get("status") in {"branch_pushed", "branch_push_preview"}
+        else "__end__"
+    )
 
 
 def _debugger_details(
@@ -1417,6 +1493,8 @@ def _request_approval(
 ) -> bool:
     """Pause for human approval before every side effect."""
 
+    if is_dry_run():
+        return True
     if is_development_mode():
         message = (
             "Development mode is enabled, but human approval is still required "

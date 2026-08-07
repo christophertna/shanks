@@ -5,6 +5,18 @@ description: Create concise Git commit subjects and GitHub pull request titles a
 
 # GitHub Commits and PRs
 
+## Documentation synchronization
+
+Before committing, pushing, or opening a pull request, review and update all
+affected Markdown documentation before reporting completion.
+
+- Update `README.md` for user-facing behavior, setup, or commands.
+- Update `tests/tests.md` when test coverage, commands, or expectations change.
+- Update relevant `explained.md` or `dev/*.md` files for architecture, workflow,
+  or developer context.
+- Keep documentation changes focused: update only files whose content is
+  affected.
+
 ## Commit subject
 
 - Use `<type>: <imperative summary>`.
@@ -50,7 +62,6 @@ Examples:
 ## Commit, push, and PR checks
 
 - Inspect the diff, current branch, and test results before committing.
-- Before committing, check whether related documentation (for example `README.md` or `explained.md`) also needs updating, and include those changes when relevant.
 - Ask for explicit human approval immediately before committing. Development mode enables guarded capabilities but never counts as consent.
 - Ask for explicit human approval immediately before pushing the branch.
 - Ask for explicit human approval immediately before opening the pull request. Push approval and pull-request approval are separate decisions and must never be bundled.

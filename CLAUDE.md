@@ -9,14 +9,6 @@ Rules:
 - After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
 - `explained.md` is human-only orientation documentation. Do not load it into an agent context; it is excluded from Graphify through `.graphifyignore`.
 
-## Documentation synchronization
-
-- After implementing a feature or behavior change, review and update all affected Markdown documentation before reporting completion.
-- Update `README.md` for user-facing behavior, setup, or commands.
-- Update `tests/tests.md` when test coverage, commands, or expectations change.
-- Update relevant `explained.md` or `dev/*.md` files for architecture, workflow, or developer context.
-- Keep documentation changes focused: update only files whose content is affected.
-
 ## Project overview
 
 Shanks is a LangGraph workflow that runs "Ralph-style" agent tasks: an intake step

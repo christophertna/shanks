@@ -40,5 +40,10 @@
   "38": "CheapCriticAdapter",
   "39": "state_update_from_result",
   "40": "_migrate_checkpoint_tuple",
-  "41": "shanks"
+  "41": "shanks",
+  "42": "state_update_from_result",
+  "43": "test_fault_injection.py",
+  "44": "AgentAdapter",
+  "45": "planning",
+  "46": "route_after_github"
 }
