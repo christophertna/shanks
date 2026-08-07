@@ -1555,6 +1555,13 @@ def _audit_result(
     if result.pr_url:
         details["pull_request_url"] = redact_secrets(result.pr_url)
         details["pull_request_id"] = _pull_request_id(result.pr_url)
+    if result.pr_state:
+        details["pull_request_state"] = result.pr_state
+        details["pull_request_stale"] = result.pr_stale
+    if result.pr_reviewers:
+        details["pull_request_reviewers"] = list(result.pr_reviewers)
+    if result.pr_labels:
+        details["pull_request_labels"] = list(result.pr_labels)
     return append_run_manifest(state, "agent" if request else "repository", **details)
 
 

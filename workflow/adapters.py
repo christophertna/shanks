@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 
 from .contracts import AgentAdapter, AgentRequest, AgentResult
@@ -35,6 +36,12 @@ GITHUB_ENVIRONMENT_KEYS = frozenset(
         "PATH",
     }
 )
+PR_JSON_FIELDS = (
+    "number,url,state,mergedAt,title,body,updatedAt,mergeStateStatus,"
+    "labels,reviewRequests,latestReviews,headRefName"
+)
+PR_LOOKUP_LIMIT = "20"
+DEFAULT_STALE_AFTER_DAYS = 30
 _SECRET_PATTERNS = (
     re.compile(
         r"-----BEGIN [^-]+ PRIVATE KEY-----.*?-----END [^-]+ PRIVATE KEY-----",
@@ -497,7 +504,7 @@ class DebuggerAdapter(SubprocessAgentAdapter):
 
 @dataclass(slots=True)
 class GitHubAdapter:
-    """Commit validated items, then push the branch and open its PR."""
+    """Commit validated items, then reconcile the branch's pull request."""
 
     project_directory: Path
     remote: str = "origin"
@@ -505,6 +512,10 @@ class GitHubAdapter:
     test_command: str = ".venv/bin/python -m unittest discover -s tests"
     timeout_seconds: int = 3600
     initial_dirty_files: tuple[str, ...] | None = None
+    reviewers: tuple[str, ...] = ()
+    labels: tuple[str, ...] = ()
+    stale_after_days: int | None = DEFAULT_STALE_AFTER_DAYS
+    reopen_closed: bool = False
 
     model_name = "github"
 
@@ -512,6 +523,14 @@ class GitHubAdapter:
         self.project_directory = self.project_directory.resolve()
         if self.initial_dirty_files is None:
             self.initial_dirty_files = tuple(self._status_files())
+        if self.stale_after_days is not None and (
+            isinstance(self.stale_after_days, bool)
+            or not isinstance(self.stale_after_days, int)
+            or self.stale_after_days < 0
+        ):
+            raise ValueError("stale_after_days must be a non-negative integer or None")
+        self.reviewers = _policy_values(self.reviewers)
+        self.labels = _policy_values(self.labels)
 
     def preflight(self) -> AgentResult:
         """Check tools, branch state, GitHub auth, and the test environment."""
@@ -710,21 +729,7 @@ class GitHubAdapter:
                 commands=commands,
             )
 
-        existing = self._run(
-            (
-                "gh",
-                "pr",
-                "list",
-                "--head",
-                branch,
-                "--state",
-                "all",
-                "--json",
-                "url",
-                "--limit",
-                "1",
-            )
-        )
+        existing = self._run(self._pull_request_list_command(branch))
         commands.extend(existing.commands)
         if existing.status == "failed":
             return _attach_commands(existing, commands)
@@ -747,54 +752,40 @@ class GitHubAdapter:
                 commands=commands,
             )
         if existing_prs:
-            first_pr = existing_prs[0]
-            pr_url = first_pr.get("url", "") if isinstance(first_pr, dict) else ""
-            if not isinstance(pr_url, str) or not pr_url:
+            if not all(isinstance(pr, dict) for pr in existing_prs):
                 return AgentResult(
                     status="failed",
                     assigned_model=self.model_name,
-                    error="Existing PR lookup returned no URL.",
+                    error="Existing PR lookup returned an invalid PR entry.",
                     feedback=existing.feedback,
                     commands=commands,
                 )
-            return AgentResult(
-                status="pr_created",
-                assigned_model=self.model_name,
-                feedback=existing.feedback,
-                pr_url=pr_url,
-                commands=commands,
+            return self._reconcile_existing_prs(
+                [pr for pr in existing_prs if isinstance(pr, dict)],
+                task,
+                commands,
+                lookup_feedback=existing.feedback,
             )
 
-        summary = redact_secrets(" ".join(task.split())) or (
-            "Implement the planned PRD items"
-        )
-        title = f"feat: {summary}"
-        if len(title) > 50:
-            title = f"{title[:47].rstrip()}..."
-        body = "\n".join(
-            (
-                "## Why",
-                f"- {summary}",
-                "",
-                "## Tested",
-                f"- `{self.test_command}`",
-            )
-        )
-        created = self._run(
-            (
-                "gh",
-                "pr",
-                "create",
-                "--base",
-                self.base_branch,
-                "--head",
-                branch,
-                "--title",
-                title,
-                "--body",
-                body,
-            )
-        )
+        title, body = self._pull_request_text(task)
+        create_command = [
+            "gh",
+            "pr",
+            "create",
+            "--base",
+            self.base_branch,
+            "--head",
+            branch,
+            "--title",
+            title,
+            "--body",
+            body,
+        ]
+        for label in self.labels:
+            create_command.extend(("--label", label))
+        for reviewer in self.reviewers:
+            create_command.extend(("--reviewer", reviewer))
+        created = self._run(tuple(create_command))
         commands.extend(created.commands)
         if created.status == "failed":
             return _attach_commands(created, commands)
@@ -809,6 +800,10 @@ class GitHubAdapter:
             feedback=created.feedback,
             pr_url=pr_url,
             commands=commands,
+            pr_state="open",
+            pr_number=_pull_request_number(pr_url),
+            pr_reviewers=list(self.reviewers),
+            pr_labels=list(self.labels),
         )
 
     def publish_pr(self, task: str) -> AgentResult:
@@ -819,6 +814,243 @@ class GitHubAdapter:
             return pushed
         opened = self.open_pull_request(task, branch=pushed.feedback.strip())
         return _attach_commands(opened, [*pushed.commands, *opened.commands])
+
+    def _reconcile_existing_prs(
+        self,
+        pull_requests: list[dict[str, object]],
+        task: str,
+        commands: list[list[str]],
+        *,
+        lookup_feedback: str,
+    ) -> AgentResult:
+        selected: dict[str, object] | None = None
+        selected_state = ""
+        for state in ("open", "closed", "merged"):
+            for pull_request in pull_requests:
+                current_state = self._pull_request_state(pull_request)
+                if current_state is None:
+                    return AgentResult(
+                        status="failed",
+                        assigned_model=self.model_name,
+                        error="Existing PR lookup returned an invalid PR state.",
+                        feedback=lookup_feedback,
+                        commands=commands,
+                    )
+                if current_state == state:
+                    selected = pull_request
+                    selected_state = current_state
+                    break
+            if selected is not None:
+                break
+
+        if selected is None:
+            return AgentResult(
+                status="failed",
+                assigned_model=self.model_name,
+                error="Existing PR lookup returned no recognized PR state.",
+                feedback=lookup_feedback,
+                commands=commands,
+            )
+
+        pr_url = self._pull_request_url(selected)
+        target = self._pull_request_target(selected)
+        if not pr_url or not target:
+            return AgentResult(
+                status="failed",
+                assigned_model=self.model_name,
+                error="Existing PR lookup returned no usable URL or number.",
+                feedback=lookup_feedback,
+                commands=commands,
+            )
+
+        if selected_state == "merged":
+            return AgentResult(
+                status="pr_merged",
+                assigned_model=self.model_name,
+                feedback=lookup_feedback,
+                pr_url=pr_url,
+                commands=commands,
+                pr_state="merged",
+                pr_number=_pull_request_number(pr_url)
+                or str(selected.get("number", "")),
+            )
+
+        if selected_state == "closed":
+            if not self.reopen_closed:
+                return AgentResult(
+                    status="pr_closed",
+                    assigned_model=self.model_name,
+                    feedback=lookup_feedback,
+                    pr_url=pr_url,
+                    commands=commands,
+                    pr_state="closed",
+                    pr_number=_pull_request_number(pr_url)
+                    or str(selected.get("number", "")),
+                )
+            reopened = self._run(("gh", "pr", "reopen", target))
+            commands.extend(reopened.commands)
+            if reopened.status == "failed":
+                return _attach_commands(reopened, commands)
+            return self._reconcile_open_pr(
+                selected,
+                task,
+                commands,
+                lookup_feedback=lookup_feedback,
+                reopened=True,
+            )
+
+        return self._reconcile_open_pr(
+            selected,
+            task,
+            commands,
+            lookup_feedback=lookup_feedback,
+        )
+
+    def _reconcile_open_pr(
+        self,
+        pull_request: dict[str, object],
+        task: str,
+        commands: list[list[str]],
+        *,
+        lookup_feedback: str,
+        reopened: bool = False,
+    ) -> AgentResult:
+        pr_url = self._pull_request_url(pull_request)
+        target = self._pull_request_target(pull_request)
+        title, body = self._pull_request_text(task)
+        edit_args: list[str] = []
+        if self._pr_text_needs_update(pull_request, title, body):
+            edit_args.extend(("--title", title, "--body", body))
+
+        current_labels = _pull_request_names(pull_request.get("labels"), "name")
+        current_reviewers = _pull_request_names(
+            pull_request.get("reviewRequests"), "login"
+        )
+        current_reviewers.update(
+            _pull_request_names(pull_request.get("latestReviews"), "login")
+        )
+        for label in self.labels:
+            if label.casefold() not in current_labels:
+                edit_args.extend(("--add-label", label))
+        for reviewer in self.reviewers:
+            if reviewer.casefold() not in current_reviewers:
+                edit_args.extend(("--add-reviewer", reviewer))
+
+        feedback = [lookup_feedback]
+        if edit_args:
+            edited = self._run(tuple(("gh", "pr", "edit", target, *edit_args)))
+            commands.extend(edited.commands)
+            if edited.status == "failed":
+                return _attach_commands(edited, commands)
+            if edited.feedback:
+                feedback.append(edited.feedback)
+
+        stale = self._is_stale_pull_request(pull_request)
+        status = "pr_stale" if stale else "pr_created"
+        if reopened and not stale:
+            status = "pr_reopened"
+        return AgentResult(
+            status=status,
+            assigned_model=self.model_name,
+            feedback="\n".join(part for part in feedback if part),
+            pr_url=pr_url,
+            commands=commands,
+            pr_state="open",
+            pr_stale=stale,
+            pr_number=_pull_request_number(pr_url)
+            or str(pull_request.get("number", "")),
+            pr_reviewers=list(self.reviewers),
+            pr_labels=list(self.labels),
+        )
+
+    def _pull_request_list_command(self, branch: str) -> tuple[str, ...]:
+        return (
+            "gh",
+            "pr",
+            "list",
+            "--head",
+            branch,
+            "--state",
+            "all",
+            "--json",
+            PR_JSON_FIELDS,
+            "--limit",
+            PR_LOOKUP_LIMIT,
+        )
+
+    def _pull_request_text(self, task: str) -> tuple[str, str]:
+        summary = redact_secrets(" ".join(task.split())) or (
+            "Implement the planned PRD items"
+        )
+        title = f"feat: {summary}"
+        if len(title) > 50:
+            title = f"{title[:47].rstrip()}..."
+        body = "\n".join(
+            (
+                "## Why",
+                f"- {summary}",
+                "",
+                "## Tested",
+                f"- `{redact_secrets(self.test_command)}`",
+            )
+        )
+        return title, body
+
+    def _pr_text_needs_update(
+        self,
+        pull_request: dict[str, object],
+        title: str,
+        body: str,
+    ) -> bool:
+        return any(
+            field in pull_request and pull_request[field] != expected
+            for field, expected in (("title", title), ("body", body))
+        )
+
+    @staticmethod
+    def _pull_request_state(pull_request: dict[str, object]) -> str | None:
+        if pull_request.get("mergedAt") or pull_request.get("merged") is True:
+            return "merged"
+        raw_state = pull_request.get("state")
+        if raw_state is None:
+            return "open"
+        state = str(raw_state).strip().lower()
+        if state in {"open", "closed", "merged"}:
+            return state
+        return None
+
+    @staticmethod
+    def _pull_request_url(pull_request: dict[str, object]) -> str:
+        url = pull_request.get("url", "")
+        return url.strip() if isinstance(url, str) else ""
+
+    @staticmethod
+    def _pull_request_target(pull_request: dict[str, object]) -> str:
+        number = pull_request.get("number")
+        if isinstance(number, int) and not isinstance(number, bool):
+            return str(number)
+        if isinstance(number, str) and number.strip().isdigit():
+            return number.strip()
+        return GitHubAdapter._pull_request_url(pull_request)
+
+    def _is_stale_pull_request(self, pull_request: dict[str, object]) -> bool:
+        if "headRefName" in pull_request and not pull_request.get("headRefName"):
+            return True
+        if str(pull_request.get("mergeStateStatus", "")).upper() == "BEHIND":
+            return True
+        if self.stale_after_days is None or self.stale_after_days == 0:
+            return False
+        updated_at = pull_request.get("updatedAt")
+        if not isinstance(updated_at, str) or not updated_at.strip():
+            return False
+        try:
+            timestamp = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
+        except ValueError:
+            return False
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.replace(tzinfo=timezone.utc)
+        age = datetime.now(timezone.utc) - timestamp
+        return age.total_seconds() >= self.stale_after_days * 86400
 
     def _candidate_files(
         self,
@@ -982,27 +1214,37 @@ class GitHubAdapter:
             len(command) == 11
             and command[:4] == ("gh", "pr", "list", "--head")
             and self._safe_ref(command[4])
-            and command[5:]
-            == (
-                "--state",
-                "all",
-                "--json",
-                "url",
-                "--limit",
-                "1",
-            )
+            and command[5:7] == ("--state", "all")
+            and command[7] == "--json"
+            and command[8] in {"url", PR_JSON_FIELDS}
+            and command[9] == "--limit"
+            and command[10] in {"1", PR_LOOKUP_LIMIT}
         ):
             return None
         if (
-            len(command) == 11
+            len(command) >= 11
             and command[:4] == ("gh", "pr", "create", "--base")
             and self._safe_ref(command[4])
             and command[5] == "--head"
             and self._safe_ref(command[6])
             and command[7] == "--title"
-            and isinstance(command[8], str)
+            and self._safe_text(command[8])
             and command[9] == "--body"
-            and isinstance(command[10], str)
+            and self._safe_text(command[10])
+            and self._safe_policy_arguments(command[11:], create=True)
+        ):
+            return None
+        if (
+            len(command) >= 4
+            and command[:3] == ("gh", "pr", "reopen")
+            and self._safe_pr_target(command[3])
+        ):
+            return None
+        if (
+            len(command) >= 5
+            and command[:3] == ("gh", "pr", "edit")
+            and self._safe_pr_target(command[3])
+            and self._safe_policy_arguments(command[4:], create=False)
         ):
             return None
         return "Refusing to run an unapproved Git or GitHub command."
@@ -1023,6 +1265,59 @@ class GitHubAdapter:
         )
 
     @staticmethod
+    def _safe_text(value: str) -> bool:
+        return isinstance(value, str) and "\x00" not in value
+
+    @classmethod
+    def _safe_policy_arguments(
+        cls,
+        arguments: tuple[str, ...],
+        *,
+        create: bool,
+    ) -> bool:
+        allowed = {
+            "--label" if create else "--add-label",
+            "--reviewer" if create else "--add-reviewer",
+        }
+        index = 0
+        while index < len(arguments):
+            flag = arguments[index]
+            if flag not in allowed or index + 1 >= len(arguments):
+                if not create and flag in {"--title", "--body"}:
+                    if index + 1 >= len(arguments) or not cls._safe_text(
+                        arguments[index + 1]
+                    ):
+                        return False
+                    index += 2
+                    continue
+                return False
+            if not cls._safe_policy_value(arguments[index + 1]):
+                return False
+            index += 2
+        return True
+
+    @staticmethod
+    def _safe_policy_value(value: str) -> bool:
+        return bool(
+            isinstance(value, str)
+            and value
+            and not value.startswith("-")
+            and "\x00" not in value
+            and "\r" not in value
+            and "\n" not in value
+        )
+
+    @staticmethod
+    def _safe_pr_target(value: str) -> bool:
+        return bool(
+            re.fullmatch(r"[0-9]+", value)
+            or re.fullmatch(
+                r"https://[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*/pull/[0-9]+",
+                value,
+            )
+        )
+
+    @staticmethod
     def _github_environment(command: tuple[str, ...]) -> dict[str, str]:
         keys = {"HOME", "LANG", "LC_ALL", "PATH"}
         if command and command[0] == "gh":
@@ -1038,6 +1333,56 @@ class GitHubAdapter:
 
 def _resolve_path(path: Path) -> Path:
     return path.expanduser().resolve(strict=False)
+
+
+def _policy_values(values: object) -> tuple[str, ...]:
+    """Normalize and deduplicate configured reviewer or label names."""
+
+    if isinstance(values, str):
+        values = (values,)
+    if not isinstance(values, (list, tuple)):
+        raise ValueError("reviewers and labels must be sequences of strings")
+    normalized: list[str] = []
+    for value in values:
+        if not isinstance(value, str):
+            raise ValueError("reviewers and labels must contain only strings")
+        value = value.strip()
+        if value and value.casefold() not in {item.casefold() for item in normalized}:
+            normalized.append(value)
+    return tuple(normalized)
+
+
+def _pull_request_names(values: object, field: str) -> set[str]:
+    """Extract case-insensitive label or reviewer names from gh JSON."""
+
+    if not isinstance(values, list):
+        return set()
+    names: set[str] = set()
+    for value in values:
+        if isinstance(value, str):
+            names.add(value.casefold())
+            continue
+        if not isinstance(value, dict):
+            continue
+        name = value.get(field) or value.get("login") or value.get("name")
+        if isinstance(name, str) and name.strip():
+            names.add(name.strip().casefold())
+            continue
+        for nested_key in ("requestedReviewer", "author"):
+            nested = value.get(nested_key)
+            if not isinstance(nested, dict):
+                continue
+            name = nested.get(field) or nested.get("login") or nested.get("name")
+            if isinstance(name, str) and name.strip():
+                names.add(name.strip().casefold())
+                break
+    return names
+
+
+def _pull_request_number(url: str) -> str:
+    """Extract the number from a GitHub pull-request URL."""
+
+    return url.rstrip("/").rsplit("/", 1)[-1] if "/pull/" in url else ""
 
 
 def _path_within_any(path: Path, roots: tuple[Path, ...]) -> bool:

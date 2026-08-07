@@ -24,7 +24,7 @@ and its recovery paths.
   expose project-scoped Codex and Claude entrypoints.
 - `.github/workflows/tests.yml` runs the unittest suite on pushes and pull requests.
 - `tests/` covers graph routing, node contracts, viewer output, quality gates,
-  and injected failure behavior.
+  run isolation, lifecycle recovery, and injected failure behavior.
 
 ## Quick start
 
@@ -42,7 +42,7 @@ branch:
 .venv/bin/python scripts/quality_gates.py --diff-base origin/main
 ```
 
-The diff gate allows at most 50 changed files and 1,000 changed lines. Use
+The diff gate allows at most 50 changed files and 2,000 changed lines. Use
 `--staged` with `--diff-base` to check the exact staged diff before committing.
 Derived `graphify-out/` files are excluded from the source-diff limit.
 
@@ -198,14 +198,15 @@ full `.venv/bin/python -m unittest discover -s tests` suite. Commands are
 tokenized and executed without a shell.
 
 Validated implement runs pause for human approval before committing each item.
-After the last item, they pause again before pushing the branch and opening a
-pull request. Resume an approval interrupt with `Command(resume="approve")` or
+After the last item, they pause again before pushing the branch and reconciling
+its pull request. Resume an approval interrupt with `Command(resume="approve")` or
 end the run without the side effect with `Command(resume="reject")`.
 
 Security guardrails keep subprocesses on approved executables and configured
 directories, resolve GitHub file paths through the project root (including
 symlinks), redact common credentials from command output and PR text, and limit
-the GitHub adapter to the required read/commit/push/PR commands. The repo-local
+the GitHub adapter to the required read/commit/push and PR-lifecycle commands.
+The repo-local
 `hooks/deny-dangerous.sh` hook adds a denylist for catastrophic shell commands;
 run `hooks/test-guard.sh` to check it.
 
@@ -215,7 +216,12 @@ per PRD item for later review.
 
 For implement runs, each validated item is committed locally. After the last
 item passes, the final GitHub handoff pushes the current non-`main` branch and
-creates a pull request with the GitHub CLI (`gh`). Persisted commit and PR IDs
+reconciles its pull request with the GitHub CLI (`gh`). Existing open PRs have
+their generated text and configured reviewer/label policy updated only when
+needed; closed unmerged PRs are reported without reopening by default, merged
+PRs are reported as complete, and behind or aged PR branches are marked stale.
+Set `reopen_closed=True` on `GitHubAdapter` when reopening is explicitly desired.
+Persisted commit and PR IDs
 make commit and pull-request handoff safe to resume without duplicating those
 side effects; the same handoff details are added to the run manifest. Authenticate
 `gh` before starting the run.
