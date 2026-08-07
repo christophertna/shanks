@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import os
 import sqlite3
+from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
 
@@ -36,6 +38,10 @@ from workflow.retries import (
     RETRY_MAX_DELAY_SECONDS,
     retry_on_exception,
 )
+from workflow.lifecycle import (
+    RunLifecycleManager,
+    TERMINAL_RUN_STATUSES,
+)
 from workflow.state import DEFAULT_MAX_ATTEMPTS, WorkflowState, migrate_state
 from workflow.workspaces import RunWorkspaceManager
 
@@ -50,6 +56,16 @@ TARGETED_RETRY_POLICY = RetryPolicy(
     jitter=False,
     retry_on=retry_on_exception,
 )
+DEFAULT_CHECKPOINT_RETENTION = 100
+
+
+@dataclass(frozen=True, slots=True)
+class CheckpointCleanup:
+    """Counts returned by checkpoint retention cleanup."""
+
+    threads_scanned: int
+    checkpoints_deleted: int
+    writes_deleted: int
 
 
 def _migrate_checkpoint_tuple(checkpoint_tuple):
@@ -68,6 +84,23 @@ def _migrate_checkpoint_tuple(checkpoint_tuple):
 
 class VersionedSqliteSaver(SqliteSaver):
     """SqliteSaver that migrates workflow state on reads and writes."""
+
+    def __init__(
+        self,
+        conn: sqlite3.Connection,
+        *,
+        lifecycle_manager: RunLifecycleManager | None = None,
+        retention_limit: int = DEFAULT_CHECKPOINT_RETENTION,
+        retention_seconds: float | None = None,
+    ) -> None:
+        super().__init__(conn)
+        if retention_limit < 1:
+            raise ValueError("retention_limit must be at least one")
+        if retention_seconds is not None and retention_seconds < 0:
+            raise ValueError("retention_seconds cannot be negative")
+        self.lifecycle_manager = lifecycle_manager or RunLifecycleManager(conn)
+        self.retention_limit = retention_limit
+        self.retention_seconds = retention_seconds
 
     def get_tuple(self, config):
         checkpoint_tuple = super().get_tuple(config)
@@ -89,12 +122,139 @@ class VersionedSqliteSaver(SqliteSaver):
         migrated_checkpoint["channel_values"] = migrate_state(
             checkpoint.get("channel_values", {})
         )
-        return super().put(
-            config,
-            migrated_checkpoint,
-            metadata,
-            new_versions,
+        with self.lifecycle_manager.database_lock():
+            saved_config = super().put(
+                config,
+                migrated_checkpoint,
+                metadata,
+                new_versions,
+            )
+            thread_id = str(config["configurable"]["thread_id"])
+            values = migrated_checkpoint["channel_values"]
+            status = values.get("status", "")
+            if status in TERMINAL_RUN_STATUSES:
+                self.lifecycle_manager.release(
+                    thread_id,
+                    status=status,
+                    last_error=str(values.get("last_error", "")),
+                )
+                self.cleanup(
+                    thread_id=thread_id,
+                    max_age_seconds=self.retention_seconds,
+                )
+        return saved_config
+
+    def put_writes(self, config, writes, task_id, task_path=""):
+        with self.lifecycle_manager.database_lock():
+            return super().put_writes(config, writes, task_id, task_path)
+
+    def cleanup(
+        self,
+        *,
+        keep_latest: int | None = None,
+        max_age_seconds: float | None = None,
+        terminal_only: bool = True,
+        thread_id: str | None = None,
+        now: float | None = None,
+    ) -> CheckpointCleanup:
+        with self.lifecycle_manager.database_lock():
+            return self._cleanup(
+                keep_latest=keep_latest,
+                max_age_seconds=max_age_seconds,
+                terminal_only=terminal_only,
+                thread_id=thread_id,
+                now=now,
+            )
+
+    def _cleanup(
+        self,
+        *,
+        keep_latest: int | None = None,
+        max_age_seconds: float | None = None,
+        terminal_only: bool = True,
+        thread_id: str | None = None,
+        now: float | None = None,
+    ) -> CheckpointCleanup:
+        """Retain recent checkpoints and delete their associated writes."""
+
+        keep_latest = self.retention_limit if keep_latest is None else keep_latest
+        if isinstance(keep_latest, bool) or keep_latest < 1:
+            raise ValueError("keep_latest must be at least one")
+        if max_age_seconds is not None and max_age_seconds < 0:
+            raise ValueError("max_age_seconds cannot be negative")
+        now = _now() if now is None else now
+        cutoff = now - max_age_seconds if max_age_seconds is not None else None
+
+        groups = self._checkpoint_groups(thread_id)
+        deleted_checkpoints = 0
+        deleted_writes = 0
+        for current_thread_id, checkpoint_ns in groups:
+            config = {
+                "configurable": {
+                    "thread_id": current_thread_id,
+                    "checkpoint_ns": checkpoint_ns,
+                }
+            }
+            checkpoints = sorted(
+                list(self.list(config)),
+                key=lambda item: _checkpoint_timestamp(item.checkpoint),
+                reverse=True,
+            )
+            if not checkpoints:
+                continue
+            latest_values = checkpoints[0].checkpoint.get("channel_values", {})
+            if (
+                terminal_only
+                and latest_values.get("status") not in TERMINAL_RUN_STATUSES
+            ):
+                continue
+
+            remove = []
+            for checkpoint in checkpoints[keep_latest:]:
+                timestamp = _checkpoint_timestamp(checkpoint.checkpoint)
+                if cutoff is None or (timestamp is not None and timestamp < cutoff):
+                    remove.append(checkpoint.config["configurable"]["checkpoint_id"])
+            if not remove:
+                continue
+            with self.cursor() as cursor:
+                placeholders = ",".join("?" for _ in remove)
+                params = (current_thread_id, checkpoint_ns, *remove)
+                cursor.execute(
+                    f"DELETE FROM writes WHERE thread_id = ? AND checkpoint_ns = ? "
+                    f"AND checkpoint_id IN ({placeholders})",
+                    params,
+                )
+                deleted_writes += cursor.rowcount
+                cursor.execute(
+                    f"DELETE FROM checkpoints WHERE thread_id = ? "
+                    f"AND checkpoint_ns = ? AND checkpoint_id IN ({placeholders})",
+                    params,
+                )
+                deleted_checkpoints += cursor.rowcount
+
+        return CheckpointCleanup(
+            threads_scanned=len(groups),
+            checkpoints_deleted=deleted_checkpoints,
+            writes_deleted=deleted_writes,
         )
+
+    cleanup_checkpoints = cleanup
+
+    def _checkpoint_groups(self, thread_id: str | None) -> list[tuple[str, str]]:
+        with self.cursor(transaction=False) as cursor:
+            if thread_id is None:
+                cursor.execute(
+                    "SELECT DISTINCT thread_id, checkpoint_ns FROM checkpoints"
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT DISTINCT thread_id, checkpoint_ns FROM checkpoints
+                    WHERE thread_id = ?
+                    """,
+                    (thread_id,),
+                )
+            return [(str(row[0]), str(row[1])) for row in cursor.fetchall()]
 
 
 def shared_checkpointer() -> VersionedSqliteSaver:
@@ -105,7 +265,18 @@ def shared_checkpointer() -> VersionedSqliteSaver:
     )
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(str(checkpoint_path), check_same_thread=False)
-    return VersionedSqliteSaver(connection)
+    lifecycle = RunLifecycleManager(
+        connection,
+        lease_ttl_seconds=_env_float("SHANKS_RUN_LEASE_SECONDS", 3600.0),
+    )
+    return VersionedSqliteSaver(
+        connection,
+        lifecycle_manager=lifecycle,
+        retention_limit=_env_int(
+            "SHANKS_CHECKPOINT_RETENTION",
+            DEFAULT_CHECKPOINT_RETENTION,
+        ),
+    )
 
 
 def build_graph(
@@ -120,6 +291,9 @@ def build_graph(
 ):
     """Build the workflow with optional adapters or a Claude/Codex choice."""
 
+    if checkpointer is None:
+        checkpointer = shared_checkpointer()
+    lifecycle_manager = getattr(checkpointer, "lifecycle_manager", None)
     nodes = create_nodes(
         dependencies
         or default_dependencies(
@@ -128,6 +302,7 @@ def build_graph(
             workspace_manager=workspace_manager,
             base_branch=base_branch,
             worktree_root=worktree_root,
+            lifecycle_manager=lifecycle_manager,
         )
     )
     builder = StateGraph(WorkflowState)
@@ -268,9 +443,39 @@ def build_graph(
     builder.add_edge("failed_run", END)
     builder.add_edge("stop_run", END)
 
-    return builder.compile(
-        checkpointer=checkpointer if checkpointer is not None else shared_checkpointer()
-    )
+    return builder.compile(checkpointer=checkpointer)
+
+
+def _now() -> float:
+    return datetime.now(timezone.utc).timestamp()
+
+
+def _checkpoint_timestamp(checkpoint: dict) -> float:
+    raw = checkpoint.get("ts")
+    if isinstance(raw, (int, float)) and not isinstance(raw, bool):
+        return float(raw)
+    if isinstance(raw, str):
+        try:
+            return datetime.fromisoformat(raw.replace("Z", "+00:00")).timestamp()
+        except ValueError:
+            pass
+    return 0.0
+
+
+def _env_float(name: str, default: float) -> float:
+    try:
+        value = float(os.environ.get(name, default))
+    except (TypeError, ValueError):
+        return default
+    return value if value > 0 else default
+
+
+def _env_int(name: str, default: int) -> int:
+    try:
+        value = int(os.environ.get(name, default))
+    except (TypeError, ValueError):
+        return default
+    return value if value >= 1 else default
 
 
 if __name__ == "__main__":

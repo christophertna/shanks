@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from langgraph.errors import NodeError
+from langgraph.errors import GraphInterrupt, NodeError
 from langgraph.types import Command, interrupt
 from langchain_core.runnables import RunnableConfig
 
@@ -45,6 +45,12 @@ from .state import (
     validation_command_for_item,
 )
 from .retries import classify_failure, retry_delay, retryable_failure
+from .lifecycle import (
+    LeaseLostError,
+    RunBusyError,
+    RunLifecycleManager,
+    TERMINAL_RUN_STATUSES,
+)
 from .workspaces import (
     RunWorkspaceManager,
     WorkspaceError,
@@ -64,6 +70,7 @@ class NodeDependencies:
     debugger: AgentAdapter
     repository: RepositoryAdapter | None = None
     workspace_manager: RunWorkspaceManager | None = None
+    lifecycle_manager: RunLifecycleManager | None = None
 
 
 LEARN_PROMPT = """
@@ -87,6 +94,7 @@ def default_dependencies(
     workspace_manager: RunWorkspaceManager | None = None,
     base_branch: str = "main",
     worktree_root: Path | None = None,
+    lifecycle_manager: RunLifecycleManager | None = None,
 ) -> NodeDependencies:
     """Return a complete Claude- or Codex-backed workflow configuration."""
 
@@ -112,6 +120,7 @@ def default_dependencies(
         debugger=DebuggerAdapter(project_directory, tool=tool),
         repository=GitHubAdapter(project_directory),
         workspace_manager=workspace_manager,
+        lifecycle_manager=lifecycle_manager,
     )
 
 
@@ -158,35 +167,86 @@ def _item_complete(item: PRDItem) -> bool:
 def _versioned_node(
     node: NodeFunction,
     workspace_manager: RunWorkspaceManager | None = None,
+    lifecycle_manager: RunLifecycleManager | None = None,
 ) -> NodeFunction:
     """Migrate state, enforce run budgets, and stamp every checkpoint."""
 
     def run(
-        state: WorkflowState, config: RunnableConfig | None = None
+        state: WorkflowState,
+        config: RunnableConfig,
     ) -> WorkflowState:
         current = migrate_state(state)
         thread_id = _thread_id(config)
         stored_run_id = current.get("run_id", "")
         if stored_run_id and thread_id and stored_run_id != thread_id:
             return {
-                "run_id": stored_run_id,
                 "status": "run_locked",
+                "run_lifecycle_status": "blocked",
                 "last_error": "Checkpoint run identity does not match thread_id.",
                 "failure_class": "guardrail",
+                "failure_node": "lease",
                 "state_schema_version": CURRENT_STATE_SCHEMA_VERSION,
             }
         run_id = stored_run_id or thread_id
+        lifecycle_update: WorkflowState = {}
+        if lifecycle_manager is not None and run_id:
+            try:
+                lease = lifecycle_manager.acquire(run_id)
+            except RunBusyError as error:
+                failure: WorkflowState = {
+                    "run_id": run_id,
+                    "status": "run_locked",
+                    "run_lifecycle_status": "blocked",
+                    "last_error": str(error),
+                    "failure_class": "guardrail",
+                    "failure_node": "lease",
+                    "state_schema_version": CURRENT_STATE_SCHEMA_VERSION,
+                }
+                failure.update(
+                    append_run_manifest(
+                        current,
+                        "run_locked",
+                        run_id=run_id,
+                        status="blocked",
+                        error=str(error),
+                    )
+                )
+                return failure
+            lifecycle_update = {
+                "run_lifecycle_status": "running",
+                "run_lease_expires_at": lease.expires_at,
+                "run_last_heartbeat_at": lease.heartbeat_at,
+                "run_recovery_count": lease.recovery_count,
+            }
+            if lease.recovered:
+                current = {**current, **lifecycle_update}
+                current.update(
+                    append_run_manifest(
+                        current,
+                        "run_recovered",
+                        run_id=run_id,
+                        previous_owner=lease.previous_owner,
+                        recovery_count=lease.recovery_count,
+                    )
+                )
         workspace = None
         if workspace_manager is not None and run_id:
             try:
                 workspace = workspace_manager.ensure(run_id)
             except WorkspaceError as error:
+                if lifecycle_manager is not None:
+                    lifecycle_manager.release(
+                        run_id,
+                        status="preflight_failed",
+                        last_error=str(error),
+                    )
                 failure: WorkflowState = {
                     "run_id": run_id,
                     "status": "preflight_failed",
                     "last_error": f"Could not create isolated workspace: {error}",
                     "failure_class": "guardrail",
                     "failure_node": "workspace",
+                    **lifecycle_update,
                     "state_schema_version": CURRENT_STATE_SCHEMA_VERSION,
                 }
                 failure.update(
@@ -214,7 +274,7 @@ def _versioned_node(
                     "workspace_directory": str(workspace.directory),
                 }
             )
-        current = {**current, **workspace_update}
+        current = {**current, **workspace_update, **lifecycle_update}
         started_at = current.get("run_started_at")
         if (
             isinstance(started_at, bool)
@@ -224,23 +284,62 @@ def _versioned_node(
             started_at = time.time()
         current = {**current, "run_started_at": float(started_at)}
 
-        with workspace_scope(workspace_directory):
-            reason = _stop_reason(current)
-            if reason:
-                return {
+        try:
+            with workspace_scope(workspace_directory):
+                reason = _stop_reason(current)
+                if reason:
+                    return {
+                        **workspace_update,
+                        **lifecycle_update,
+                        **_stop_update(current, reason),
+                    }
+                update = {
                     **workspace_update,
-                    **_stop_update(current, reason),
+                    **lifecycle_update,
+                    **dict(node(current)),
                 }
-            update = {
-                **workspace_update,
-                **dict(node(current)),
-            }
+        except GraphInterrupt:
+            if lifecycle_manager is not None and run_id:
+                lifecycle_manager.mark_interrupted(run_id)
+            raise
+        if lifecycle_manager is not None and run_id:
+            try:
+                heartbeat = lifecycle_manager.heartbeat(run_id)
+            except LeaseLostError as error:
+                update.update(
+                    {
+                        "status": "failed",
+                        "run_lifecycle_status": "failed",
+                        "last_error": str(error),
+                        "failure_class": "guardrail",
+                        "failure_node": "lease",
+                    }
+                )
+                update.update(
+                    append_run_manifest(
+                        {**current, **update},
+                        "lease_lost",
+                        run_id=run_id,
+                        error=str(error),
+                    )
+                )
+            else:
+                update.update(
+                    {
+                        "run_lease_expires_at": heartbeat.expires_at,
+                        "run_last_heartbeat_at": heartbeat.heartbeat_at,
+                    }
+                )
         update["run_started_at"] = float(started_at)
         update.update(_usage_totals(current, update))
         merged = {**current, **update}
         reason = _stop_reason(merged)
         if reason:
             update.update(_stop_update(merged, reason))
+        if lifecycle_manager is not None and run_id:
+            status = update.get("status", "")
+            if status in TERMINAL_RUN_STATUSES:
+                update["run_lifecycle_status"] = _run_lifecycle_status(status)
         update["state_schema_version"] = CURRENT_STATE_SCHEMA_VERSION
         return update
 
@@ -262,6 +361,14 @@ def _state_workspace_directory(state: WorkflowState) -> Path | None:
     if not isinstance(directory, str) or not directory.strip():
         return current_workspace_directory()
     return Path(directory)
+
+
+def _run_lifecycle_status(status: str) -> str:
+    if status in {"complete", "pr_created"}:
+        return "complete"
+    if status in {"cancelled", "budget_exceeded"}:
+        return "cancelled"
+    return "failed"
 
 
 _STOP_STATUSES = frozenset({"cancelled", "budget_exceeded", "run_locked"})
@@ -327,6 +434,9 @@ def _stop_update(state: WorkflowState, reason: str) -> WorkflowState:
 
     return {
         "status": "cancelled" if state.get("cancel_requested") else "budget_exceeded",
+        "run_lifecycle_status": (
+            "cancelled" if state.get("cancel_requested") else "failed"
+        ),
         "last_error": reason,
         "run_started_at": state.get("run_started_at", time.time()),
         "state_schema_version": CURRENT_STATE_SCHEMA_VERSION,
@@ -490,6 +600,7 @@ def create_nodes(
         name: _versioned_node(
             node,
             deps.workspace_manager,
+            deps.lifecycle_manager,
         )
         for name, node in nodes.items()
     }
@@ -845,7 +956,9 @@ def item_router(state: WorkflowState) -> WorkflowState:
 
     return {
         "status": (
-            "next_item_ready" if select_next_item(state) is not None else "complete"
+            "next_item_ready"
+            if select_next_item(state) is not None
+            else "github_handoff_ready"
         )
     }
 

@@ -262,6 +262,10 @@ def _snapshot_summary(snapshot: object, *, include_manifest: bool = True) -> dic
         "run_id": _json_safe(values.get("run_id", "")),
         "run_branch": _json_safe(values.get("run_branch", "")),
         "workspace_directory": _json_safe(values.get("workspace_directory", "")),
+        "run_lifecycle_status": _json_safe(values.get("run_lifecycle_status", "")),
+        "run_lease_expires_at": values.get("run_lease_expires_at", 0.0),
+        "run_last_heartbeat_at": values.get("run_last_heartbeat_at", 0.0),
+        "run_recovery_count": values.get("run_recovery_count", 0),
     }
     if include_manifest:
         summary["run_manifest"] = _json_safe(values.get("run_manifest", []))
@@ -280,6 +284,21 @@ def execution_state(
         for checkpoint in graph.get_state_history(config, limit=limit)
     ]
     current = _snapshot_summary(snapshot)
+    lifecycle_manager = getattr(
+        getattr(graph, "checkpointer", None),
+        "lifecycle_manager",
+        None,
+    )
+    lifecycle = lifecycle_manager.get_run(thread_id) if lifecycle_manager else None
+    if lifecycle is not None:
+        current["lifecycle"] = {
+            "status": lifecycle.status,
+            "started_at": lifecycle.started_at,
+            "updated_at": lifecycle.updated_at,
+            "finished_at": lifecycle.finished_at,
+            "recovery_count": lifecycle.recovery_count,
+            "last_error": lifecycle.last_error,
+        }
     return {
         "thread_id": thread_id,
         "available": bool(current["checkpoint_id"] or history),

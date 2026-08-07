@@ -38,7 +38,6 @@
   "36": "DebuggerAdapter",
   "37": "DebuggerAdapter",
   "38": "CheapCriticAdapter",
-  "39": ".cleanup",
-  "40": "CodexAdapter",
-  "41": "RepositoryAdapter"
+  "41": "RepositoryAdapter",
+  "42": "DebuggerAdapter"
 }
