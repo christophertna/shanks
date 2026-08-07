@@ -34,7 +34,7 @@ assembles the graph; `serve_graph.py` serves a live Mermaid viewer at
   graph run — the workflow itself makes commits, not just the human/agent
   driving it.
 - The final step of an `implement` run pushes the current non-`main` branch and
-  opens a PR via `gh` — `gh` must be pre-authenticated.
+  reconciles or opens its PR via `gh` — `gh` must be pre-authenticated.
 - Skills are split across three locations with overlapping content:
   `.claude/skills/`, `.agents/skills/`, and top-level `skills/`. Check which
   copy is canonical before editing one.

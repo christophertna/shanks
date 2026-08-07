@@ -83,6 +83,10 @@ class StateSchemaTests(unittest.TestCase):
         self.assertEqual(migrated["run_lease_expires_at"], 0.0)
         self.assertEqual(migrated["run_last_heartbeat_at"], 0.0)
         self.assertEqual(migrated["run_recovery_count"], 0)
+        self.assertEqual(migrated["pr_state"], "")
+        self.assertFalse(migrated["pr_stale"])
+        self.assertEqual(migrated["pr_reviewers"], [])
+        self.assertEqual(migrated["pr_labels"], [])
 
     def test_sqlite_saver_migrates_legacy_checkpoint_on_read(self) -> None:
         connection = sqlite3.connect(":memory:", check_same_thread=False)

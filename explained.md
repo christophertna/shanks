@@ -64,6 +64,18 @@ prompt and model, commands, validation/test output, staged diffs, commit SHA,
 and pull-request URL/ID when those operations occur. This keeps execution
 history with the same SQLite checkpoint that supports resume.
 
+Runs are isolated by their configured `thread_id`. Each run gets a persisted
+`run_id`, its own Git branch, and a reusable worktree under
+`.shanks/worktrees/`; agent, Ralph, and GitHub subprocesses use that worktree
+as their working directory. The checkpoint store also keeps a durable lease:
+a live lease prevents two owners from running the same thread at once, an
+interrupted run can be resumed, and an expired lease is recovered by the next
+owner. Terminal checkpoints release the lease. Set
+`SHANKS_RUN_LEASE_SECONDS` to change the default one-hour lease, and
+`SHANKS_CHECKPOINT_RETENTION` to change the default retention of 100 recent
+checkpoints. `VersionedSqliteSaver.cleanup(...)` can perform explicit
+count- or age-based cleanup, including the associated checkpoint writes.
+
 ## LIMITS
 
 These defaults are defined in `workflow/state.py` and apply to new or migrated
@@ -78,6 +90,10 @@ runs:
 | `max_cost_usd` | `0.0` (disabled) | Enabled only when set to a positive value and adapters report cost. |
 | CLI/GitHub subprocess timeout | `3600` seconds | Per-command adapter timeout, also capped by remaining run time for agent adapters. |
 | `cancel_requested` | `False` | Set with `cancel_run(...)` to stop at the next safe checkpoint. |
+
+The lease and checkpoint-retention settings are configured through the
+environment variables described above rather than through the per-run budget
+fields in this table.
 
 Adapters that do not expose provider usage use a conservative text estimate;
 custom adapters can report exact token and cost values through `AgentResult`.
@@ -146,6 +162,8 @@ It connects the nodes and controls where each step goes next.
 viewer because they can route to another node or stop. The default graph uses a
 shared SQLite checkpoint store at
 `.shanks/checkpoints.sqlite`; set `SHANKS_CHECKPOINT_DB` to override the path.
+The graph also wires the run workspace manager and lifecycle manager into the
+nodes so each `thread_id` has an isolated worktree and a durable lease.
 
 ### `workflow/state.py`
 
@@ -173,6 +191,8 @@ Think of the state as a shared notebook. It stores things like:
 - A cancellation request and its reason.
 - Which model was used.
 - The persisted run manifest and audit history.
+- The run identity, branch, and isolated workspace directory.
+- The lifecycle status, lease expiry, heartbeat, and recovery count.
 
 ### Checkpoint compatibility
 
@@ -184,6 +204,10 @@ supported versions when they are loaded. New checkpoints are stamped with the
 current version. If a checkpoint comes from a newer version than this code
 understands, the workflow stops with a clear error instead of guessing at the
 state shape.
+
+The current schema version is 6. The v4-to-v5 migration adds run identity,
+branch, and workspace fields; the v5-to-v6 migration adds lease, heartbeat,
+and recovery metadata.
 
 The authoritative validator runs the current PRD item's `validationCommand`
 when one is present and falls back to the local unittest suite otherwise.
@@ -225,17 +249,26 @@ unittest suite, and reports failures back to the graph as structured validation
 errors.
 `RalphAdapter` parses the builder's `RALPH_UNCERTAINTIES` section into the
 current item's uncertainty list.
+Agent and GitHub adapters honor the active run workspace. When Ralph runs in a
+worktree, it receives a per-run `--run-dir`, so its PRD, progress log, metadata,
+and archive stay under that run's `.shanks/ralph/` directory instead of being
+shared with another run.
 `GitHubAdapter.preflight()` checks required tools, the current branch and
 working tree, GitHub CLI authentication, the local unittest suite, and the
 repository quality gates before intake. `commit_item()` repeats the quality
-gates against the staged diff before creating a commit.
+gates against the staged diff before creating a commit. `publish_pr()` pushes
+the branch, reconciles existing pull requests, and creates one only when no
+matching request exists. Open requests receive text and configured reviewer or
+label updates only when needed; closed and merged requests are distinguished,
+stale branches are reported, and closed requests remain closed unless
+`reopen_closed=True` is explicitly configured.
 
 ### `scripts/quality_gates.py`
 
 This is the single command used by CI and GitHub handoff checks. It runs Black
 format verification, Ruff linting, Mypy typing, a pip-audit scan of runtime and
 development requirements, and a diff-size check. The default diff limit is 50
-files or 1,000 changed lines; generated `graphify-out/` files are excluded.
+files or 2,000 changed lines; generated `graphify-out/` files are excluded.
 The script uses argument lists rather than a shell, and the GitHub adapter
 allowlists its exact command shape.
 
@@ -274,7 +307,9 @@ recorded but are not automatically retried because they can create side effects.
 
 The `_versioned_node` wrapper starts the run clock, accumulates usage, checks
 budgets before and after each node, and routes cancellation or budget exhaustion
-to `stop_run`.
+to `stop_run`. It also acquires or renews the run lease, creates or reuses the
+run worktree, scopes adapter requests to that workspace, records interruptions,
+and handles stale-lease recovery.
 
 ### `graph.html`
 
@@ -284,8 +319,9 @@ The nodes are white. Decision nodes are diamonds.
 
 It also has a Live execution panel. Enter a workflow `thread_id` to see the
 current node, PRD item, attempt count, run budgets, usage totals, last error,
-model, recent checkpoints, and the persisted run manifest while the workflow
-runs. Manifest entries can be expanded to inspect their recorded details.
+model, run identity, branch, workspace, lifecycle/lease metadata, recent
+checkpoints, and the persisted run manifest while the workflow runs. Manifest
+entries can be expanded to inspect their recorded details.
 
 ### `serve_graph.py`
 
@@ -294,7 +330,8 @@ Runs the local graph viewer.
 It reads `graph.py`, creates a Mermaid diagram, and sends it to `graph.html`.
 The browser updates when `graph.py` changes. Its `/graph-state` endpoint reads
 `get_state()` and `get_state_history()` for the selected thread.
-The `/graph-state` response also includes the current `run_manifest`.
+The `/graph-state` response also includes the current run identity, branch,
+workspace, lifecycle metadata, and `run_manifest`.
 
 The workflow and viewer share checkpoints through
 `.shanks/checkpoints.sqlite`, which allows separate Python processes to see
@@ -302,18 +339,19 @@ the same run. Set `SHANKS_CHECKPOINT_DB` in both processes to use a different
 shared database path.
 
 Validated items are committed by `commit_item`. The final `github_node` pushes
-the branch and opens the pull request. Persisted commit and PR IDs act as
+the branch and reconciles its pull request. Persisted commit and PR IDs act as
 replay guards when a run resumes after a failure, and each operation appends an
-audit event to the run manifest.
+audit event to the run manifest, including pull-request state and staleness.
 
 ### `tests/`
 
 Checks that the graph works.
 
 The tests cover retries, validation failures, item progress, attempt limits,
-failed-build routing, idempotent GitHub handoff, viewer state inspection, agent
-adapters, the quality-gate parser/runner, and fault-injection behavior. The
-fault suite injects Git/GitHub, validation, checkpoint, and agent failures.
+failed-build routing, idempotent GitHub handoff, run isolation, lease and stale
+run recovery, checkpoint cleanup, viewer state inspection, agent adapters, the
+quality-gate parser/runner, and fault-injection behavior. The fault suite
+injects Git/GitHub, validation, checkpoint, and agent failures.
 GitHub Actions installs the development quality tools, runs the unittest suite,
 and runs every quality gate on pushes and pull requests.
 
@@ -378,6 +416,11 @@ directory for backward compatibility, so this agent repository's Git tracking
 also remains at the base directory. A separately supplied target uses its own
 Git repository when it is a different repository.
 
+During a graph run, Ralph receives `--run-dir` pointing into the run's
+worktree. Its `RALPH_PRD_FILE` and related progress/metadata files therefore
+stay with that run, so concurrent or resumed worktrees do not overwrite the
+base runner's state.
+
 Each builder iteration reports only real uncertainty about an implemented
 choice. The runner stores those bullets by PRD item and omits routine or
 confident decisions.
@@ -436,7 +479,10 @@ Run the tests:
 - The default agents are fake test agents.
 - The graph does not yet call a real model by default.
 - Ralph, Codex, and Claude adapters are ready to be connected deliberately.
-- Human approval gates before commit, push, and pull-request side effects are
-  not implemented yet.
-- Pull-request lifecycle management, such as updating existing PRs and
-  assigning reviewers, is not implemented yet.
+- Approval gates are present before commit and publish side effects; a caller
+  must resume with an explicit approval response to continue.
+- Run worktrees can be removed by the workspace manager, but completed-run
+  worktree and branch cleanup remains an explicit operation.
+- Pull-request lifecycle management is implemented for GitHub CLI handoff;
+  real temporary-repository and fake-`gh` integration coverage remains on the
+  roadmap.
