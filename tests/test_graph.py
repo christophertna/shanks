@@ -1162,6 +1162,48 @@ class GraphRoutingTests(unittest.TestCase):
         self.assertEqual(repository.pull_requests, ["Build the workflow"])
         self.assertEqual(result["status"], "pr_created")
 
+    def test_dry_run_previews_delivery_without_repository_side_effects(self) -> None:
+        repository = RecordingRepository()
+        graph = build_graph(_stub_dependencies(repository))
+
+        with patch.dict("os.environ", {"SHANKS_MODE": "dry-run"}):
+            result = graph.invoke(
+                _initial_state(),
+                {"configurable": {"thread_id": "dry-run"}},
+            )
+
+        self.assertNotIn("__interrupt__", result)
+        self.assertEqual(result["status"], "pull_request_preview")
+        self.assertEqual(repository.commits, [])
+        self.assertEqual(repository.pushes, [])
+        self.assertEqual(repository.pull_requests, [])
+        preview_events = [
+            event
+            for event in result["run_manifest"]
+            if event.get("status", "").endswith("_preview")
+        ]
+        self.assertEqual(
+            [event["status"] for event in preview_events],
+            ["commit_preview", "branch_push_preview", "pull_request_preview"],
+        )
+        self.assertTrue(
+            any(
+                command[:2] == ["git", "commit"]
+                for command in preview_events[0]["commands"]
+            )
+        )
+        self.assertTrue(
+            any(
+                command[:3] == ["git", "push", "-u"]
+                for command in preview_events[1]["commands"]
+            )
+        )
+        self.assertTrue(
+            any(
+                command[:2] == ["gh", "pr"] for command in preview_events[2]["commands"]
+            )
+        )
+
     def test_rejected_commit_ends_without_commit_or_pull_request(self) -> None:
         repository = RecordingRepository()
         graph = build_graph(_stub_dependencies(repository))

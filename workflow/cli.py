@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 from typing import Sequence
 
-from .mode import DEVELOPMENT_MODE, execution_mode
+from .mode import DEVELOPMENT_MODE, DRY_RUN_MODE, execution_mode
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -31,7 +31,12 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.mode or args.command == "mode":
         mode = execution_mode()
-        if mode == DEVELOPMENT_MODE:
+        if mode == DRY_RUN_MODE:
+            print(
+                "Shanks mode: dry-run — delivery side effects will be previewed "
+                "and skipped"
+            )
+        elif mode == DEVELOPMENT_MODE:
             print(
                 "Shanks mode: development — guarded capabilities enabled; "
                 "human approval still required"

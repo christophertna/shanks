@@ -57,6 +57,7 @@ Then open `http://127.0.0.1:8765/graph.html`.
 ## Commands
 
 - `./shanks --mode` / `./shanks -mode` / `./shanks mode` — show the current mode.
+- `SHANKS_MODE=dry-run ./shanks --mode` — inspect the delivery-preview mode.
 - `.venv/bin/python -m pip install -r requirements-dev.txt` — install development dependencies.
 - `.venv/bin/python -m unittest discover -s tests` — run all tests.
 - `bash hooks/test-guard.sh` — test dangerous-command guard behavior.
@@ -144,6 +145,13 @@ project/path checks, secret redaction, base-branch protection, or the
 catastrophic-command hook. Unset the variable or set it to `runtime` to
 restore safe/normal mode.
 
+Set `SHANKS_MODE=dry-run` to run through delivery while previewing the
+side-effecting handoff. Commit, push, and pull-request operations are skipped;
+the run manifest records the planned commands, changed/new-file diff, commit
+message, push, and PR details. The terminal run status is
+`pull_request_preview`. The workflow still uses its isolated run workspace for
+agent and validation work.
+
 ## Preflight checks
 
 The default GitHub-backed graph checks that `git`, `gh`, and `bash` are
@@ -201,6 +209,10 @@ Validated implement runs pause for human approval before committing each item.
 After the last item, they pause again before pushing the branch and reconciling
 its pull request. Resume an approval interrupt with `Command(resume="approve")` or
 end the run without the side effect with `Command(resume="reject")`.
+
+Dry-run implement runs skip those approval pauses and finish with the same
+handoff details as previews in the run manifest without committing, pushing, or
+changing a pull request.
 
 Security guardrails keep subprocesses on approved executables and configured
 directories, resolve GitHub file paths through the project root (including
