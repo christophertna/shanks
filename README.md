@@ -54,6 +54,21 @@ Start the graph viewer:
 
 Then open `http://127.0.0.1:8765/graph.html`.
 
+## Commands
+
+- `./shanks --mode` / `./shanks -mode` / `./shanks mode` — show the current mode.
+- `.venv/bin/python -m pip install -r requirements-dev.txt` — install development dependencies.
+- `.venv/bin/python -m unittest discover -s tests` — run all tests.
+- `bash hooks/test-guard.sh` — test dangerous-command guard behavior.
+- `.venv/bin/python scripts/quality_gates.py --diff-base origin/main` — run all quality gates.
+- `.venv/bin/python scripts/quality_gates.py --diff-base origin/main --staged` — check staged changes.
+- `.venv/bin/python serve_graph.py [--port PORT]` — start the workflow viewer.
+- `./scripts/ralph/ralph.sh [options]` — run the Ralph agent loop.
+- `graphify query|path|explain|update .` — inspect or refresh the project graph.
+- `git status -sb`, `git diff --check`, `git commit`, `git push`, `gh pr create` — inspect and hand off reviewed changes.
+
+See the local `dev/commands.md` reference for detailed command capabilities and options.
+
 Workflow checkpoints are stored in `.shanks/checkpoints.sqlite`, so the viewer
 can inspect runs started by another process. Set `SHANKS_CHECKPOINT_DB` in both
 processes to use a different shared database path.
@@ -128,15 +143,6 @@ and pull-request creation. The mode does not disable quality gates,
 project/path checks, secret redaction, base-branch protection, or the
 catastrophic-command hook. Unset the variable or set it to `runtime` to
 restore safe/normal mode.
-
-Check the current mode from the repository root:
-
-```bash
-./shanks --mode
-./shanks -mode
-```
-
-The equivalent subcommand is `./shanks mode`.
 
 ## Preflight checks
 
