@@ -62,12 +62,8 @@ Examples:
 ## Commit, push, and PR checks
 
 - Inspect the diff, current branch, and test results before any side effect.
-- Make commit, push, and pull-request creation separate command-tool calls.
-- Use the command tool's normal approval prompt immediately before each
-  operation. A prior user request, chat question, plan note, or comment saying
-  “approval required” is not approval.
-- If the command runs without a visible approval prompt, stop and report it.
-  Do not retry or continue.
+- Keep commit, push, and pull-request creation as separate operations.
+- Stop and report if any operation fails.
 - Push the feature branch with `git push -u origin <branch>`; do not push to `main` unless explicitly requested.
 - Pass the commit or PR title separately from the description when using GitHub CLI or an API.
 - Before opening the PR, state the exact title, description, and test command for auditability.
