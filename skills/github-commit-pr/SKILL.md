@@ -67,7 +67,9 @@ Examples:
   `sandbox_permissions: "require_escalated"` and a concise,
   operation-specific `justification` question such as “May I commit these
   changes?”; the tool call's approval prompt—not a chat message—is the request
-  the user approves. Do not infer approval from an earlier user request.
+  the user approves. This prompt is mandatory even when the user explicitly
+  requested the commit, push, or pull request; that request never replaces the
+  tool-call approval. Do not infer approval from an earlier user request.
 - Make commit, push, and pull-request creation each a separate command-tool
   call with `sandbox_permissions: "require_escalated"`.
 - Do not pass `prefix_rule` for those operations or rely on trusted command
