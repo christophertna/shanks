@@ -45,7 +45,7 @@
     "semantic_hash": ""
   },
   "tests/test_cli.py": {
-    "mtime": 1786137208.8800054,
+    "mtime": 1786140337.6321335,
     "ast_hash": "7292005a241573822587769f7b41eef6",
     "semantic_hash": ""
   },
@@ -55,7 +55,7 @@
     "semantic_hash": ""
   },
   "tests/test_graph.py": {
-    "mtime": 1786137457.7170553,
+    "mtime": 1786140337.632719,
     "ast_hash": "a58d61f69725cb1352684285f6aadb2a",
     "semantic_hash": ""
   },
@@ -65,7 +65,7 @@
     "semantic_hash": ""
   },
   "tests/test_node_contracts.py": {
-    "mtime": 1786138044.130115,
+    "mtime": 1786140337.633307,
     "ast_hash": "faf97392eeec439b7cbb016a7a360629",
     "semantic_hash": ""
   },
@@ -95,12 +95,12 @@
     "semantic_hash": ""
   },
   "workflow/adapters.py": {
-    "mtime": 1786138035.279844,
+    "mtime": 1786140337.634875,
     "ast_hash": "6f5a33635995e55c089cad013b33b8c0",
     "semantic_hash": ""
   },
   "workflow/cli.py": {
-    "mtime": 1786137112.7323987,
+    "mtime": 1786140337.6352081,
     "ast_hash": "9c38193b2af7355c32851b3874371b53",
     "semantic_hash": ""
   },
@@ -120,17 +120,17 @@
     "semantic_hash": ""
   },
   "workflow/lifecycle.py": {
-    "mtime": 1786137112.808879,
+    "mtime": 1786140337.6355417,
     "ast_hash": "4d719586163496a986e8543a9144f2e7",
     "semantic_hash": ""
   },
   "workflow/mode.py": {
-    "mtime": 1786137112.6571767,
+    "mtime": 1786140337.6359644,
     "ast_hash": "9888b2ffdf1c1eb9cfff4392388796f6",
     "semantic_hash": ""
   },
   "workflow/nodes.py": {
-    "mtime": 1786137149.1074116,
+    "mtime": 1786140337.6364365,
     "ast_hash": "3f9df2f15ede5c120590d23b93be22f8",
     "semantic_hash": ""
   },
@@ -150,8 +150,8 @@
     "semantic_hash": ""
   },
   ".agents/skills/decisions/SKILL.md": {
-    "mtime": 1786139367.4615655,
-    "ast_hash": "b27ead86459c2fd2b853468599fbbf5f",
+    "mtime": 1786140837.3318183,
+    "ast_hash": "2a07759564d70f98100c6c8f1e3a40ea",
     "semantic_hash": ""
   },
   ".agents/skills/decisions/agents/openai.yaml": {
@@ -180,8 +180,8 @@
     "semantic_hash": ""
   },
   ".agents/skills/github-commit-pr/SKILL.md": {
-    "mtime": 1786139008.2132034,
-    "ast_hash": "03679e52c6e8668d486af179cfd9a814",
+    "mtime": 1786140913.256469,
+    "ast_hash": "e836b72d5eb9f7bb79c224dd5e4157ca",
     "semantic_hash": ""
   },
   ".agents/skills/grill-with-docs/SKILL.md": {
@@ -215,17 +215,17 @@
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1786138578.0904677,
+    "mtime": 1786140337.6256862,
     "ast_hash": "1647f4578df83c41f65c7e9edf92898a",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1786138695.688725,
+    "mtime": 1786140337.6261938,
     "ast_hash": "c9c339e7d5b5fad5d653796ddf2b57ae",
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1786137521.407019,
+    "mtime": 1786140337.6270015,
     "ast_hash": "ba75d607f4a28ba833c42914b04f4728",
     "semantic_hash": ""
   },
@@ -270,13 +270,18 @@
     "semantic_hash": ""
   },
   "skills/github-commit-pr/SKILL.md": {
-    "mtime": 1786138578.0044065,
-    "ast_hash": "03679e52c6e8668d486af179cfd9a814",
+    "mtime": 1786140355.3371394,
+    "ast_hash": "e836b72d5eb9f7bb79c224dd5e4157ca",
     "semantic_hash": ""
   },
   "tests/tests.md": {
-    "mtime": 1786137901.0269372,
-    "ast_hash": "33952c961419e5ffb6c3bde7bf891159",
+    "mtime": 1786219931.9360483,
+    "ast_hash": "9a8637fd9a990f62e5dcacda3d3d692a",
+    "semantic_hash": ""
+  },
+  "tests/test_git_integration.py": {
+    "mtime": 1786220097.2311468,
+    "ast_hash": "848042f85b64e037cfec237c15c04c39",
     "semantic_hash": ""
   }
 }

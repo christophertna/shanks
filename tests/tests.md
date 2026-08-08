@@ -1,13 +1,14 @@
 # Test coverage
 
 This document summarizes the behavior covered by the repository's tracked test
-files. The Python suite contains **125 unittest methods** across nine modules;
+files. The Python suite contains **127 unittest methods** across ten modules;
 `hooks/test-guard.sh` is a separate shell regression harness with eight command
 checks.
 
 The tests use in-memory graphs, temporary SQLite databases and temporary
-projects, stub adapters, and mocked subprocesses. They verify orchestration and
-adapter contracts without making real LLM, GitHub, or destructive shell calls.
+projects, real temporary Git repositories, a fake `gh` executable, stub
+adapters, and mocked subprocesses. They verify orchestration and adapter
+contracts without making real LLM, GitHub, or destructive shell calls.
 
 Run the Python suite with:
 
@@ -35,6 +36,7 @@ Run the repository quality gates from a feature branch with:
 | [`test_viewer.py`](test_viewer.py) | 5 | Viewer HTML, execution-state data, checkpoint sharing, and Mermaid output |
 | [`test_quality_gates.py`](test_quality_gates.py) | 9 | Quality command definitions, safe diff refs, numstat parsing, generated-output handling, diff limits, and gate failure reporting |
 | [`test_fault_injection.py`](test_fault_injection.py) | 7 | Injected Git, GitHub, validation, checkpoint, and agent process failures |
+| [`test_git_integration.py`](test_git_integration.py) | 2 | Real temporary Git repositories, worktrees, commits, pushes, PR creation/reuse, and fake-`gh` recovery |
 | [`../hooks/test-guard.sh`](../hooks/test-guard.sh) | 8 shell checks | Dangerous-command blocking and safe-command allowlisting |
 
 ## Workflow orchestration
