@@ -2,19 +2,15 @@ Shanks feature roadmap
 
 Priority 1 - Reproducibility, configuration, and maintenance
 
-1- Reproducible development environments. (implemented)
-    Lock runtime and development dependency versions and provide one documented
-    bootstrap command for a fresh virtual environment.
-
-2- Configuration diagnostics and environment validation.
+1- Configuration diagnostics and environment validation.
     Add a `shanks doctor` command to check the current mode, required tools,
     dependencies, authentication, environment variables, and checkpoint setup.
 
-3- Security and permission hardening.
+2- Security and permission hardening.
     Review GitHub token permissions, branch protections, reviewer and label
     allowlists, and permission boundaries as lifecycle automation expands.
 
-4- Run management and cleanup interface.
+3- Run management and cleanup interface.
     Add a CLI or API to list runs, inspect status, resume or cancel runs,
     recover stale runs, clean checkpoint history, and safely remove completed
     run worktrees and branches.
