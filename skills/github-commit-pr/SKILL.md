@@ -62,15 +62,18 @@ Examples:
 ## Commit, push, and PR checks
 
 - Inspect the diff, current branch, and test results before committing.
-- Use the command tool's inline approval gate immediately before committing,
-  pushing, or opening the pull request; do not send a separate conversational
-  yes/no prompt. If the command would otherwise run without an approval
-  prompt, request escalated execution with a concise, operation-specific
-  justification so the user can approve or deny it in the tool UI.
+- Explicitly ask for approval through the command tool immediately before each
+  commit, push, or pull-request creation. Use
+  `sandbox_permissions: "require_escalated"` and a concise,
+  operation-specific `justification` question such as “May I commit these
+  changes?”; the tool call's approval prompt—not a chat message—is the request
+  the user approves. Do not infer approval from an earlier user request.
 - Make commit, push, and pull-request creation each a separate command-tool
   call with `sandbox_permissions: "require_escalated"`.
 - Do not pass `prefix_rule` for those operations or rely on trusted command
   prefixes; the user must receive the normal tool-call approval prompt.
+- Proceed only after the tool UI visibly presents that approval prompt and the
+  user approves it.
 - Keep commit, push, and pull-request approvals separate and never bundle them.
   A denied operation must stop without retrying until a new approval is given.
 - If one of these commands executes without a visible approval prompt, stop and
