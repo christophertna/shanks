@@ -67,8 +67,14 @@ Examples:
   yes/no prompt. If the command would otherwise run without an approval
   prompt, request escalated execution with a concise, operation-specific
   justification so the user can approve or deny it in the tool UI.
+- Make commit, push, and pull-request creation each a separate command-tool
+  call with `sandbox_permissions: "require_escalated"`.
+- Do not pass `prefix_rule` for those operations or rely on trusted command
+  prefixes; the user must receive the normal tool-call approval prompt.
 - Keep commit, push, and pull-request approvals separate and never bundle them.
   A denied operation must stop without retrying until a new approval is given.
+- If one of these commands executes without a visible approval prompt, stop and
+  report that the expected approval was not presented; do not continue or retry.
 - Push the feature branch with `git push -u origin <branch>`; do not push to `main` unless explicitly requested.
 - Pass the commit or PR title separately from the description when using GitHub CLI or an API.
 - Before opening the PR, state the exact title, description, and test command for auditability.
