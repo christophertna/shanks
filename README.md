@@ -28,17 +28,22 @@ and its recovery paths.
 
 ## Quick start
 
+Create a fresh Python 3.11 environment and install the locked runtime and
+development dependencies:
+
+```bash
+python3.11 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt -r requirements-dev.txt
+```
+
 Run the tests:
 
 ```bash
 .venv/bin/python -m unittest discover -s tests
 ```
 
-Install the development quality tools and run every quality gate from a feature
-branch:
+Run every quality gate from a feature branch:
 
 ```bash
-.venv/bin/python -m pip install -r requirements-dev.txt
 .venv/bin/python scripts/quality_gates.py --diff-base origin/main
 ```
 
@@ -56,6 +61,7 @@ Then open `http://127.0.0.1:8765/graph.html`.
 
 ## Commands
 
+- `python3.11 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt -r requirements-dev.txt` — create a fresh environment with locked dependencies.
 - `./shanks --mode` / `./shanks -mode` / `./shanks mode` — show the current mode.
 - `SHANKS_MODE=dry-run ./shanks --mode` — inspect the delivery-preview mode.
 - `.venv/bin/python -m pip install -r requirements-dev.txt` — install development dependencies.

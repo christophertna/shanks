@@ -61,14 +61,9 @@ Examples:
 
 ## Commit, push, and PR checks
 
-- Inspect the diff, current branch, and test results before committing.
-- Use the command tool's inline approval gate immediately before committing,
-  pushing, or opening the pull request; do not send a separate conversational
-  yes/no prompt. If the command would otherwise run without an approval
-  prompt, request escalated execution with a concise, operation-specific
-  justification so the user can approve or deny it in the tool UI.
-- Keep commit, push, and pull-request approvals separate and never bundle them.
-  A denied operation must stop without retrying until a new approval is given.
+- Inspect the diff, current branch, and test results before any side effect.
+- Keep commit, push, and pull-request creation as separate operations.
+- Stop and report if any operation fails.
 - Push the feature branch with `git push -u origin <branch>`; do not push to `main` unless explicitly requested.
 - Pass the commit or PR title separately from the description when using GitHub CLI or an API.
 - Before opening the PR, state the exact title, description, and test command for auditability.

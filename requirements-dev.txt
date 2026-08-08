@@ -1,6 +1,7 @@
 # Repository quality gates. Keep these separate from runtime dependencies so
 # lightweight graph consumers do not install developer tooling.
-black>=26.3.1,<27
-mypy>=1.13,<2
-pip-audit>=2.7,<3
-ruff>=0.9,<1
+# Development dependencies are pinned for repeatable installs.
+black==26.5.1
+mypy==1.20.2
+pip-audit==2.10.1
+ruff==0.16.1
