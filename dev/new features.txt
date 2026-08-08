@@ -1,0 +1,39 @@
+Shanks feature roadmap
+
+Priority 1 - Reproducibility, configuration, and maintenance
+
+1- Reproducible development environments. (implemented)
+    Lock runtime and development dependency versions and provide one documented
+    bootstrap command for a fresh virtual environment.
+
+2- Configuration diagnostics and environment validation.
+    Add a `shanks doctor` command to check the current mode, required tools,
+    dependencies, authentication, environment variables, and checkpoint setup.
+
+3- Security and permission hardening.
+    Review GitHub token permissions, branch protections, reviewer and label
+    allowlists, and permission boundaries as lifecycle automation expands.
+
+4- Run management and cleanup interface.
+    Add a CLI or API to list runs, inspect status, resume or cancel runs,
+    recover stale runs, clean checkpoint history, and safely remove completed
+    run worktrees and branches.
+
+Deferred
+
+- Parallelism and additional agent roles. Revisit after isolation, recovery,
+  and pull-request lifecycle behavior are reliable.
+
+# Suggestions
+
+- GitHub handoff resilience.
+    Handle rate limits, network interruptions, process restarts, and idempotent
+    recovery around pushes and pull-request reconciliation.
+
+- Orphan worktree and remote-branch cleanup.
+    Add ownership checks, protected-branch safeguards, and a dry-run cleanup
+    report for stale worktrees and branches.
+
+- Supported toolchain compatibility matrix.
+    Document and verify supported Python, Git, and `gh` versions alongside
+    locked runtime and development dependencies.
