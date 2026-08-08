@@ -61,25 +61,18 @@ Examples:
 
 ## Commit, push, and PR checks
 
-- Inspect the diff, current branch, and test results before committing.
-- Explicitly ask for approval through the command tool immediately before each
-  commit, push, or pull-request creation. Use
-  `sandbox_permissions: "require_escalated"` and a concise,
+- Inspect the diff, current branch, and test results before any side effect.
+- Make commit, push, and pull-request creation separate command-tool calls.
+- For each operation, make the command-tool call itself the approval request:
+  set `sandbox_permissions: "require_escalated"`, pass a concise
   operation-specific `justification` question such as “May I commit these
-  changes?”; the tool call's approval prompt—not a chat message—is the request
-  the user approves. This prompt is mandatory even when the user explicitly
-  requested the commit, push, or pull request; that request never replaces the
-  tool-call approval. Do not infer approval from an earlier user request.
-- Make commit, push, and pull-request creation each a separate command-tool
-  call with `sandbox_permissions: "require_escalated"`.
-- Do not pass `prefix_rule` for those operations or rely on trusted command
-  prefixes; the user must receive the normal tool-call approval prompt.
-- Proceed only after the tool UI visibly presents that approval prompt and the
-  user approves it.
-- Keep commit, push, and pull-request approvals separate and never bundle them.
-  A denied operation must stop without retrying until a new approval is given.
-- If one of these commands executes without a visible approval prompt, stop and
-  report that the expected approval was not presented; do not continue or retry.
+  changes?”, and put the actual `git commit`, `git push`, or `gh pr create`
+  command in that same call.
+- Wait for the tool UI to show the approval prompt and for the user to approve
+  it before execution. A prior user request, chat question, plan note, or
+  comment saying “approval required” is not approval.
+- If the command runs without a visible approval prompt, stop and report it.
+  Do not retry or continue. Do not pass `prefix_rule` for these operations.
 - Push the feature branch with `git push -u origin <branch>`; do not push to `main` unless explicitly requested.
 - Pass the commit or PR title separately from the description when using GitHub CLI or an API.
 - Before opening the PR, state the exact title, description, and test command for auditability.
