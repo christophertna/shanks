@@ -63,6 +63,7 @@ Then open `http://127.0.0.1:8765/graph.html`.
 
 - `python3.11 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt -r requirements-dev.txt` — create a fresh environment with locked dependencies.
 - `./shanks --mode` / `./shanks -mode` / `./shanks mode` — show the current mode.
+- `./shanks doctor` — check tools, pinned dependencies, GitHub authentication, environment variables, and SQLite checkpoint setup.
 - `SHANKS_MODE=dry-run ./shanks --mode` — inspect the delivery-preview mode.
 - `.venv/bin/python -m pip install -r requirements-dev.txt` — install development dependencies.
 - `.venv/bin/python -m unittest discover -s tests` — run all tests.
