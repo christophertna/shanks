@@ -104,6 +104,30 @@ class WorkspaceTests(unittest.TestCase):
                 "",
             )
 
+    def test_development_mode_cannot_delete_a_protected_branch(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            manager = RunWorkspaceManager(Path(directory))
+
+            with patch.dict("os.environ", {"SHANKS_MODE": "development"}):
+                with self.assertRaisesRegex(WorkspaceError, "protected branch"):
+                    manager.delete_branch(
+                        "thread/one",
+                        branch="main",
+                    )
+
+    def test_development_mode_cannot_delete_a_branch_outside_the_run_scope(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            manager = RunWorkspaceManager(Path(directory))
+
+            with patch.dict("os.environ", {"SHANKS_MODE": "development"}):
+                with self.assertRaisesRegex(WorkspaceError, "run scope"):
+                    manager.delete_branch(
+                        "thread/one",
+                        branch="feature/another-run",
+                    )
+
     def test_workspace_context_is_scoped_and_restored(self) -> None:
         self.assertIsNone(current_workspace_directory())
         with tempfile.TemporaryDirectory() as directory:

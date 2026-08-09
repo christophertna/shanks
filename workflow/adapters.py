@@ -26,11 +26,11 @@ DEBUGGER_OUTPUT_SCHEMA_PATH = Path(__file__).with_name("debugger_output.schema.j
 ITEM_BUILT_MARKER = "<promise>ITEM_BUILT</promise>"
 UNCERTAINTIES_MARKER = "RALPH_UNCERTAINTIES:"
 ALLOWED_AGENT_EXECUTABLES = frozenset({"bash", "claude", "codex", "python", "python3"})
+AGENT_BLOCKED_ENVIRONMENT_KEYS = frozenset({"GH_TOKEN", "GITHUB_TOKEN"})
 GITHUB_ENVIRONMENT_KEYS = frozenset(
     {
         "GH_HOST",
         "GH_TOKEN",
-        "GITHUB_TOKEN",
         "HOME",
         "LANG",
         "LC_ALL",
@@ -164,6 +164,7 @@ class SubprocessAgentAdapter:
                 capture_output=True,
                 timeout=timeout,
                 check=False,
+                env=_agent_environment(),
             )
         except (OSError, subprocess.TimeoutExpired) as error:
             return AgentResult(
@@ -517,6 +518,9 @@ class GitHubAdapter:
     labels: tuple[str, ...] = ()
     stale_after_days: int | None = DEFAULT_STALE_AFTER_DAYS
     reopen_closed: bool = False
+    protected_branches: tuple[str, ...] = ("main", "master")
+    reviewer_allowlist: tuple[str, ...] | None = None
+    label_allowlist: tuple[str, ...] | None = None
 
     model_name = "github"
 
@@ -530,8 +534,43 @@ class GitHubAdapter:
             or self.stale_after_days < 0
         ):
             raise ValueError("stale_after_days must be a non-negative integer or None")
+        if not self._safe_ref(self.remote):
+            raise ValueError("remote contains unsupported characters")
+        if not self._safe_ref(self.base_branch):
+            raise ValueError("base_branch contains unsupported characters")
+        self.protected_branches = _branch_values(self.protected_branches)
+        if self.base_branch not in self.protected_branches:
+            self.protected_branches = (*self.protected_branches, self.base_branch)
         self.reviewers = _policy_values(self.reviewers)
         self.labels = _policy_values(self.labels)
+        reviewer_allowlist = (
+            self.reviewers
+            if self.reviewer_allowlist is None
+            else self.reviewer_allowlist
+        )
+        label_allowlist = (
+            self.labels if self.label_allowlist is None else self.label_allowlist
+        )
+        self.reviewer_allowlist = _policy_values(reviewer_allowlist)
+        self.label_allowlist = _policy_values(label_allowlist)
+        _validate_policy_values("reviewers", self.reviewers)
+        _validate_policy_values("labels", self.labels)
+        _validate_policy_values("reviewer_allowlist", self.reviewer_allowlist)
+        _validate_policy_values("label_allowlist", self.label_allowlist)
+        for kind, values, allowed in (
+            ("reviewers", self.reviewers, self.reviewer_allowlist),
+            ("labels", self.labels, self.label_allowlist),
+        ):
+            missing = [
+                value
+                for value in values
+                if value.casefold() not in {item.casefold() for item in allowed}
+            ]
+            if missing:
+                raise ValueError(
+                    f"{kind} contains values outside its configured allowlist: "
+                    + ", ".join(missing)
+                )
 
     def preflight(self) -> AgentResult:
         """Check tools, branch state, GitHub auth, and the test environment."""
@@ -754,11 +793,11 @@ class GitHubAdapter:
         if branch_result.status == "failed":
             return _attach_commands(branch_result, commands)
         branch = branch_result.feedback.strip()
-        if not branch or branch == self.base_branch:
+        if not branch or self._is_protected_branch(branch):
             return AgentResult(
                 status="failed",
                 assigned_model=self.model_name,
-                error="Refusing to push or open a PR from the base branch.",
+                error="Refusing to push a protected branch.",
                 commands=commands,
             )
 
@@ -783,11 +822,11 @@ class GitHubAdapter:
         if branch_result.status == "failed":
             return _attach_commands(branch_result, commands)
         branch = branch_result.feedback.strip()
-        if not branch or branch == self.base_branch:
+        if not branch or self._is_protected_branch(branch):
             return AgentResult(
                 status="failed",
                 assigned_model=self.model_name,
-                error="Refusing to preview a push from the base branch.",
+                error="Refusing to preview a push from a protected branch.",
                 commands=commands,
             )
 
@@ -809,11 +848,11 @@ class GitHubAdapter:
             if branch_result.status == "failed":
                 return _attach_commands(branch_result, commands)
             branch = branch_result.feedback.strip()
-        if not branch or branch == self.base_branch:
+        if not branch or self._is_protected_branch(branch):
             return AgentResult(
                 status="failed",
                 assigned_model=self.model_name,
-                error="Refusing to push or open a PR from the base branch.",
+                error="Refusing to open a PR from a protected branch.",
                 commands=commands,
             )
         if not self._safe_ref(branch):
@@ -916,11 +955,11 @@ class GitHubAdapter:
             if branch_result.status == "failed":
                 return _attach_commands(branch_result, commands)
             branch = branch_result.feedback.strip()
-        if not branch or branch == self.base_branch:
+        if not branch or self._is_protected_branch(branch):
             return AgentResult(
                 status="failed",
                 assigned_model=self.model_name,
-                error="Refusing to preview a PR from the base branch.",
+                error="Refusing to preview a PR from a protected branch.",
                 commands=commands,
             )
         if not self._safe_ref(branch):
@@ -1272,6 +1311,9 @@ class GitHubAdapter:
     def _project_directory(self) -> Path:
         return current_workspace_directory() or self.project_directory
 
+    def _is_protected_branch(self, branch: str) -> bool:
+        return branch in self.protected_branches
+
     def _normalize_file(self, file: str) -> str | None:
         if not isinstance(file, str) or not file.strip():
             return None
@@ -1414,14 +1456,16 @@ class GitHubAdapter:
         if (
             len(command) == 5
             and command[:3] == ("git", "push", "-u")
-            and self._safe_ref(command[3])
+            and command[3] == self.remote
             and self._safe_ref(command[4])
+            and not self._is_protected_branch(command[4])
         ):
             return None
         if (
             len(command) == 11
             and command[:4] == ("gh", "pr", "list", "--head")
             and self._safe_ref(command[4])
+            and not self._is_protected_branch(command[4])
             and command[5:7] == ("--state", "all")
             and command[7] == "--json"
             and command[8] in {"url", PR_JSON_FIELDS}
@@ -1432,9 +1476,10 @@ class GitHubAdapter:
         if (
             len(command) >= 11
             and command[:4] == ("gh", "pr", "create", "--base")
-            and self._safe_ref(command[4])
+            and command[4] == self.base_branch
             and command[5] == "--head"
             and self._safe_ref(command[6])
+            and not self._is_protected_branch(command[6])
             and command[7] == "--title"
             and self._safe_text(command[8])
             and command[9] == "--body"
@@ -1445,6 +1490,7 @@ class GitHubAdapter:
         if (
             len(command) >= 4
             and command[:3] == ("gh", "pr", "reopen")
+            and self.reopen_closed
             and self._safe_pr_target(command[3])
         ):
             return None
@@ -1476,9 +1522,8 @@ class GitHubAdapter:
     def _safe_text(value: str) -> bool:
         return isinstance(value, str) and "\x00" not in value
 
-    @classmethod
     def _safe_policy_arguments(
-        cls,
+        self,
         arguments: tuple[str, ...],
         *,
         create: bool,
@@ -1492,14 +1537,22 @@ class GitHubAdapter:
             flag = arguments[index]
             if flag not in allowed or index + 1 >= len(arguments):
                 if not create and flag in {"--title", "--body"}:
-                    if index + 1 >= len(arguments) or not cls._safe_text(
+                    if index + 1 >= len(arguments) or not self._safe_text(
                         arguments[index + 1]
                     ):
                         return False
                     index += 2
                     continue
                 return False
-            if not cls._safe_policy_value(arguments[index + 1]):
+            value = arguments[index + 1]
+            policy = (
+                self.label_allowlist
+                if flag.endswith("label")
+                else self.reviewer_allowlist
+            ) or ()
+            if not self._safe_policy_value(value) or value.casefold() not in {
+                item.casefold() for item in policy
+            }:
                 return False
             index += 2
         return True
@@ -1529,18 +1582,50 @@ class GitHubAdapter:
     def _github_environment(command: tuple[str, ...]) -> dict[str, str]:
         keys = {"HOME", "LANG", "LC_ALL", "PATH"}
         if command and command[0] == "gh":
-            keys.update({"GH_HOST", "GH_TOKEN", "GITHUB_TOKEN"})
+            keys.add("GH_HOST")
         environment = {
             key: value
             for key, value in os.environ.items()
             if key in keys and key in GITHUB_ENVIRONMENT_KEYS
         }
         environment["GIT_TERMINAL_PROMPT"] = "0"
+        if command and command[0] == "gh":
+            token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
+            if token:
+                environment["GH_TOKEN"] = token
+            environment["GH_PROMPT_DISABLED"] = "1"
         return environment
+
+
+def _agent_environment() -> dict[str, str]:
+    """Keep GitHub credentials out of agent and test subprocesses."""
+
+    return {
+        key: value
+        for key, value in os.environ.items()
+        if key not in AGENT_BLOCKED_ENVIRONMENT_KEYS
+    }
 
 
 def _resolve_path(path: Path) -> Path:
     return path.expanduser().resolve(strict=False)
+
+
+def _branch_values(values: object) -> tuple[str, ...]:
+    """Normalize protected branch names and reject unsafe refs early."""
+
+    if isinstance(values, str):
+        values = (values,)
+    if not isinstance(values, (list, tuple)):
+        raise ValueError("protected_branches must be sequences of strings")
+    normalized: list[str] = []
+    for value in values:
+        if not isinstance(value, str) or not GitHubAdapter._safe_ref(value.strip()):
+            raise ValueError("protected_branches must contain safe branch names")
+        value = value.strip()
+        if value not in normalized:
+            normalized.append(value)
+    return tuple(normalized)
 
 
 def _policy_values(values: object) -> tuple[str, ...]:
@@ -1558,6 +1643,11 @@ def _policy_values(values: object) -> tuple[str, ...]:
         if value and value.casefold() not in {item.casefold() for item in normalized}:
             normalized.append(value)
     return tuple(normalized)
+
+
+def _validate_policy_values(kind: str, values: tuple[str, ...]) -> None:
+    if any(not GitHubAdapter._safe_policy_value(value) for value in values):
+        raise ValueError(f"{kind} contains an unsafe reviewer or label value")
 
 
 def _pull_request_names(values: object, field: str) -> set[str]:

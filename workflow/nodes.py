@@ -119,7 +119,7 @@ def default_dependencies(
         critic=critic or default_critic,
         validator=LocalTestAdapter(project_directory),
         debugger=DebuggerAdapter(project_directory, tool=tool),
-        repository=GitHubAdapter(project_directory),
+        repository=GitHubAdapter(project_directory, base_branch=base_branch),
         workspace_manager=workspace_manager,
         lifecycle_manager=lifecycle_manager,
     )
