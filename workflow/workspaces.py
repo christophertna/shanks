@@ -20,6 +20,7 @@ _CURRENT_WORKSPACE: ContextVar[Path | None] = ContextVar(
     default=None,
 )
 _SAFE_COMPONENT = re.compile(r"[^A-Za-z0-9._-]+")
+DEFAULT_PROTECTED_BRANCHES = ("main", "master")
 
 
 class WorkspaceError(RuntimeError):
@@ -45,6 +46,7 @@ class RunWorkspaceManager:
     worktree_root: Path | None = None
     branch_prefix: str = "shanks/run"
     timeout_seconds: int = 30
+    protected_branches: tuple[str, ...] = DEFAULT_PROTECTED_BRANCHES
     _lock: threading.Lock = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
@@ -61,6 +63,22 @@ class RunWorkspaceManager:
             raise ValueError("base_branch contains unsupported characters")
         if not _safe_ref(self.branch_prefix):
             raise ValueError("branch_prefix contains unsupported characters")
+        protected_branches = (
+            (self.protected_branches,)
+            if isinstance(self.protected_branches, str)
+            else self.protected_branches
+        )
+        if not isinstance(protected_branches, (list, tuple)):
+            raise ValueError("protected_branches must be sequences of strings")
+        normalized_protected = []
+        for branch in protected_branches:
+            if not _safe_ref(branch):
+                raise ValueError("protected_branches contains unsupported characters")
+            if branch not in normalized_protected:
+                normalized_protected.append(branch)
+        if self.base_branch not in normalized_protected:
+            normalized_protected.append(self.base_branch)
+        self.protected_branches = tuple(normalized_protected)
         self._lock = threading.Lock()
 
     def ensure(self, run_id: str) -> RunWorkspace:
@@ -148,11 +166,14 @@ class RunWorkspaceManager:
         normalized_id = _normalize_component(run_id)
         if not normalized_id:
             return
-        branch = branch or f"{self.branch_prefix}/{normalized_id}"
+        expected_branch = f"{self.branch_prefix}/{normalized_id}"
+        branch = branch or expected_branch
         if not _safe_ref(branch):
             raise WorkspaceError("branch contains unsupported characters")
-        if branch == self.base_branch:
-            raise WorkspaceError("Refusing to delete the base branch.")
+        if branch in self.protected_branches:
+            raise WorkspaceError("Refusing to delete a protected branch.")
+        if branch != expected_branch:
+            raise WorkspaceError("Refusing to delete a branch outside the run scope.")
 
         target = self._safe_removal_directory(
             directory or self.worktree_root / normalized_id

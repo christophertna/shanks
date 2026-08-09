@@ -292,8 +292,6 @@ def _check_checkpoint(
 def _github_environment(environment: Mapping[str, str]) -> dict[str, str]:
     keys = {
         "GH_HOST",
-        "GH_TOKEN",
-        "GITHUB_TOKEN",
         "HOME",
         "LANG",
         "LC_ALL",
@@ -301,6 +299,10 @@ def _github_environment(environment: Mapping[str, str]) -> dict[str, str]:
     }
     result = {key: environment[key] for key in keys if key in environment}
     result["GIT_TERMINAL_PROMPT"] = "0"
+    token = environment.get("GH_TOKEN") or environment.get("GITHUB_TOKEN")
+    if token:
+        result["GH_TOKEN"] = token
+    result["GH_PROMPT_DISABLED"] = "1"
     return result
 
 

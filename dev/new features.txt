@@ -2,25 +2,21 @@ Shanks feature roadmap
 
 Priority 1 - Run safety and operator control
 
-1- Security and permission hardening.
-    Review GitHub token permissions, branch protections, reviewer and label
-    allowlists, and permission boundaries as lifecycle automation expands.
-
-2- GitHub handoff resilience.
+1- GitHub handoff resilience.
     Handle rate limits, network interruptions, process restarts, and idempotent
     recovery around pushes and pull-request reconciliation.
 
 Priority 2 - Maintenance and developer experience
 
-3- Orphan worktree and remote-branch cleanup.
+2- Orphan worktree and remote-branch cleanup.
     Add ownership checks, protected-branch safeguards, and a dry-run cleanup
     report for stale worktrees and branches.
 
-4- Supported toolchain compatibility matrix.
+3- Supported toolchain compatibility matrix.
     Document and verify supported Python, Git, and `gh` versions alongside the
     locked runtime and development dependencies.
 
-5- Real-agent integration smoke tests.
+4- Real-agent integration smoke tests.
     Exercise the Codex and Claude adapters against a small deterministic
     project so adapter drift is caught before a full workflow run.
 
@@ -31,10 +27,12 @@ Deferred
 
 Suggestions
 
-- Start with security and permission hardening so lifecycle automation expands
-  within clear token, branch, reviewer, label, and permission boundaries.
 - Make GitHub handoff recovery idempotent before adding more delivery
   automation; network failures should be safe to retry without duplicate
   commits or pull requests.
+- Keep cleanup ownership checks, protected-branch safeguards, and dry-run
+  reporting together so stale resources are never removed by guesswork.
 - Keep real-agent smoke tests opt-in or lightweight so CI remains deterministic
   while still catching changes to the Codex and Claude subprocess contracts.
+- Preserve fail-closed token, branch, reviewer, label, and subprocess policies
+  as new lifecycle capabilities are added.

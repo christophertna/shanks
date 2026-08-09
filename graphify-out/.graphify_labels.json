@@ -28,17 +28,17 @@
   "26": "Ralph Agent Instructions",
   "27": "PRDItem",
   "28": "lifecycle.py",
-  "29": "RalphAdapter",
+  "29": "contracts.py",
   "30": "current_workspace_directory",
   "31": "Ponytail",
   "32": "Ralph Agent Instructions (Codex)",
-  "33": "AgentAdapter",
+  "33": "RepositoryAdapter",
   "34": "GitHub Commits and PRs",
   "35": ".cleanup",
   "36": "GitHub Commits and PRs",
   "37": "Shanks",
   "38": "CLAUDE.md",
-  "39": ".recover_stale",
+  "39": "RalphAdapter",
   "40": "deny-dangerous.sh",
   "41": "test-guard.sh",
   "42": "AGENTS.md",
@@ -46,5 +46,6 @@
   "44": ".agents/skills/decisions/SKILL.md",
   "45": "grill-with-docs/SKILL.md",
   "46": "grilling/SKILL.md",
-  "47": "skills/decisions/SKILL.md"
+  "47": "skills/decisions/SKILL.md",
+  "48": "DebuggerAdapter"
 }

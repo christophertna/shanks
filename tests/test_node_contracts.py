@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import sys
 import unittest
@@ -118,6 +119,40 @@ class NodeContractTests(unittest.TestCase):
             adapter.run(AgentRequest(task="test task", timeout_seconds=2.5))
 
         self.assertEqual(run.call_args.kwargs["timeout"], 2.5)
+
+    def test_agent_subprocesses_do_not_receive_github_tokens(self) -> None:
+        adapter = SubprocessAgentAdapter(
+            command=(sys.executable, "-c", "print('adapter ok')"),
+            model_name="test-cli",
+        )
+        completed = subprocess.CompletedProcess(
+            args=adapter.command,
+            returncode=0,
+            stdout="ok",
+            stderr="",
+        )
+
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "GH_TOKEN": "ghp_agent_secret",
+                    "GITHUB_TOKEN": "github_pat_agent_secret",
+                    "SAFE_SETTING": "kept",
+                },
+                clear=True,
+            ),
+            patch(
+                "workflow.adapters.subprocess.run",
+                return_value=completed,
+            ) as run,
+        ):
+            adapter.run(AgentRequest(task="test task"))
+
+        environment = run.call_args.kwargs["env"]
+        self.assertNotIn("GH_TOKEN", environment)
+        self.assertNotIn("GITHUB_TOKEN", environment)
+        self.assertEqual(environment["SAFE_SETTING"], "kept")
 
     def test_subprocess_adapter_rejects_unapproved_executables(self) -> None:
         adapter = SubprocessAgentAdapter(
@@ -411,6 +446,49 @@ class NodeContractTests(unittest.TestCase):
         self.assertIn("unapproved Git or GitHub command", result.error)
         run.assert_not_called()
 
+    def test_github_adapter_enforces_branch_and_policy_boundaries(self) -> None:
+        adapter = GitHubAdapter(
+            Path("/tmp/shanks"),
+            initial_dirty_files=(),
+            reviewers=("alice",),
+            labels=("needs-review",),
+            reviewer_allowlist=("alice",),
+            label_allowlist=("needs-review",),
+        )
+
+        with patch("workflow.adapters.subprocess.run") as run:
+            protected_push = adapter._run(("git", "push", "-u", "origin", "main"))
+            unapproved_label = adapter._run(
+                (
+                    "gh",
+                    "pr",
+                    "create",
+                    "--base",
+                    "main",
+                    "--head",
+                    "feature",
+                    "--title",
+                    "title",
+                    "--body",
+                    "body",
+                    "--label",
+                    "unsafe",
+                )
+            )
+
+        self.assertEqual(protected_push.status, "failed")
+        self.assertEqual(unapproved_label.status, "failed")
+        run.assert_not_called()
+
+    def test_github_adapter_rejects_policy_values_outside_the_allowlist(self) -> None:
+        with self.assertRaisesRegex(ValueError, "outside its configured allowlist"):
+            GitHubAdapter(
+                Path("/tmp/shanks"),
+                initial_dirty_files=(),
+                reviewers=("untrusted",),
+                reviewer_allowlist=("alice",),
+            )
+
     def test_github_quality_gate_command_is_allowlisted(self) -> None:
         adapter = GitHubAdapter(Path("/tmp/shanks"), initial_dirty_files=())
 
@@ -550,6 +628,7 @@ class NodeContractTests(unittest.TestCase):
                 "os.environ",
                 {
                     "GH_TOKEN": "ghp_test_secret_123456",
+                    "GITHUB_TOKEN": "github_pat_other_secret",
                     "UNRELATED_SECRET": "do-not-pass",
                 },
                 clear=True,
@@ -567,6 +646,8 @@ class NodeContractTests(unittest.TestCase):
         self.assertEqual(git_environment["GIT_TERMINAL_PROMPT"], "0")
         self.assertNotIn("GH_TOKEN", git_environment)
         self.assertEqual(github_environment["GH_TOKEN"], "ghp_test_secret_123456")
+        self.assertNotIn("GITHUB_TOKEN", github_environment)
+        self.assertEqual(github_environment["GH_PROMPT_DISABLED"], "1")
         self.assertNotIn("UNRELATED_SECRET", github_environment)
         create_command = run.call_args_list[-1].args[0]
         self.assertNotIn("ghp_test_secret_123456", create_command[-1])
@@ -908,6 +989,12 @@ class NodeContractTests(unittest.TestCase):
         self.assertIsInstance(dependencies.validator, LocalTestAdapter)
         self.assertIsInstance(dependencies.debugger, DebuggerAdapter)
         self.assertIsInstance(dependencies.repository, GitHubAdapter)
+
+    def test_default_dependencies_share_the_configured_base_branch(self) -> None:
+        dependencies = default_dependencies(base_branch="develop")
+
+        self.assertEqual(dependencies.repository.base_branch, "develop")
+        self.assertIn("develop", dependencies.repository.protected_branches)
 
     def test_default_dependencies_allow_a_claude_workflow(self) -> None:
         dependencies = default_dependencies(tool="claude")

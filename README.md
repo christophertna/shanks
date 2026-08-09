@@ -239,6 +239,13 @@ Security guardrails keep subprocesses on approved executables and configured
 directories, resolve GitHub file paths through the project root (including
 symlinks), redact common credentials from command output and PR text, and limit
 the GitHub adapter to the required read/commit/push and PR-lifecycle commands.
+GitHub credentials are passed only to the `gh` adapter boundary; agent and test
+subprocesses do not receive `GH_TOKEN` or `GITHUB_TOKEN`, and GitHub CLI prompts
+are disabled. Shanks protects `main`, `master`, and its configured base branch
+from direct pushes or local deletion. Reviewer and label values are
+validated against their configured allowlists before a PR command can run. The
+CI test workflow requests only `contents: read`; write-capable GitHub operations
+use the operator's authenticated `gh` session after the separate approvals.
 The repo-local
 `hooks/deny-dangerous.sh` hook adds a denylist for catastrophic shell commands;
 run `hooks/test-guard.sh` to check it.
