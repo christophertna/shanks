@@ -5,8 +5,8 @@
     "semantic_hash": ""
   },
   "graph.py": {
-    "mtime": 1786124649.6530566,
-    "ast_hash": "62d80ff0699a6b4a5860cb05060eaf97",
+    "mtime": 1786243585.8739934,
+    "ast_hash": "2b493ba353650483c660169989d2ecac",
     "semantic_hash": ""
   },
   "hooks/deny-dangerous.sh": {
@@ -45,13 +45,18 @@
     "semantic_hash": ""
   },
   "tests/test_cli.py": {
-    "mtime": 1786234646.2502081,
-    "ast_hash": "d8f49d9a0323da96938d47319058bfae",
+    "mtime": 1786243755.046872,
+    "ast_hash": "2b354fc7fdff5340202fa9d77cb83406",
     "semantic_hash": ""
   },
   "tests/test_fault_injection.py": {
     "mtime": 1785983625.3107407,
     "ast_hash": "502e7e84890ccf6049ad401d9300d931",
+    "semantic_hash": ""
+  },
+  "tests/test_git_integration.py": {
+    "mtime": 1786222788.544852,
+    "ast_hash": "848042f85b64e037cfec237c15c04c39",
     "semantic_hash": ""
   },
   "tests/test_graph.py": {
@@ -100,8 +105,8 @@
     "semantic_hash": ""
   },
   "workflow/cli.py": {
-    "mtime": 1786233631.4657373,
-    "ast_hash": "54e661b1bd53b057f0baeef4e1d2542a",
+    "mtime": 1786243755.3972914,
+    "ast_hash": "d12367e97c0ec073304d45aadd64d64a",
     "semantic_hash": ""
   },
   "workflow/contracts.py": {
@@ -120,8 +125,8 @@
     "semantic_hash": ""
   },
   "workflow/lifecycle.py": {
-    "mtime": 1786140337.6355417,
-    "ast_hash": "4d719586163496a986e8543a9144f2e7",
+    "mtime": 1786243585.8797927,
+    "ast_hash": "88b11ec082c9af29adef5d2b77e352d1",
     "semantic_hash": ""
   },
   "workflow/mode.py": {
@@ -145,8 +150,8 @@
     "semantic_hash": ""
   },
   "workflow/workspaces.py": {
-    "mtime": 1786124649.6613925,
-    "ast_hash": "b5ef9ebf14c749f4313d0fc036ff4aa1",
+    "mtime": 1786243585.8800435,
+    "ast_hash": "af76c7c44d2d8aa2e7b7a08ccdf5b040",
     "semantic_hash": ""
   },
   ".agents/skills/decisions/SKILL.md": {
@@ -225,8 +230,8 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1786233819.025278,
-    "ast_hash": "95e078bbb16b2bfc19a54e236ac8c937",
+    "mtime": 1786243723.4714592,
+    "ast_hash": "c9219b2fdf6ad9fd24ae7c718d39f73f",
     "semantic_hash": ""
   },
   "graph.html": {
@@ -275,13 +280,8 @@
     "semantic_hash": ""
   },
   "tests/tests.md": {
-    "mtime": 1786222788.5462441,
-    "ast_hash": "9a8637fd9a990f62e5dcacda3d3d692a",
-    "semantic_hash": ""
-  },
-  "tests/test_git_integration.py": {
-    "mtime": 1786222788.544852,
-    "ast_hash": "848042f85b64e037cfec237c15c04c39",
+    "mtime": 1786243729.8394837,
+    "ast_hash": "682c6a460019647cd203105c6a61dafa",
     "semantic_hash": ""
   }
 }

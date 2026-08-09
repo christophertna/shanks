@@ -66,11 +66,9 @@ class RunWorkspaceManager:
     def ensure(self, run_id: str) -> RunWorkspace:
         """Create or reuse the workspace assigned to ``run_id``."""
 
-        normalized_id = _normalize_component(run_id)
-        if not normalized_id:
-            raise WorkspaceError("run_id must contain at least one safe character")
-        branch = f"{self.branch_prefix}/{normalized_id}"
-        directory = self.worktree_root / normalized_id
+        workspace = self.workspace_for(run_id)
+        branch = workspace.branch
+        directory = workspace.directory
 
         with self._lock:
             if directory.exists():
@@ -92,25 +90,53 @@ class RunWorkspaceManager:
                 )
             self._run(command, cwd=self.project_directory)
 
-        return RunWorkspace(run_id, branch, directory, self.base_branch)
+        return workspace
 
-    def remove(self, run_id: str, *, force: bool = False) -> None:
+    def workspace_for(self, run_id: str) -> RunWorkspace:
+        """Return the deterministic workspace identity for ``run_id``."""
+
+        normalized_id = _normalize_component(run_id)
+        if not normalized_id:
+            raise WorkspaceError("run_id must contain at least one safe character")
+        return RunWorkspace(
+            run_id,
+            f"{self.branch_prefix}/{normalized_id}",
+            self.worktree_root / normalized_id,
+            self.base_branch,
+        )
+
+    def remove(
+        self,
+        run_id: str,
+        *,
+        force: bool = False,
+        directory: Path | None = None,
+    ) -> None:
         """Remove a run worktree; branch deletion is intentionally separate."""
 
         normalized_id = _normalize_component(run_id)
         if not normalized_id:
             return
-        directory = self.worktree_root / normalized_id
-        if not directory.exists():
+        target = self._safe_removal_directory(
+            directory or self.worktree_root / normalized_id
+        )
+        if not target.exists():
             return
         parts = ["git", "worktree", "remove"]
         if force:
             parts.append("--force")
-        parts.append(str(directory))
+        parts.append(str(target))
         with self._lock:
             self._run(tuple(parts), cwd=self.project_directory)
 
-    def delete_branch(self, run_id: str, *, force: bool = False) -> None:
+    def delete_branch(
+        self,
+        run_id: str,
+        *,
+        force: bool = False,
+        branch: str | None = None,
+        directory: Path | None = None,
+    ) -> None:
         """Delete this run's local branch only in explicit development mode."""
 
         if not is_development_mode():
@@ -122,15 +148,19 @@ class RunWorkspaceManager:
         normalized_id = _normalize_component(run_id)
         if not normalized_id:
             return
-        branch = f"{self.branch_prefix}/{normalized_id}"
+        branch = branch or f"{self.branch_prefix}/{normalized_id}"
+        if not _safe_ref(branch):
+            raise WorkspaceError("branch contains unsupported characters")
         if branch == self.base_branch:
             raise WorkspaceError("Refusing to delete the base branch.")
 
-        directory = self.worktree_root / normalized_id
+        target = self._safe_removal_directory(
+            directory or self.worktree_root / normalized_id
+        )
         with self._lock:
-            if directory.exists():
+            if target.exists():
                 raise WorkspaceError(
-                    f"Remove worktree {directory} before deleting its branch."
+                    f"Remove worktree {target} before deleting its branch."
                 )
             if not self._branch_exists(branch):
                 return
@@ -139,6 +169,18 @@ class RunWorkspaceManager:
                 command.append("--force")
             command.append(branch)
             self._run(tuple(command), cwd=self.project_directory)
+
+    def _safe_removal_directory(self, directory: Path) -> Path:
+        target = Path(directory).expanduser().resolve()
+        try:
+            relative = target.relative_to(self.project_directory)
+        except ValueError as error:
+            raise WorkspaceError(
+                f"Refusing to remove a path outside the project: {target}"
+            ) from error
+        if not relative.parts:
+            raise WorkspaceError("Refusing to remove the project directory.")
+        return target
 
     def _validate_existing(
         self,

@@ -1,35 +1,40 @@
 Shanks feature roadmap
 
-Priority 1 - Reproducibility, configuration, and maintenance
+Priority 1 - Run safety and operator control
 
-1- Configuration diagnostics and environment validation.
-    Add a `shanks doctor` command to check the current mode, required tools,
-    dependencies, authentication, environment variables, and checkpoint setup.
-
-2- Security and permission hardening.
+1- Security and permission hardening.
     Review GitHub token permissions, branch protections, reviewer and label
     allowlists, and permission boundaries as lifecycle automation expands.
 
-3- Run management and cleanup interface.
-    Add a CLI or API to list runs, inspect status, resume or cancel runs,
-    recover stale runs, clean checkpoint history, and safely remove completed
-    run worktrees and branches.
+2- GitHub handoff resilience.
+    Handle rate limits, network interruptions, process restarts, and idempotent
+    recovery around pushes and pull-request reconciliation.
+
+Priority 2 - Maintenance and developer experience
+
+3- Orphan worktree and remote-branch cleanup.
+    Add ownership checks, protected-branch safeguards, and a dry-run cleanup
+    report for stale worktrees and branches.
+
+4- Supported toolchain compatibility matrix.
+    Document and verify supported Python, Git, and `gh` versions alongside the
+    locked runtime and development dependencies.
+
+5- Real-agent integration smoke tests.
+    Exercise the Codex and Claude adapters against a small deterministic
+    project so adapter drift is caught before a full workflow run.
 
 Deferred
 
 - Parallelism and additional agent roles. Revisit after isolation, recovery,
   and pull-request lifecycle behavior are reliable.
 
-# Suggestions
+Suggestions
 
-- GitHub handoff resilience.
-    Handle rate limits, network interruptions, process restarts, and idempotent
-    recovery around pushes and pull-request reconciliation.
-
-- Orphan worktree and remote-branch cleanup.
-    Add ownership checks, protected-branch safeguards, and a dry-run cleanup
-    report for stale worktrees and branches.
-
-- Supported toolchain compatibility matrix.
-    Document and verify supported Python, Git, and `gh` versions alongside
-    locked runtime and development dependencies.
+- Start with security and permission hardening so lifecycle automation expands
+  within clear token, branch, reviewer, label, and permission boundaries.
+- Make GitHub handoff recovery idempotent before adding more delivery
+  automation; network failures should be safe to retry without duplicate
+  commits or pull requests.
+- Keep real-agent smoke tests opt-in or lightweight so CI remains deterministic
+  while still catching changes to the Codex and Claude subprocess contracts.
