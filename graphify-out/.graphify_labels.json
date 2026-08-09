@@ -24,6 +24,7 @@
   "22": "GitHubAdapter",
   "23": "main",
   "24": "Test coverage",
+  "25": "adapters.py",
   "26": "nodes.py",
   "27": "RepositoryAdapter",
   "28": "create_nodes",
@@ -32,6 +33,7 @@
   "31": "planning",
   "32": "CheapCriticAdapter",
   "33": "_apply_failure_policy",
+  "34": "RalphAdapter",
   "35": "build_error_handler",
   "36": "DebuggerAdapter",
   "37": "AGENTS.md",
@@ -39,6 +41,11 @@
   "39": "state_update_from_result",
   "40": "_migrate_checkpoint_tuple",
   "41": "shanks",
+  "42": "lifecycle.py",
   "43": "test_fault_injection.py",
-  "46": "route_after_github"
+  "44": "migrate_state",
+  "45": "RunLifecycleManager",
+  "46": "route_after_github",
+  "47": "ValueError",
+  "48": "_migrate_checkpoint_tuple"
 }

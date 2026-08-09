@@ -1,7 +1,7 @@
 # Test coverage
 
 This document summarizes the behavior covered by the repository's tracked test
-files. The Python suite contains **127 unittest methods** across ten modules;
+files. The Python suite contains **129 unittest methods** across ten modules;
 `hooks/test-guard.sh` is a separate shell regression harness with eight command
 checks.
 
@@ -27,7 +27,7 @@ Run the repository quality gates from a feature branch with:
 
 | File | Tests | Main areas |
 | --- | ---: | --- |
-| [`test_cli.py`](test_cli.py) | 4 | Execution-mode reporting, including dry-run preview mode |
+| [`test_cli.py`](test_cli.py) | 6 | Execution-mode reporting and doctor diagnostics for environment health |
 | [`test_graph.py`](test_graph.py) | 39 | Workflow orchestration, item metadata, targeted retries, budgets, approvals, dry-run previews, and GitHub handoff |
 | [`test_node_contracts.py`](test_node_contracts.py) | 42 | Agent, failure-classification, subprocess, Ralph, local-test, critic, quality-gate, and GitHub adapter contracts |
 | [`test_state_schema.py`](test_state_schema.py) | 9 | State migration, retry metadata, versioned checkpoints, and legacy resume behavior |
@@ -38,6 +38,11 @@ Run the repository quality gates from a feature branch with:
 | [`test_fault_injection.py`](test_fault_injection.py) | 7 | Injected Git, GitHub, validation, checkpoint, and agent process failures |
 | [`test_git_integration.py`](test_git_integration.py) | 2 | Real temporary Git repositories, worktrees, commits, pushes, PR creation/reuse, and fake-`gh` recovery |
 | [`../hooks/test-guard.sh`](../hooks/test-guard.sh) | 8 shell checks | Dangerous-command blocking and safe-command allowlisting |
+
+### CLI diagnostics
+
+- `test_cli.py` verifies healthy doctor output and non-zero results for invalid
+  mode, lease, retention, and checkpoint configuration.
 
 ## Workflow orchestration
 
