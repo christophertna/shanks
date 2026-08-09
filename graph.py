@@ -242,18 +242,23 @@ class VersionedSqliteSaver(SqliteSaver):
 
     def _checkpoint_groups(self, thread_id: str | None) -> list[tuple[str, str]]:
         with self.cursor(transaction=False) as cursor:
-            if thread_id is None:
-                cursor.execute(
-                    "SELECT DISTINCT thread_id, checkpoint_ns FROM checkpoints"
-                )
-            else:
-                cursor.execute(
-                    """
-                    SELECT DISTINCT thread_id, checkpoint_ns FROM checkpoints
-                    WHERE thread_id = ?
-                    """,
-                    (thread_id,),
-                )
+            try:
+                if thread_id is None:
+                    cursor.execute(
+                        "SELECT DISTINCT thread_id, checkpoint_ns FROM checkpoints"
+                    )
+                else:
+                    cursor.execute(
+                        """
+                        SELECT DISTINCT thread_id, checkpoint_ns FROM checkpoints
+                        WHERE thread_id = ?
+                        """,
+                        (thread_id,),
+                    )
+            except sqlite3.OperationalError as error:
+                if "no such table: checkpoints" not in str(error):
+                    raise
+                return []
             return [(str(row[0]), str(row[1])) for row in cursor.fetchall()]
 
 

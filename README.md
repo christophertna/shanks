@@ -64,6 +64,10 @@ Then open `http://127.0.0.1:8765/graph.html`.
 - `python3.11 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt -r requirements-dev.txt` — create a fresh environment with locked dependencies.
 - `./shanks --mode` / `./shanks -mode` / `./shanks mode` — show the current mode.
 - `./shanks doctor` — check tools, pinned dependencies, GitHub authentication, environment variables, and SQLite checkpoint setup.
+- `./shanks runs list|status RUN_ID|resume RUN_ID RESPONSE|cancel RUN_ID` — manage checkpointed runs.
+- `./shanks runs recover` — mark expired leases as abandoned.
+- `./shanks runs cleanup --keep-latest COUNT` — prune terminal checkpoint history; add `--delete-records --max-age SECONDS` to prune old lifecycle records too.
+- `SHANKS_MODE=development ./shanks runs remove RUN_ID --delete-branch` — remove a completed run worktree and its local branch (use `--force` for unmerged or failed/cancelled runs).
 - `SHANKS_MODE=dry-run ./shanks --mode` — inspect the delivery-preview mode.
 - `.venv/bin/python -m pip install -r requirements-dev.txt` — install development dependencies.
 - `.venv/bin/python -m unittest discover -s tests` — run all tests.
@@ -105,6 +109,16 @@ duration is configurable with `SHANKS_RUN_LEASE_SECONDS`. Terminal checkpoints
 release their lease and use the configured retention limit (default 100); call
 `VersionedSqliteSaver.cleanup(...)` for explicit count/age-based cleanup, or set
 `SHANKS_CHECKPOINT_RETENTION` for the automatic limit.
+
+The `runs` CLI exposes the same lifecycle controls to operators. `list` and
+`status` report persisted lifecycle and latest-checkpoint details; `resume`
+passes an interrupt response such as `implement`, `learn`, `approve`, or
+`reject`; `cancel` writes a safe-boundary cancellation request and lets a live
+owner finish it; `recover` marks expired leases abandoned. Cleanup is
+terminal-only by default. Worktree removal requires a finished terminal run,
+rejects active leases, verifies the persisted path and branch against the
+configured run workspace, and requires `SHANKS_MODE=development` plus
+`--delete-branch` before deleting a local branch.
 
 Agent failures are classified as `transient`, `validation`, `guardrail`,
 `budget`, `cancelled`, or `permanent`. Safe agent and validation nodes retry only

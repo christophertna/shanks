@@ -22,6 +22,9 @@ TERMINAL_RUN_STATUSES = frozenset(
         "approval_denied",
     }
 )
+TERMINAL_LIFECYCLE_STATUSES = frozenset(
+    {"complete", "failed", "cancelled", "abandoned"}
+)
 
 
 class RunBusyError(RuntimeError):
@@ -309,6 +312,18 @@ class RunLifecycleManager:
             ).fetchone()
         return _record(row) if row else None
 
+    def is_active(self, run_id: str, *, now: float | None = None) -> bool:
+        """Return whether a live lease currently protects ``run_id``."""
+
+        now = time.time() if now is None else now
+        with self._lock:
+            self._setup()
+            row = self.conn.execute(
+                "SELECT expires_at FROM run_leases WHERE run_id = ?",
+                (run_id,),
+            ).fetchone()
+        return bool(row and float(row[0]) > now)
+
     def list_runs(self, *, now: float | None = None) -> list[RunRecord]:
         """Return lifecycle records, marking expired active runs first."""
 
@@ -321,7 +336,13 @@ class RunLifecycleManager:
                 """).fetchall()
         return [_record(row) for row in rows]
 
-    def cleanup(self, *, max_age_seconds: float, now: float | None = None) -> int:
+    def cleanup(
+        self,
+        *,
+        max_age_seconds: float,
+        run_id: str | None = None,
+        now: float | None = None,
+    ) -> int:
         """Delete old terminal or abandoned lifecycle records and leases."""
 
         if max_age_seconds < 0:
@@ -330,15 +351,17 @@ class RunLifecycleManager:
         self.recover_stale(now=now)
         cutoff = now - max_age_seconds
         with self._lock:
-            rows = self.conn.execute(
-                """
+            query = """
                 SELECT run_id FROM run_records
                 WHERE updated_at < ? AND status IN (
                     'complete', 'failed', 'cancelled', 'abandoned'
                 )
-                """,
-                (cutoff,),
-            ).fetchall()
+            """
+            params: tuple[object, ...] = (cutoff,)
+            if run_id is not None:
+                query += " AND run_id = ?"
+                params += (run_id,)
+            rows = self.conn.execute(query, params).fetchall()
             for (run_id,) in rows:
                 self.conn.execute("DELETE FROM run_leases WHERE run_id = ?", (run_id,))
                 self.conn.execute("DELETE FROM run_records WHERE run_id = ?", (run_id,))
@@ -439,5 +462,6 @@ __all__ = [
     "RunLease",
     "RunLifecycleManager",
     "RunRecord",
+    "TERMINAL_LIFECYCLE_STATUSES",
     "TERMINAL_RUN_STATUSES",
 ]
