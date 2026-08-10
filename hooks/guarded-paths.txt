@@ -1,0 +1,25 @@
+# Basename regex patterns blocked by guard-dependency-files.sh (ERE, matched
+# against the file's basename only). One pattern per line, # for comments.
+
+# Lockfiles
+^package-lock\.json$
+^npm-shrinkwrap\.json$
+^yarn\.lock$
+^pnpm-lock\.yaml$
+^bun\.lockb?$
+^Pipfile\.lock$
+^poetry\.lock$
+^uv\.lock$
+^Cargo\.lock$
+^Gemfile\.lock$
+^composer\.lock$
+^go\.sum$
+^mix\.lock$
+^packages\.lock\.json$
+
+# Pinned dependency manifests (this repo pins runtime/dev deps exactly)
+^requirements.*\.txt$
+
+# Secrets / environment files (see guard-dependency-files.sh for template exceptions)
+^\.env$
+^\.env\.[^.]+$

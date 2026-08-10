@@ -64,8 +64,9 @@ Examples:
 
 ## Post-open merge monitoring
 
-- After opening the pull request, ask the user whether to merge it now or wait
-  for more changes to land on the branch first.
+- After opening the pull request, use AskUserQuestion to ask whether to merge
+  it now or wait for more changes to land on the branch first — don't ask in
+  prose; it costs the user a typed reply instead of a click.
 - If they choose to wait, stop here — do not poll for merge status.
 - If they choose to merge now, poll the PR's status (e.g. `gh pr view
   <number> --json state,mergeStateStatus,mergeable`) every ~15 seconds for up
@@ -84,8 +85,8 @@ Examples:
 - Keep commit, push, and pull-request creation as separate operations.
 - Stop and report if any operation fails.
 - Push the feature branch with `git push -u origin <branch>`; do not push to `main` unless explicitly requested.
-- After a push, do not open the pull request automatically. Ask the user
-  whether to open it now or wait for more items to land on the branch first,
-  and only proceed once they answer.
+- After a push, do not open the pull request automatically. Use
+  AskUserQuestion to ask whether to open it now or wait for more items to
+  land on the branch first, and only proceed once they answer.
 - Pass the commit or PR title separately from the description when using GitHub CLI or an API.
 - Before opening the PR, state the exact title, description, and test command for auditability.

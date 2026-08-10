@@ -15,10 +15,11 @@ Priority 2 - Maintenance and developer experience
     Contents and Pull requests, read and write, for a fine-grained PAT) so
     setup failures surface as a doc reference instead of a live 403 diagnosis.
 
-Deferred
-
-- Parallelism and additional agent roles. Revisit after isolation, recovery,
-  and pull-request lifecycle behavior are reliable.
+4- Scoped test-impact hook.
+    Add a `PostToolUse` hook on `Write|Edit` that runs just the test module
+    matching the touched file (e.g. `workflow/workspaces.py` ->
+    `tests.test_workspaces`) so regressions surface on every edit without
+    paying for a full suite run each time.
 
 Suggestions
 
@@ -28,3 +29,29 @@ Suggestions
   as new lifecycle capabilities are added.
 - Document required token permissions alongside the toolchain compatibility
   matrix so authentication setup is verified once, not diagnosed per failure.
+- Add a secret-scanning hook (e.g. gitleaks or detect-secrets, not a
+  hand-rolled regex) to catch hardcoded API keys, JWT tokens, or private URLs
+  before they reach the source tree. A `PreToolUse` hook on `Write|Edit` is
+  needed to actually prevent it (`PostToolUse` only catches it after the file
+  is already written); a `gitleaks` pre-commit hook would also cover secrets
+  introduced outside Claude Code's own tool calls.
+- Add a `UserPromptSubmit` hook that injects fresh state before Claude reads
+  the prompt: current branch, recent commits, open PR status, and whether
+  `.venv/bin/python -m unittest discover -s tests` currently passes, so a run
+  never starts blind on a broken build.
+- Add a `PostToolUse` hook that runs Black/Ruff (and mypy) on the exact file
+  Claude just touched and feeds failures back immediately, instead of only
+  catching them later at `scripts/quality_gates.py --diff-base origin/main`.
+- For Ralph/graph runs (not Claude Code sessions), inject into the next agent
+  prompt only state the graph doesn't already track through `WorkflowState` —
+  worktree drift from outside the run, or upstream `main` moving since the run
+  started — as a preflight check inside `workflow/nodes.py`, not a generic
+  hook, so it stays versioned and available to every downstream node.
+- Map changed files to their test module by naming convention (e.g.
+  `workflow/foo.py` -> `tests/test_foo.py`) and skip the run when there's no
+  direct match, rather than guessing broadly at what to test.
+
+Deferred
+
+- Parallelism and additional agent roles. Revisit after isolation, recovery,
+  and pull-request lifecycle behavior are reliable.

@@ -45,7 +45,7 @@
     "semantic_hash": ""
   },
   "tests/test_cli.py": {
-    "mtime": 1786334235.2121758,
+    "mtime": 1786334744.3211987,
     "ast_hash": "57984e2cbd9649286621f7e0221bc56a",
     "semantic_hash": ""
   },
@@ -90,7 +90,7 @@
     "semantic_hash": ""
   },
   "tests/test_workspaces.py": {
-    "mtime": 1786334235.212536,
+    "mtime": 1786334744.3216226,
     "ast_hash": "220d76f2393e2cb519c2cfe020af5eda",
     "semantic_hash": ""
   },
@@ -105,7 +105,7 @@
     "semantic_hash": ""
   },
   "workflow/cli.py": {
-    "mtime": 1786334235.2128878,
+    "mtime": 1786334744.3228092,
     "ast_hash": "87d48684dff87a5ca6f99b4f932b559e",
     "semantic_hash": ""
   },
@@ -150,7 +150,7 @@
     "semantic_hash": ""
   },
   "workflow/workspaces.py": {
-    "mtime": 1786334235.213173,
+    "mtime": 1786334744.323148,
     "ast_hash": "4a24f9d1d7647e0fedba2f3b51e1d507",
     "semantic_hash": ""
   },
@@ -185,8 +185,8 @@
     "semantic_hash": ""
   },
   ".agents/skills/github-commit-pr/SKILL.md": {
-    "mtime": 1786334235.2105658,
-    "ast_hash": "a8156a63ab7586ab16cbf3110bad2b4d",
+    "mtime": 1786334830.9220579,
+    "ast_hash": "eb2b6178270e96ad5e986f6b96bbf45b",
     "semantic_hash": ""
   },
   ".agents/skills/grill-with-docs/SKILL.md": {
@@ -225,13 +225,13 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1786334235.2108183,
+    "mtime": 1786334744.3078222,
     "ast_hash": "1e494cf3d822a069b2ba1acea4d151ad",
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1786334235.2110875,
-    "ast_hash": "d90a4987e004acfa5fee25ba8623182c",
+    "mtime": 1786376037.1621017,
+    "ast_hash": "a499c2f832fdf8e1074bbf48e27e72a4",
     "semantic_hash": ""
   },
   "graph.html": {
@@ -275,13 +275,28 @@
     "semantic_hash": ""
   },
   "skills/github-commit-pr/SKILL.md": {
-    "mtime": 1786334235.21176,
-    "ast_hash": "a8156a63ab7586ab16cbf3110bad2b4d",
+    "mtime": 1786334822.4546857,
+    "ast_hash": "eb2b6178270e96ad5e986f6b96bbf45b",
     "semantic_hash": ""
   },
   "tests/tests.md": {
-    "mtime": 1786334269.695358,
+    "mtime": 1786334744.322308,
     "ast_hash": "4dd46e7b295732ef1c0c6eb4220379ef",
+    "semantic_hash": ""
+  },
+  "hooks/graphify-update.sh": {
+    "mtime": 1786374088.4244614,
+    "ast_hash": "ca55b1e838d9e2312e80b9ae2841ab2e",
+    "semantic_hash": ""
+  },
+  "hooks/guard-dependency-files.sh": {
+    "mtime": 1786373990.5816214,
+    "ast_hash": "262926d47e0774e94deea13778364f9e",
+    "semantic_hash": ""
+  },
+  "hooks/guarded-paths.txt": {
+    "mtime": 1786373952.5689359,
+    "ast_hash": "6ed789c4c14ad51041aac33ebc1c5448",
     "semantic_hash": ""
   }
 }
