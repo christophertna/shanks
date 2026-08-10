@@ -124,8 +124,12 @@ Agent failures are classified as `transient`, `validation`, `guardrail`,
 `budget`, `cancelled`, or `permanent`. Safe agent and validation nodes retry only
 `transient` failures with bounded exponential backoff (0.5, 1, 2 seconds, capped
 at 8 seconds), recording per-node retry counts in the checkpoint and run manifest.
-Validation failures still go to the debugger; commit, push, and pull-request
-operations are never automatically retried because they have side effects.
+Validation failures still go to the debugger. The branch push and pull-request
+handoff also retry `transient` failures (network interruptions, GitHub rate
+limits) the same way: a re-pushed branch is a no-op once the remote already has
+the commits, and a re-run pull-request handoff looks up and reconciles an
+already-created PR instead of opening a duplicate. Commit creation is not
+retried automatically because a partial commit failure needs operator review.
 
 Runs have persisted safety budgets: one hour of wall time, three build attempts
 per item, twenty total build attempts, and an estimated 100,000-token ceiling by

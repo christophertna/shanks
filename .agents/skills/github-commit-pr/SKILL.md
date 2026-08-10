@@ -14,6 +14,9 @@ affected Markdown documentation before reporting completion.
 - Update `tests/tests.md` when test coverage, commands, or expectations change.
 - Update relevant `explained.md` or `dev/*.md` files for architecture, workflow,
   or developer context.
+- Update the priority listing in `dev/new features.txt` (the roadmap) when a
+  change completes a listed item: remove the completed item, renumber the
+  remaining items, and drop any related bullet in its Suggestions section.
 - Keep documentation changes focused: update only files whose content is
   affected.
 

@@ -510,6 +510,8 @@ _RETRYABLE_NODES = frozenset(
         "critic_auditor",
         "validation",
         "debugger",
+        "github_node",
+        "pull_request_node",
     }
 )
 
@@ -1074,9 +1076,7 @@ def github_node(
         result = repository.push_branch()
     update = state_update_from_result(result)
     update.update(_audit_result(state, "github_node", result))
-    if result.failure_class:
-        update["failure_node"] = "github_node"
-    return update
+    return _apply_failure_policy(state, "github_node", result, update)
 
 
 def pull_request_node(
@@ -1139,9 +1139,7 @@ def pull_request_node(
         result = repository.open_pull_request(task, branch=branch)
     update = state_update_from_result(result)
     update.update(_audit_result(state, "pull_request_node", result))
-    if result.failure_class:
-        update["failure_node"] = "pull_request_node"
-    return update
+    return _apply_failure_policy(state, "pull_request_node", result, update)
 
 
 def attempt_limit(state: WorkflowState) -> WorkflowState:
@@ -1401,6 +1399,8 @@ def route_after_retry_backoff(
     "critic_auditor",
     "validation",
     "debugger",
+    "github_node",
+    "pull_request_node",
     "failed_run",
     "stop_run",
 ]:
@@ -1409,15 +1409,7 @@ def route_after_retry_backoff(
     if _run_stopped(state):
         return "stop_run"
     target = state.get("retry_target")
-    if target in {
-        "preflight",
-        "learning",
-        "planning",
-        "building",
-        "critic_auditor",
-        "validation",
-        "debugger",
-    }:
+    if target in _RETRYABLE_NODES:
         return target
     return "failed_run"
 
@@ -1449,14 +1441,26 @@ def route_after_item_router(
 
 def route_after_github(
     state: WorkflowState,
-) -> Literal["pull_request_node", "__end__"]:
+) -> Literal["pull_request_node", "retry_backoff", "__end__"]:
     """Route a successful push to its separately approved PR handoff."""
 
+    if state.get("status") == "retry_scheduled":
+        return "retry_backoff"
     return (
         "pull_request_node"
         if state.get("status") in {"branch_pushed", "branch_push_preview"}
         else "__end__"
     )
+
+
+def route_after_pull_request(
+    state: WorkflowState,
+) -> Literal["retry_backoff", "__end__"]:
+    """Retry a transient pull-request failure instead of ending the run."""
+
+    if state.get("status") == "retry_scheduled":
+        return "retry_backoff"
+    return "__end__"
 
 
 def _debugger_details(
@@ -1743,6 +1747,7 @@ __all__ = [
     "route_after_critic",
     "route_after_debugger",
     "route_after_github",
+    "route_after_pull_request",
     "stop_run",
     "route_after_item_router",
     "route_after_retry_backoff",
