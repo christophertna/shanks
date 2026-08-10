@@ -422,6 +422,37 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Force worktree or unmerged-branch removal.",
     )
     _add_action_options(remove)
+
+    prune = actions.add_parser(
+        "prune",
+        help="Report, and optionally remove, orphaned run worktrees and branches.",
+    )
+    prune.add_argument(
+        "--apply",
+        action="store_true",
+        help="Remove orphans instead of only reporting them.",
+    )
+    prune.add_argument(
+        "--delete-branches",
+        action="store_true",
+        help="Also remove orphaned local branches; requires development mode.",
+    )
+    prune.add_argument(
+        "--include-remote",
+        action="store_true",
+        help="Also scan and remove orphaned branches on the remote.",
+    )
+    prune.add_argument(
+        "--remote",
+        default="origin",
+        help="Remote name to scan for orphaned branches.",
+    )
+    prune.add_argument(
+        "--force",
+        action="store_true",
+        help="Force worktree or unmerged-branch removal.",
+    )
+    _add_action_options(prune)
     return parser
 
 
@@ -485,6 +516,8 @@ def _run_command(args: argparse.Namespace) -> int:
         return _cleanup(args, json_output)
     if command == "remove":
         return _remove(args, json_output)
+    if command == "prune":
+        return _prune(args, json_output)
     raise CliError(f"unknown runs command: {command}")
 
 
@@ -809,6 +842,122 @@ def _remove(args: argparse.Namespace, json_output: bool) -> int:
         if args.delete_branch:
             print(f"Deleted local branch: {branch}")
     return 0
+
+
+def _prune(args: argparse.Namespace, json_output: bool) -> int:
+    if args.apply and args.delete_branches and not is_development_mode():
+        raise CliError("--delete-branches requires SHANKS_MODE=development")
+    if args.apply and args.include_remote and not is_development_mode():
+        raise CliError("--include-remote --apply requires SHANKS_MODE=development")
+
+    with _open_checkpointer(args) as checkpointer:
+        lifecycle = checkpointer.lifecycle_manager
+        live_ids = {
+            record.run_id
+            for record in lifecycle.list_runs()
+            if record.status not in TERMINAL_LIFECYCLE_STATUSES
+            or lifecycle.is_active(record.run_id)
+        }
+        workspace_manager = RunWorkspaceManager(
+            _project_directory(args),
+            base_branch=args.base_branch,
+            worktree_root=args.worktree_root,
+        )
+        # Ownership check: only ids belonging to a run this project still
+        # considers live are protected from removal.
+        live_run_ids = {
+            workspace_manager.workspace_for(run_id).directory.name
+            for run_id in live_ids
+        }
+
+        worktrees = _prune_targets(workspace_manager.list_worktrees(), live_run_ids)
+        branches = _prune_targets(workspace_manager.list_branches(), live_run_ids)
+        remote_branches = (
+            _prune_targets(
+                workspace_manager.list_remote_branches(args.remote), live_run_ids
+            )
+            if args.include_remote
+            else []
+        )
+
+        if args.apply:
+            for target in worktrees:
+                if target["orphan"]:
+                    target["action"] = _apply(
+                        lambda t=target: workspace_manager.remove(
+                            t["id"], force=args.force
+                        )
+                    )
+            if args.delete_branches:
+                for target in branches:
+                    if target["orphan"]:
+                        target["action"] = _apply(
+                            lambda t=target: workspace_manager.delete_branch(
+                                t["id"], force=args.force
+                            )
+                        )
+            if args.include_remote:
+                for target in remote_branches:
+                    if target["orphan"]:
+                        target["action"] = _apply(
+                            lambda t=target: workspace_manager.delete_remote_branch(
+                                t["id"], remote=args.remote
+                            )
+                        )
+
+    payload = {
+        "applied": bool(args.apply),
+        "worktrees": worktrees,
+        "branches": branches,
+        "remote_branches": remote_branches,
+    }
+    if json_output:
+        _print_json(payload)
+    else:
+        _print_prune_report(payload)
+    return 0
+
+
+def _prune_targets(ids: Sequence[str], live_run_ids: set[str]) -> list[dict[str, Any]]:
+    targets = []
+    for identifier in ids:
+        orphan = identifier not in live_run_ids
+        targets.append(
+            {
+                "id": identifier,
+                "orphan": orphan,
+                "action": "orphan" if orphan else "skipped: active run",
+            }
+        )
+    return targets
+
+
+def _apply(action: Callable[[], None]) -> str:
+    try:
+        action()
+        return "removed"
+    except WorkspaceError as error:
+        return f"error: {error}"
+
+
+def _print_prune_report(payload: dict[str, Any]) -> None:
+    mode = "apply" if payload["applied"] else "dry-run"
+    print(f"Prune report ({mode}):")
+    sections = (
+        ("Worktrees", payload["worktrees"]),
+        ("Local branches", payload["branches"]),
+        ("Remote branches", payload["remote_branches"]),
+    )
+    reported = False
+    for label, targets in sections:
+        if not targets:
+            continue
+        reported = True
+        print(f"{label}:")
+        for target in targets:
+            print(f"  {target['id']}: {target['action']}")
+    if not reported:
+        print("Nothing to report.")
 
 
 def _tool_for_values(values: dict[str, Any]) -> str:
