@@ -11,6 +11,7 @@ from unittest.mock import patch
 from graph import VersionedSqliteSaver
 from workflow.cli import main
 from workflow.lifecycle import RunLifecycleManager
+from workflow.workspaces import RunWorkspaceManager
 
 
 class ShanksCliTests(unittest.TestCase):
@@ -308,6 +309,82 @@ class ShanksCliTests(unittest.TestCase):
                 )
 
             self.assertEqual(json.loads(output.getvalue())["runs_marked_abandoned"], 1)
+
+    def test_prune_reports_and_removes_orphan_worktrees_and_branches(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "project"
+            root.mkdir()
+            self._git(root, "init", "-b", "main")
+            self._git(root, "config", "user.email", "tests@example.com")
+            self._git(root, "config", "user.name", "Tests")
+            (root / "README.md").write_text("initial\n", encoding="utf-8")
+            self._git(root, "add", "README.md")
+            self._git(root, "commit", "-m", "initial")
+
+            database = Path(directory) / "checkpoints.sqlite"
+            self._seed_run(database, "live-run", status="running")
+            self._seed_run(database, "done-run", status="complete")
+
+            manager = RunWorkspaceManager(root)
+            manager.ensure("live-run")
+            manager.ensure("done-run")
+
+            output = io.StringIO()
+            with redirect_stdout(output):
+                self.assertEqual(
+                    main(
+                        [
+                            "runs",
+                            "prune",
+                            "--json",
+                            "--checkpoint-db",
+                            str(database),
+                            "--project-dir",
+                            str(root),
+                        ]
+                    ),
+                    0,
+                )
+            report = json.loads(output.getvalue())
+            self.assertFalse(report["applied"])
+            worktrees = {item["id"]: item["orphan"] for item in report["worktrees"]}
+            self.assertEqual(worktrees, {"live-run": False, "done-run": True})
+            self.assertTrue((root / ".shanks" / "worktrees" / "done-run").exists())
+
+            output = io.StringIO()
+            with redirect_stdout(output):
+                self.assertEqual(
+                    main(
+                        [
+                            "runs",
+                            "prune",
+                            "--apply",
+                            "--json",
+                            "--checkpoint-db",
+                            str(database),
+                            "--project-dir",
+                            str(root),
+                        ]
+                    ),
+                    0,
+                )
+            report = json.loads(output.getvalue())
+            actions = {item["id"]: item["action"] for item in report["worktrees"]}
+            self.assertEqual(actions["done-run"], "removed")
+            self.assertEqual(actions["live-run"], "skipped: active run")
+            self.assertFalse((root / ".shanks" / "worktrees" / "done-run").exists())
+            self.assertTrue((root / ".shanks" / "worktrees" / "live-run").exists())
+
+    @staticmethod
+    def _git(directory: Path, *args: str) -> str:
+        result = subprocess.run(
+            ("git", *args),
+            cwd=directory,
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+        return result.stdout.strip()
 
     def test_remove_rejects_non_terminal_runs(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

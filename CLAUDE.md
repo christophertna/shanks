@@ -23,6 +23,12 @@ assembles the graph; `serve_graph.py` serves a live Mermaid viewer at
 - Tests: `.venv/bin/python -m unittest discover -s tests` (use the checked-in
   venv's interpreter, not system `python`)
 - Viewer: `.venv/bin/python serve_graph.py`
+- Diagnose the local setup: `./shanks doctor` — checks mode, required tools,
+  pinned dependencies, GitHub CLI auth, `SHANKS_*` settings, and SQLite
+  checkpoint setup; exits non-zero on failure.
+- Manage runs: `./shanks runs list|status RUN_ID|resume RUN_ID|cancel RUN_ID|
+  recover|cleanup|remove RUN_ID|prune` — see `dev/commands.md` for the full
+  option reference.
 - No linter/formatter is configured in this repo.
 
 ## Gotchas

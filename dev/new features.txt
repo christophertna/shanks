@@ -2,17 +2,18 @@ Shanks feature roadmap
 
 Priority 2 - Maintenance and developer experience
 
-1- Orphan worktree and remote-branch cleanup.
-    Add ownership checks, protected-branch safeguards, and a dry-run cleanup
-    report for stale worktrees and branches.
-
-2- Supported toolchain compatibility matrix.
+1- Supported toolchain compatibility matrix.
     Document and verify supported Python, Git, and `gh` versions alongside the
     locked runtime and development dependencies.
 
-3- Real-agent integration smoke tests.
+2- Real-agent integration smoke tests.
     Exercise the Codex and Claude adapters against a small deterministic
     project so adapter drift is caught before a full workflow run.
+
+3- GitHub token permission documentation.
+    Document the exact token permissions the GitHub handoff needs (at least
+    Contents and Pull requests, read and write, for a fine-grained PAT) so
+    setup failures surface as a doc reference instead of a live 403 diagnosis.
 
 Deferred
 
@@ -21,9 +22,9 @@ Deferred
 
 Suggestions
 
-- Keep cleanup ownership checks, protected-branch safeguards, and dry-run
-  reporting together so stale resources are never removed by guesswork.
 - Keep real-agent smoke tests opt-in or lightweight so CI remains deterministic
   while still catching changes to the Codex and Claude subprocess contracts.
 - Preserve fail-closed token, branch, reviewer, label, and subprocess policies
   as new lifecycle capabilities are added.
+- Document required token permissions alongside the toolchain compatibility
+  matrix so authentication setup is verified once, not diagnosed per failure.

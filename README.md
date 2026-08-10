@@ -68,6 +68,7 @@ Then open `http://127.0.0.1:8765/graph.html`.
 - `./shanks runs recover` — mark expired leases as abandoned.
 - `./shanks runs cleanup --keep-latest COUNT` — prune terminal checkpoint history; add `--delete-records --max-age SECONDS` to prune old lifecycle records too.
 - `SHANKS_MODE=development ./shanks runs remove RUN_ID --delete-branch` — remove a completed run worktree and its local branch (use `--force` for unmerged or failed/cancelled runs).
+- `./shanks runs prune` / `./shanks runs prune --apply` — report, then optionally remove, orphaned run worktrees and branches; add `--delete-branches --include-remote` (requires `SHANKS_MODE=development`) to also clean up branches.
 - `SHANKS_MODE=dry-run ./shanks --mode` — inspect the delivery-preview mode.
 - `.venv/bin/python -m pip install -r requirements-dev.txt` — install development dependencies.
 - `.venv/bin/python -m unittest discover -s tests` — run all tests.

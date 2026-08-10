@@ -1,7 +1,7 @@
 # Test coverage
 
 This document summarizes the behavior covered by the repository's tracked test
-files. The Python suite contains **135 unittest methods** across ten modules;
+files. The Python suite contains **140 unittest methods** across ten modules;
 `hooks/test-guard.sh` is a separate shell regression harness with eight command
 checks.
 
@@ -27,12 +27,12 @@ Run the repository quality gates from a feature branch with:
 
 | File | Tests | Main areas |
 | --- | ---: | --- |
-| [`test_cli.py`](test_cli.py) | 12 | Execution-mode reporting, doctor diagnostics, and run listing, status, resume, cancellation, recovery, cleanup, and safety checks |
+| [`test_cli.py`](test_cli.py) | 13 | Execution-mode reporting, doctor diagnostics, and run listing, status, resume, cancellation, recovery, cleanup, pruning, and safety checks |
 | [`test_graph.py`](test_graph.py) | 39 | Workflow orchestration, item metadata, targeted retries, budgets, approvals, dry-run previews, and GitHub handoff |
 | [`test_node_contracts.py`](test_node_contracts.py) | 42 | Agent, failure-classification, subprocess, Ralph, local-test, critic, quality-gate, and GitHub adapter contracts |
 | [`test_state_schema.py`](test_state_schema.py) | 9 | State migration, retry metadata, versioned checkpoints, and legacy resume behavior |
 | [`test_lifecycle.py`](test_lifecycle.py) | 5 | Run leases, stale recovery, interruption/resume, terminal release, and checkpoint cleanup |
-| [`test_workspaces.py`](test_workspaces.py) | 5 | Run identity, Git worktree creation/reuse, workspace context, and workspace state migration |
+| [`test_workspaces.py`](test_workspaces.py) | 9 | Run identity, Git worktree creation/reuse, local/remote branch listing and deletion, workspace context, and workspace state migration |
 | [`test_viewer.py`](test_viewer.py) | 5 | Viewer HTML, execution-state data, checkpoint sharing, and Mermaid output |
 | [`test_quality_gates.py`](test_quality_gates.py) | 9 | Quality command definitions, safe diff refs, numstat parsing, generated-output handling, diff limits, and gate failure reporting |
 | [`test_fault_injection.py`](test_fault_injection.py) | 7 | Injected Git, GitHub, validation, checkpoint, and agent process failures |
@@ -47,7 +47,11 @@ Run the repository quality gates from a feature branch with:
 ### Run management
 
 - `test_cli.py` verifies run listing, checkpoint status, resume and cancellation
-  requests, stale-lease recovery, checkpoint cleanup, and safe removal guards.
+  requests, stale-lease recovery, checkpoint cleanup, safe removal guards, and
+  the `runs prune` dry-run report and orphan worktree/branch removal.
+- `test_workspaces.py` verifies local and remote run-branch listing and the
+  development-mode, protected-branch, and run-scope guards on remote branch
+  deletion.
 
 ## Workflow orchestration
 

@@ -162,19 +162,11 @@ class RunWorkspaceManager:
                 "I don't have permission to delete branches because Shanks is "
                 "not in development mode; set SHANKS_MODE=development."
             )
+        branch = self._scoped_branch(run_id, branch)
+        if branch is None:
+            return
 
         normalized_id = _normalize_component(run_id)
-        if not normalized_id:
-            return
-        expected_branch = f"{self.branch_prefix}/{normalized_id}"
-        branch = branch or expected_branch
-        if not _safe_ref(branch):
-            raise WorkspaceError("branch contains unsupported characters")
-        if branch in self.protected_branches:
-            raise WorkspaceError("Refusing to delete a protected branch.")
-        if branch != expected_branch:
-            raise WorkspaceError("Refusing to delete a branch outside the run scope.")
-
         target = self._safe_removal_directory(
             directory or self.worktree_root / normalized_id
         )
@@ -190,6 +182,93 @@ class RunWorkspaceManager:
                 command.append("--force")
             command.append(branch)
             self._run(tuple(command), cwd=self.project_directory)
+
+    def delete_remote_branch(
+        self,
+        run_id: str,
+        *,
+        remote: str = "origin",
+        branch: str | None = None,
+    ) -> None:
+        """Delete this run's pushed branch only in explicit development mode."""
+
+        if not is_development_mode():
+            raise WorkspaceError(
+                "I don't have permission to delete branches because Shanks is "
+                "not in development mode; set SHANKS_MODE=development."
+            )
+        branch = self._scoped_branch(run_id, branch)
+        if branch is None:
+            return
+        if not _safe_ref(remote):
+            raise WorkspaceError("remote contains unsupported characters")
+        with self._lock:
+            self._run(
+                ("git", "push", remote, "--delete", branch),
+                cwd=self.project_directory,
+            )
+
+    def list_worktrees(self) -> list[str]:
+        """Return the run ids of worktree directories present on disk."""
+
+        if not self.worktree_root.is_dir():
+            return []
+        return sorted(
+            entry.name for entry in self.worktree_root.iterdir() if entry.is_dir()
+        )
+
+    def list_branches(self) -> list[str]:
+        """Return the run ids of local branches under this run's prefix."""
+
+        result = self._run_result(
+            ("git", "branch", "--list", f"{self.branch_prefix}/*"),
+            cwd=self.project_directory,
+        )
+        if result.returncode != 0:
+            raise WorkspaceError(_command_error(result, "Could not list Git branches"))
+        return sorted(
+            self._branch_run_id(line.strip().lstrip("*+").strip())
+            for line in result.stdout.splitlines()
+            if line.strip()
+        )
+
+    def list_remote_branches(self, remote: str = "origin") -> list[str]:
+        """Return the run ids of ``remote`` branches under this run's prefix."""
+
+        if not _safe_ref(remote):
+            raise WorkspaceError("remote contains unsupported characters")
+        result = self._run_result(
+            ("git", "ls-remote", "--heads", remote, f"{self.branch_prefix}/*"),
+            cwd=self.project_directory,
+        )
+        if result.returncode != 0:
+            raise WorkspaceError(
+                _command_error(result, "Could not list remote branches")
+            )
+        run_ids = []
+        for line in result.stdout.splitlines():
+            _, _, ref = line.partition("\t")
+            if ref.startswith("refs/heads/"):
+                run_ids.append(self._branch_run_id(ref[len("refs/heads/") :]))
+        return sorted(run_ids)
+
+    def _branch_run_id(self, branch: str) -> str:
+        marker = f"{self.branch_prefix}/"
+        return branch[len(marker) :] if branch.startswith(marker) else branch
+
+    def _scoped_branch(self, run_id: str, branch: str | None) -> str | None:
+        normalized_id = _normalize_component(run_id)
+        if not normalized_id:
+            return None
+        expected_branch = f"{self.branch_prefix}/{normalized_id}"
+        branch = branch or expected_branch
+        if not _safe_ref(branch):
+            raise WorkspaceError("branch contains unsupported characters")
+        if branch in self.protected_branches:
+            raise WorkspaceError("Refusing to delete a protected branch.")
+        if branch != expected_branch:
+            raise WorkspaceError("Refusing to delete a branch outside the run scope.")
+        return branch
 
     def _safe_removal_directory(self, directory: Path) -> Path:
         target = Path(directory).expanduser().resolve()

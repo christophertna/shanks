@@ -128,6 +128,60 @@ class WorkspaceTests(unittest.TestCase):
                         branch="feature/another-run",
                     )
 
+    def test_list_worktrees_and_branches_report_run_ids(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._git(root, "init", "-b", "main")
+            self._git(root, "config", "user.email", "tests@example.com")
+            self._git(root, "config", "user.name", "Tests")
+            (root / "README.md").write_text("initial\n", encoding="utf-8")
+            self._git(root, "add", "README.md")
+            self._git(root, "commit", "-m", "initial")
+
+            manager = RunWorkspaceManager(root)
+            self.assertEqual(manager.list_worktrees(), [])
+            self.assertEqual(manager.list_branches(), [])
+
+            manager.ensure("run-1")
+            manager.ensure("run-2")
+
+            self.assertEqual(manager.list_worktrees(), ["run-1", "run-2"])
+            self.assertEqual(manager.list_branches(), ["run-1", "run-2"])
+
+    def test_list_remote_branches_and_delete_remote_branch(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root, remote = self._repository(Path(directory))
+            manager = RunWorkspaceManager(root)
+            workspace = manager.ensure("run-1")
+            self._git(root, "push", "-u", "origin", workspace.branch)
+
+            self.assertEqual(manager.list_remote_branches(), ["run-1"])
+
+            with patch.dict("os.environ", {"SHANKS_MODE": "runtime"}):
+                with self.assertRaisesRegex(WorkspaceError, "not in development mode"):
+                    manager.delete_remote_branch("run-1")
+
+            with patch.dict("os.environ", {"SHANKS_MODE": "development"}):
+                manager.delete_remote_branch("run-1")
+
+            self.assertEqual(manager.list_remote_branches(), [])
+
+    @classmethod
+    def _repository(cls, directory: Path) -> tuple[Path, Path]:
+        root = directory / "project"
+        remote = directory / "origin.git"
+        root.mkdir()
+        cls._git(root, "init", "-b", "main")
+        cls._git(root, "config", "user.email", "tests@example.com")
+        cls._git(root, "config", "user.name", "Tests")
+        (root / "README.md").write_text("initial\n", encoding="utf-8")
+        cls._git(root, "add", "README.md")
+        cls._git(root, "commit", "-m", "initial")
+        cls._git(directory, "init", "--bare", str(remote))
+        cls._git(root, "remote", "add", "origin", str(remote))
+        cls._git(root, "push", "-u", "origin", "main")
+        return root, remote
+
     def test_workspace_context_is_scoped_and_restored(self) -> None:
         self.assertIsNone(current_workspace_directory())
         with tempfile.TemporaryDirectory() as directory:
