@@ -253,7 +253,13 @@ CI test workflow requests only `contents: read`; write-capable GitHub operations
 use the operator's authenticated `gh` session after the separate approvals.
 The repo-local
 `hooks/deny-dangerous.sh` hook adds a denylist for catastrophic shell commands;
-run `hooks/test-guard.sh` to check it.
+run `hooks/test-guard.sh` to check it. `hooks/guard-dependency-files.sh` blocks
+Write/Edit on lockfiles, pinned dependency manifests, and `.env` files (patterns
+in `hooks/guarded-paths.txt`; override with `SHANKS_ALLOW_DEPENDENCY_EDIT=1`).
+`hooks/graphify-update.sh` refreshes the graphify graph in the background after
+each Write/Edit (AST-only, no LLM cost). Both are wired via a local
+`.claude/settings.json`, which is gitignored since it hardcodes a
+machine-specific `graphify` path.
 
 Ralph records only genuinely uncertain implementation decisions reported by the
 builder. They are parsed from the `RALPH_UNCERTAINTIES` output section and stored

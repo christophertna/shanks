@@ -24,4 +24,5 @@ __pycache__/
 # Shared LangGraph checkpoints
 .shanks/
 
+# Local development files
 dev/
