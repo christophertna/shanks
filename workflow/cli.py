@@ -36,6 +36,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 _REQUIREMENT_FILES = ("requirements.txt", "requirements-dev.txt")
 _REQUIRED_TOOLS = ("git", "gh", "bash")
 _AGENT_TOOLS = ("codex", "claude")
+_MIN_TOOL_VERSIONS = {"git": (2, 30), "gh": (2, 40)}
+_VERSION_PATTERN = re.compile(r"(\d+)\.(\d+)")
 _VALID_MODES = {"runtime", DEVELOPMENT_MODE, DRY_RUN_MODE, "dry_run"}
 _ENVIRONMENT_KEYS = (
     "SHANKS_MODE",
@@ -70,7 +72,7 @@ def doctor_checks(
     runner = subprocess.run if runner is None else runner
     return [
         _check_mode(environment),
-        _check_tools(python_executable or sys.executable),
+        _check_tools(python_executable or sys.executable, runner),
         _check_dependencies(project),
         _check_authentication(project, environment, runner),
         _check_environment(environment),
@@ -118,7 +120,22 @@ def _check_mode(environment: Mapping[str, str]) -> DoctorCheck:
     return DoctorCheck("mode", True, f"{effective} (SHANKS_MODE={raw})")
 
 
-def _check_tools(python_executable: str) -> DoctorCheck:
+def _tool_version(tool: str, runner: Runner) -> tuple[int, int] | None:
+    """Best-effort `<tool> --version` parse; None if unavailable or unparsable."""
+
+    try:
+        result = runner(
+            (tool, "--version"), capture_output=True, text=True, check=False, timeout=10
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    match = _VERSION_PATTERN.search(result.stdout)
+    if not match:
+        return None
+    return (int(match.group(1)), int(match.group(2)))
+
+
+def _check_tools(python_executable: str, runner: Runner) -> DoctorCheck:
     missing = [tool for tool in _REQUIRED_TOOLS if shutil.which(tool) is None]
     available_agents = [tool for tool in _AGENT_TOOLS if shutil.which(tool)]
     if not available_agents:
@@ -129,6 +146,14 @@ def _check_tools(python_executable: str) -> DoctorCheck:
     version = sys.version_info
     if (version.major, version.minor) < (3, 11):
         missing.append("Python 3.11 or newer")
+    for tool, minimum in _MIN_TOOL_VERSIONS.items():
+        if tool in missing:
+            continue
+        found = _tool_version(tool, runner)
+        if found is not None and found < minimum:
+            missing.append(
+                f"{tool} {minimum[0]}.{minimum[1]}+ (found {found[0]}.{found[1]})"
+            )
     if missing:
         return DoctorCheck("tools", False, "missing: " + ", ".join(missing))
     tools = ", ".join((*_REQUIRED_TOOLS, f"agent={available_agents[0]}"))

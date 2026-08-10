@@ -1,7 +1,7 @@
 # Test coverage
 
 This document summarizes the behavior covered by the repository's tracked test
-files. The Python suite contains **140 unittest methods** across ten modules;
+files. The Python suite contains **148 unittest methods** across ten modules;
 `hooks/test-guard.sh` is a separate shell regression harness with eight command
 checks.
 
@@ -27,7 +27,7 @@ Run the repository quality gates from a feature branch with:
 
 | File | Tests | Main areas |
 | --- | ---: | --- |
-| [`test_cli.py`](test_cli.py) | 13 | Execution-mode reporting, doctor diagnostics, and run listing, status, resume, cancellation, recovery, cleanup, pruning, and safety checks |
+| [`test_cli.py`](test_cli.py) | 14 | Execution-mode reporting, doctor diagnostics (including Git/gh version checks), and run listing, status, resume, cancellation, recovery, cleanup, pruning, and safety checks |
 | [`test_graph.py`](test_graph.py) | 39 | Workflow orchestration, item metadata, targeted retries, budgets, approvals, dry-run previews, and GitHub handoff |
 | [`test_node_contracts.py`](test_node_contracts.py) | 42 | Agent, failure-classification, subprocess, Ralph, local-test, critic, quality-gate, and GitHub adapter contracts |
 | [`test_state_schema.py`](test_state_schema.py) | 9 | State migration, retry metadata, versioned checkpoints, and legacy resume behavior |
@@ -42,7 +42,8 @@ Run the repository quality gates from a feature branch with:
 ### CLI diagnostics
 
 - `test_cli.py` verifies healthy doctor output and non-zero results for invalid
-  mode, lease, retention, and checkpoint configuration.
+  mode, lease, retention, and checkpoint configuration, and for a Git or gh
+  version below the supported minimum.
 
 ### Run management
 
