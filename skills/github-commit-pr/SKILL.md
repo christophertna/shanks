@@ -62,22 +62,36 @@ Examples:
 - Only the user or another human may review and merge it.
 - The AI may open the pull request and leave it ready for human review.
 
-## Post-open merge monitoring
+## Pull request lifecycle checkpoints
 
-- After opening the pull request, use AskUserQuestion to ask whether to merge
-  it now or wait for more changes to land on the branch first — don't ask in
-  prose; it costs the user a typed reply instead of a click.
-- If they choose to wait, stop here — do not poll for merge status.
-- If they choose to merge now, poll the PR's status (e.g. `gh pr view
-  <number> --json state,mergeStateStatus,mergeable`) every ~15 seconds for up
-  to ~3 minutes. This only watches for the human's merge; the AI still never
-  merges the PR itself.
-- Stop the loop and report immediately if the PR closes without merging or its
-  merge state shows a conflict (`mergeStateStatus: DIRTY`).
-- If the ~3 minute cap is reached before it merges, stop polling and report
-  the current status without deleting anything.
-- Once the PR's state is `MERGED`, delete the local feature branch: check out
-  the base branch, pull, then `git branch -d <branch>`.
+There are two separate `AskUserQuestion` checkpoints below. Ask each one on
+its own turn, with its own question — never merge them into a single
+question (e.g. "open and merge now?"), and never skip the second one just
+because the first one already got an answer. Getting a "yes" to open the PR
+is not a "yes" to merge it.
+
+1. **After push, before opening the PR.** Ask whether to open it now or wait
+   for more items to land on the branch first. Only proceed once they answer.
+   Before opening, state the exact title, description, and test command for
+   auditability. Pass the title separately from the description when using
+   GitHub CLI or an API.
+2. **After the PR is open.** Ask a second, distinct question: whether to
+   merge it now or wait for more changes to land on the branch first — don't
+   ask in prose; it costs the user a typed reply instead of a click.
+   - If they choose to wait, stop here — do not poll for merge status.
+   - If they choose to merge now, poll the PR's status (e.g. `gh pr view
+     <number> --json state,mergeStateStatus,mergeable`) every ~15 seconds for
+     up to ~3 minutes. This only watches for the human's merge; the AI still
+     never merges the PR itself.
+   - Stop the loop and report immediately if the PR closes without merging or
+     its merge state shows a conflict (`mergeStateStatus: DIRTY`).
+   - If the ~3 minute cap is reached before it merges, stop polling and
+     report the current status without deleting anything.
+   - Once the PR's state is `MERGED`, delete the local feature branch: check
+     out the base branch, pull, then `git branch -d <branch>`.
+   - If the user reports the PR was merged outside this checkpoint (e.g. they
+     merged it themselves before checkpoint 2 ran), skip straight to the
+     branch cleanup step above — do not retroactively poll.
 
 ## Commit, push, and PR checks
 
@@ -85,8 +99,3 @@ Examples:
 - Keep commit, push, and pull-request creation as separate operations.
 - Stop and report if any operation fails.
 - Push the feature branch with `git push -u origin <branch>`; do not push to `main` unless explicitly requested.
-- After a push, do not open the pull request automatically. Use
-  AskUserQuestion to ask whether to open it now or wait for more items to
-  land on the branch first, and only proceed once they answer.
-- Pass the commit or PR title separately from the description when using GitHub CLI or an API.
-- Before opening the PR, state the exact title, description, and test command for auditability.

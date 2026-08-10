@@ -1,9 +1,9 @@
 # Test coverage
 
 This document summarizes the behavior covered by the repository's tracked test
-files. The Python suite contains **148 unittest methods** across ten modules;
-`hooks/test-guard.sh` is a separate shell regression harness with eight command
-checks.
+files. The Python suite contains **150 unittest methods** across eleven
+modules; `hooks/test-guard.sh` is a separate shell regression harness with
+eight command checks.
 
 The tests use in-memory graphs, temporary SQLite databases and temporary
 projects, real temporary Git repositories, a fake `gh` executable, stub
@@ -37,6 +37,7 @@ Run the repository quality gates from a feature branch with:
 | [`test_quality_gates.py`](test_quality_gates.py) | 9 | Quality command definitions, safe diff refs, numstat parsing, generated-output handling, diff limits, and gate failure reporting |
 | [`test_fault_injection.py`](test_fault_injection.py) | 7 | Injected Git, GitHub, validation, checkpoint, and agent process failures |
 | [`test_git_integration.py`](test_git_integration.py) | 2 | Real temporary Git repositories, worktrees, commits, pushes, PR creation/reuse, and fake-`gh` recovery |
+| [`test_agent_integration.py`](test_agent_integration.py) | 2 | Real Codex and Claude CLI smoke tests against a small deterministic project (opt-in) |
 | [`../hooks/test-guard.sh`](../hooks/test-guard.sh) | 8 shell checks | Dangerous-command blocking and safe-command allowlisting |
 
 ### CLI diagnostics
