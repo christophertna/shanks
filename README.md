@@ -59,11 +59,23 @@ Start the graph viewer:
 
 Then open `http://127.0.0.1:8765/graph.html`.
 
+## Supported toolchain
+
+| Tool | Minimum version | Verified by |
+| --- | --- | --- |
+| Python | 3.11 | `./shanks doctor`, `pyproject.toml` (`target-version`/`mypy`), CI |
+| Git | 2.30 | `./shanks doctor` |
+| GitHub CLI (`gh`) | 2.40 | `./shanks doctor` (also checks `gh auth status`) |
+
+Runtime and development dependencies are pinned in `requirements.txt` and
+`requirements-dev.txt`; `./shanks doctor` verifies the installed versions
+match. `.github/workflows/tests.yml` runs the same Python version in CI.
+
 ## Commands
 
 - `python3.11 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt -r requirements-dev.txt` — create a fresh environment with locked dependencies.
 - `./shanks --mode` / `./shanks -mode` / `./shanks mode` — show the current mode.
-- `./shanks doctor` — check tools, pinned dependencies, GitHub authentication, environment variables, and SQLite checkpoint setup.
+- `./shanks doctor` — check tool presence and versions (see Supported toolchain), pinned dependencies, GitHub authentication, environment variables, and SQLite checkpoint setup.
 - `./shanks runs list|status RUN_ID|resume RUN_ID RESPONSE|cancel RUN_ID` — manage checkpointed runs.
 - `./shanks runs recover` — mark expired leases as abandoned.
 - `./shanks runs cleanup --keep-latest COUNT` — prune terminal checkpoint history; add `--delete-records --max-age SECONDS` to prune old lifecycle records too.

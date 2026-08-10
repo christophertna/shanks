@@ -143,6 +143,55 @@ class ShanksCliTests(unittest.TestCase):
         self.assertIn("[FAIL] checkpoint", output.getvalue())
         self.assertIn("Doctor: FAIL", output.getvalue())
 
+    def test_doctor_fails_on_outdated_git_or_gh(self) -> None:
+        output = io.StringIO()
+
+        def fake_run(
+            command: tuple[str, ...], **kwargs: object
+        ) -> subprocess.CompletedProcess[str]:
+            if command == ("git", "--version"):
+                return subprocess.CompletedProcess(command, 0, "git version 2.10.1", "")
+            if command == ("gh", "--version"):
+                return subprocess.CompletedProcess(command, 0, "gh version 2.20.0", "")
+            return subprocess.CompletedProcess(command, 0, "authenticated", "")
+
+        with tempfile.TemporaryDirectory() as directory:
+            with (
+                patch.dict(
+                    "os.environ",
+                    {
+                        "SHANKS_MODE": "runtime",
+                        "SHANKS_CHECKPOINT_DB": str(
+                            Path(directory) / "checkpoints.sqlite"
+                        ),
+                        "SHANKS_RUN_LEASE_SECONDS": "3600",
+                        "SHANKS_CHECKPOINT_RETENTION": "100",
+                        "HOME": "/tmp",
+                        "PATH": "/usr/bin",
+                    },
+                    clear=True,
+                ),
+                patch("workflow.cli.shutil.which", return_value="/usr/bin/tool"),
+                patch(
+                    "workflow.cli.importlib_metadata.version",
+                    side_effect=lambda name: {
+                        "langgraph": "1.2.10",
+                        "langgraph-checkpoint-sqlite": "3.1.1",
+                        "black": "26.5.1",
+                        "mypy": "1.20.2",
+                        "pip-audit": "2.10.1",
+                        "ruff": "0.16.1",
+                    }[name],
+                ),
+                patch("workflow.cli.subprocess.run", side_effect=fake_run),
+                redirect_stdout(output),
+            ):
+                self.assertEqual(main(["doctor"]), 1)
+
+        self.assertIn("[FAIL] tools", output.getvalue())
+        self.assertIn("git 2.30+ (found 2.10)", output.getvalue())
+        self.assertIn("gh 2.40+ (found 2.20)", output.getvalue())
+
     def test_runs_list_and_status_support_json_output(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             database = Path(directory) / "checkpoints.sqlite"
