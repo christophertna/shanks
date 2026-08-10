@@ -14,6 +14,7 @@ from workflow.nodes import (
     github_node,
     route_after_github,
     route_after_preflight,
+    route_after_pull_request,
     select_next_item,
 )
 from workflow.state import cancel_run
@@ -47,6 +48,8 @@ class RecordingRepository:
     pull_requests: list[str] = field(default_factory=list)
     fail_commit: bool = False
     fail_publish: bool = False
+    transient_push_failures: int = 0
+    transient_pr_failures: int = 0
 
     def commit_item(
         self,
@@ -70,6 +73,13 @@ class RecordingRepository:
 
     def push_branch(self) -> AgentResult:
         self.pushes.append("branch")
+        if self.transient_push_failures > 0:
+            self.transient_push_failures -= 1
+            return AgentResult(
+                status="failed",
+                assigned_model="test-github",
+                error="connection reset by peer",
+            )
         return AgentResult(
             status="branch_pushed",
             assigned_model="test-github",
@@ -83,6 +93,13 @@ class RecordingRepository:
                 status="failed",
                 assigned_model="test-github",
                 error="publish failed",
+            )
+        if self.transient_pr_failures > 0:
+            self.transient_pr_failures -= 1
+            return AgentResult(
+                status="failed",
+                assigned_model="test-github",
+                error="secondary rate limit exceeded",
             )
         return AgentResult(
             status="pr_created",
@@ -1093,6 +1110,51 @@ class GraphRoutingTests(unittest.TestCase):
             route_after_github({"status": "branch_pushed"}),
             "pull_request_node",
         )
+        self.assertEqual(
+            route_after_github({"status": "retry_scheduled"}), "retry_backoff"
+        )
+
+    def test_pull_request_failure_routes_to_end_or_retry(self) -> None:
+        self.assertEqual(route_after_pull_request({"status": "failed"}), "__end__")
+        self.assertEqual(route_after_pull_request({"status": "pr_created"}), "__end__")
+        self.assertEqual(
+            route_after_pull_request({"status": "retry_scheduled"}),
+            "retry_backoff",
+        )
+
+    def test_transient_push_failure_retries_github_node_with_backoff(self) -> None:
+        repository = RecordingRepository(transient_push_failures=1)
+
+        with patch("workflow.nodes.time.sleep") as sleep:
+            result = invoke_with_approvals(
+                build_graph(_stub_dependencies(repository)),
+                _initial_state(),
+                {"configurable": {"thread_id": "transient-push-retry"}},
+            )
+
+        self.assertEqual(result["status"], "pr_created")
+        self.assertEqual(len(repository.pushes), 2)
+        self.assertEqual(len(repository.pull_requests), 1)
+        self.assertEqual(result["retry_counts"]["github_node"], 1)
+        sleep.assert_called_once_with(0.5)
+
+    def test_transient_pr_failure_retries_pull_request_node_with_backoff(
+        self,
+    ) -> None:
+        repository = RecordingRepository(transient_pr_failures=1)
+
+        with patch("workflow.nodes.time.sleep") as sleep:
+            result = invoke_with_approvals(
+                build_graph(_stub_dependencies(repository)),
+                _initial_state(),
+                {"configurable": {"thread_id": "transient-pr-retry"}},
+            )
+
+        self.assertEqual(result["status"], "pr_created")
+        self.assertEqual(len(repository.pushes), 1)
+        self.assertEqual(len(repository.pull_requests), 2)
+        self.assertEqual(result["retry_counts"]["pull_request_node"], 1)
+        sleep.assert_called_once_with(0.5)
 
     def test_commit_requires_approval_before_side_effect(self) -> None:
         repository = RecordingRepository()

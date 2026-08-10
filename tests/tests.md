@@ -238,6 +238,9 @@ Sources: [`test_graph.py`](test_graph.py) and
 - Push failure stops before PR lookup or creation.
 - PR creation failure is reported after the preceding push and lookup steps.
 - A failed GitHub publish stops without invoking the debugger.
+- Transient push and PR-reconciliation failures (network interruptions, rate
+  limits) retry the same node with backoff instead of ending the run; guardrail
+  and other permanent failures still end without retrying.
 
 ### Approval and handoff behavior
 

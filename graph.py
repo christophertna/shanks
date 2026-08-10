@@ -29,6 +29,7 @@ from workflow.nodes import (
     route_after_learning,
     route_after_planning,
     route_after_preflight,
+    route_after_pull_request,
     route_after_retry_backoff,
     route_after_validation,
 )
@@ -427,9 +428,13 @@ def build_graph(
     builder.add_conditional_edges(
         "github_node",
         route_after_github,
-        ["pull_request_node", END],
+        ["pull_request_node", "retry_backoff", END],
     )
-    builder.add_edge("pull_request_node", END)
+    builder.add_conditional_edges(
+        "pull_request_node",
+        route_after_pull_request,
+        ["retry_backoff", END],
+    )
     builder.add_conditional_edges(
         "retry_backoff",
         route_after_retry_backoff,
@@ -441,6 +446,8 @@ def build_graph(
             "critic_auditor",
             "validation",
             "debugger",
+            "github_node",
+            "pull_request_node",
             "failed_run",
             "stop_run",
         ],
