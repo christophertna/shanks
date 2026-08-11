@@ -1770,17 +1770,13 @@ class ClaudeAdapter(SubprocessAgentAdapter):
         read_only: bool = True,
     ) -> None:
         command = (
-            (
-                "claude",
-                "--print",
-                "--permission-mode",
-                "plan",
-                "--tools",
-                "Read",
-                "--no-session-persistence",
-            )
-            if read_only
-            else ("claude", "--dangerously-skip-permissions", "--print")
+            "claude",
+            "--print",
+            "--permission-mode",
+            "plan" if read_only else "acceptEdits",
+            "--tools",
+            "Read" if read_only else "Read,Write,Edit,Bash,Grep,Glob",
+            "--no-session-persistence",
         )
         super().__init__(
             command=command,

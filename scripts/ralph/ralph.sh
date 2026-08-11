@@ -409,8 +409,8 @@ for i in $(seq 1 $MAX_ITERATIONS); do
 
   # Run the selected tool with the ralph prompt
   if [[ "$TOOL" == "claude" ]]; then
-    # Claude Code: use --dangerously-skip-permissions for autonomous operation, --print for output
-    if OUTPUT=$(run_agent "$SCRIPT_DIR/CLAUDE.md" claude --dangerously-skip-permissions --print); then
+    # Claude Code: scoped tool allowlist for autonomous operation, --print for output
+    if OUTPUT=$(run_agent "$SCRIPT_DIR/CLAUDE.md" claude --permission-mode acceptEdits --tools Read,Write,Edit,Bash,Grep,Glob --print); then
       TOOL_EXIT=0
     else
       TOOL_EXIT=$?
