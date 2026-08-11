@@ -36,6 +36,13 @@ development dependencies:
 python3.11 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt -r requirements-dev.txt
 ```
 
+Point Git at the repo's tracked hooks so `graphify-out/` (generated, gitignored)
+refreshes automatically after every pull or checkout:
+
+```bash
+git config core.hooksPath hooks
+```
+
 Run the tests:
 
 ```bash
@@ -71,6 +78,26 @@ Then open `http://127.0.0.1:8765/graph.html`.
 Runtime and development dependencies are pinned in `requirements.txt` and
 `requirements-dev.txt`; `./shanks doctor` verifies the installed versions
 match. `.github/workflows/tests.yml` runs the same Python version in CI.
+
+### GitHub token permissions
+
+The GitHub handoff (`GitHubAdapter`, driven by `gh`) needs a token with:
+
+- **Contents**: Read and write — push commits and branches.
+- **Pull requests**: Read and write — open and update PRs.
+
+For a fine-grained PAT, grant both on the target repository. For a classic
+PAT, the `repo` scope covers both.
+
+Pushing changes to `.github/workflows/*` needs its own, separate permission:
+a classic PAT needs the `workflow` scope, and a fine-grained PAT needs
+"Workflows: Read and write" — otherwise `git push` is rejected outright
+("refusing to allow a Personal Access Token to create or update workflow
+... without `workflow` scope"). For a `gh`-managed token, fix it with:
+
+```bash
+gh auth refresh -h github.com -s workflow
+```
 
 ## Commands
 

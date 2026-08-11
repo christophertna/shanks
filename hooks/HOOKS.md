@@ -58,3 +58,14 @@ removed: it can only see tool-call boundaries, and the actual failure mode
 observed was asking in prose and never reaching a `gh pr create` call at
 all, so the hook never had anything to intercept. Revisit only if Claude
 Code hooks gain visibility into prior transcript/tool-call history.
+
+## Real Git hooks
+
+`post-merge` and `post-checkout` are ordinary Git hooks, not Claude Code
+hooks — they run `graphify update .` after a pull/checkout so the untracked,
+generated `graphify-out/graph.json` (and friends) stay current. They only
+fire once a clone points Git at this directory:
+
+```bash
+git config core.hooksPath hooks
+```
