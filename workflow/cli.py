@@ -34,7 +34,7 @@ class CliError(RuntimeError):
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 _REQUIREMENT_FILES = ("requirements.txt", "requirements-dev.txt")
-_REQUIRED_TOOLS = ("git", "gh", "bash")
+_REQUIRED_TOOLS = ("git", "gh", "bash", "jq", "gitleaks")
 _AGENT_TOOLS = ("codex", "claude")
 _MIN_TOOL_VERSIONS = {"git": (2, 30), "gh": (2, 40)}
 _VERSION_PATTERN = re.compile(r"(\d+)\.(\d+)")

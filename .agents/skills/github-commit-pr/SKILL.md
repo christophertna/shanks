@@ -12,6 +12,8 @@ affected Markdown documentation before reporting completion.
 
 - Update `README.md` for user-facing behavior, setup, or commands.
 - Update `tests/tests.md` when test coverage, commands, or expectations change.
+- Update `hooks/HOOKS.md` when a hook is added, removed, or its trigger,
+  matcher, or agent scope changes.
 - Update relevant `explained.md` or `dev/*.md` files for architecture, workflow,
   or developer context.
 - Update the priority listing in `dev/new features.txt` (the roadmap) when a
