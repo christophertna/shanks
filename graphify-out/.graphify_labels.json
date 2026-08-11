@@ -20,14 +20,11 @@
   "18": "create_nodes",
   "19": "default_dependencies",
   "20": "RunLifecycleManager",
-  "21": "github_node",
   "22": "debugger_output.schema.json",
   "23": "ralph.sh",
   "24": "._setup",
   "25": "critic_output.schema.json",
   "26": "Ralph Agent Instructions",
-  "27": "RalphAdapter",
-  "28": "lifecycle.py",
   "29": "contracts.py",
   "30": "current_workspace_directory",
   "31": "Ponytail",
@@ -50,7 +47,6 @@
   "48": "Path",
   "49": ".run",
   "50": "sandbox_claude.sh",
-  "51": ".get_run",
   "52": "RalphAdapter",
   "55": "test-secret-scan.sh"
 }

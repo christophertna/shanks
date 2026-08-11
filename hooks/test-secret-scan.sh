@@ -45,5 +45,28 @@ else
   printf 'FAIL expected=allow got=block: no content field at all\n'
 fi
 
+# Bash tool calls have no file_path at all - only a command field.
+check_bash() {
+  local expected="$1"
+  local command="$2"
+  local verdict
+
+  if printf '%s' "$(jq -cn --arg cmd "$command" '{tool_input: {command: $cmd}}')" \
+    | "$GUARD" >/dev/null 2>&1; then
+    verdict="allow"
+  else
+    verdict="block"
+  fi
+  if [ "$verdict" = "$expected" ]; then
+    passed=$((passed + 1))
+  else
+    failed=$((failed + 1))
+    printf 'FAIL expected=%s got=%s: command=%s\n' "$expected" "$verdict" "$command"
+  fi
+}
+
+check_bash allow 'git status'
+check_bash block "echo \"$FAKE_TOKEN\" >> config.py"
+
 printf 'passed: %s, failed: %s\n' "$passed" "$failed"
 [ "$failed" -eq 0 ]
