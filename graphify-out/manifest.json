@@ -90,8 +90,8 @@
     "semantic_hash": ""
   },
   "tests/test_workspaces.py": {
-    "mtime": 1786334744.3216226,
-    "ast_hash": "220d76f2393e2cb519c2cfe020af5eda",
+    "mtime": 1786406907.1616242,
+    "ast_hash": "1fcf2ad098ab0edfb8a561757e70e5d2",
     "semantic_hash": ""
   },
   "workflow/__init__.py": {
@@ -150,8 +150,8 @@
     "semantic_hash": ""
   },
   "workflow/workspaces.py": {
-    "mtime": 1786334744.323148,
-    "ast_hash": "4a24f9d1d7647e0fedba2f3b51e1d507",
+    "mtime": 1786406895.2416852,
+    "ast_hash": "cf78d1b162706a808c6f097b155fb30d",
     "semantic_hash": ""
   },
   ".agents/skills/decisions/SKILL.md": {
@@ -225,8 +225,8 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1786404748.956447,
-    "ast_hash": "3a1f631a8b99681a8f529beda2b5d908",
+    "mtime": 1786406976.5405133,
+    "ast_hash": "3dcb56796ee3986436c2409da27c9223",
     "semantic_hash": ""
   },
   "README.md": {
@@ -280,8 +280,8 @@
     "semantic_hash": ""
   },
   "tests/tests.md": {
-    "mtime": 1786387320.1844814,
-    "ast_hash": "46920b75c105c6e3d78d440f83eccc5b",
+    "mtime": 1786407029.0974035,
+    "ast_hash": "c3c90c09304bb45f69f84d86c6b322b7",
     "semantic_hash": ""
   },
   "hooks/graphify-update.sh": {

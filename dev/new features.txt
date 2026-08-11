@@ -1,42 +1,5 @@
 Shanks feature roadmap
 
-Priority 1 - Safety-critical
-
-1- [DONE] Scope the build agent's tools, not just the critic/debugger's.
-    Every read-only path (DebuggerAdapter, ClaudeAdapter(read_only=True),
-    both critic adapters) runs Claude with `--permission-mode plan --tools
-    Read` or Codex with `--sandbox read-only`. The build path doesn't:
-    RalphAdapter's scripts/ralph/ralph.sh runs Claude with
-    `--dangerously-skip-permissions` (blanket bypass, no tool allowlist) and
-    Codex with `--sandbox workspace-write` (directory-scoped but otherwise
-    unrestricted); ClaudeAdapter(read_only=False) does the same
-    skip-permissions thing. SubprocessAgentAdapter._validate_execution only
-    gates which executable/paths can *launch* the agent - it says nothing
-    about what the agent does once it's running, so it isn't a substitute.
-    Fix: drop `--dangerously-skip-permissions` on the Claude build path and
-    reuse the pattern that's already in this same file - explicit
-    `--permission-mode acceptEdits --tools Read,Write,Edit,Bash` (or
-    whatever the build step actually needs), same shape as the existing
-    `--tools Read` calls, just with write/exec added. That gets it off the
-    all-or-nothing bypass without inventing a new mechanism. Codex's
-    workspace-write is already reasonably scoped; leave it.
-
-2- The dangerous-command hook guard doesn't reach Ralph's builder at all.
-    hooks/deny-dangerous.sh is wired through .claude/settings.json's
-    PreToolUse Bash matcher and is independent of permission mode - it
-    should be the one backstop that survives --dangerously-skip-permissions.
-    But .claude/ is gitignored (.gitignore:12), and RunWorkspaceManager.ensure()
-    (workflow/workspaces.py:98) creates each run's isolated workspace with
-    plain `git worktree add`, which only checks out tracked files.
-    scripts/ralph/ralph.sh then `cd`s into that worktree before invoking
-    `claude`, so the CLI finds no .claude/settings.json there and
-    deny-dangerous.sh never fires for an actual graph-driven build - only
-    for interactive sessions run from the main checkout. Fix: copy (or
-    symlink) .claude/settings.json and hooks/ into each new worktree as
-    part of RunWorkspaceManager.ensure(), right after `git worktree add`
-    succeeds - same lazy shape as the rest of that method, no new
-    mechanism needed.
-
 Priority 2 - Maintenance and developer experience
 
 1- GitHub token permission documentation.

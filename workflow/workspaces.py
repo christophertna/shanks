@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+import shutil
 import subprocess
 import threading
 from contextlib import contextmanager
@@ -107,8 +108,24 @@ class RunWorkspaceManager:
                     self.base_branch,
                 )
             self._run(command, cwd=self.project_directory)
+            self._sync_local_guardrails(directory)
 
         return workspace
+
+    def _sync_local_guardrails(self, directory: Path) -> None:
+        """Carry the gitignored Claude Code hook guard into a new worktree.
+
+        ``.claude/`` is gitignored, so `git worktree add` never checks out
+        ``.claude/settings.json`` there; without it, Claude Code loads no
+        project hooks (e.g. the dangerous-command guard) in that worktree.
+        """
+
+        settings = self.project_directory / ".claude" / "settings.json"
+        if not settings.is_file():
+            return
+        target = directory / ".claude" / "settings.json"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(settings, target)
 
     def workspace_for(self, run_id: str) -> RunWorkspace:
         """Return the deterministic workspace identity for ``run_id``."""
