@@ -2,17 +2,7 @@ Shanks feature roadmap
 
 Priority 1
 
-1- Gate commits/pushes on quality_gates.py, not just CI.
-    `scripts/quality_gates.py` (black/ruff/mypy/diff-size) isn't run by
-    `.venv/bin/python -m unittest discover -s tests`, and nothing local
-    blocks a commit or push that fails it - it only surfaces once CI runs.
-    Landing #42 and #43 both hit the same black-formatting failure on push,
-    caught only after opening the PR. Fix: add a `pre-push` git hook (or
-    extend an existing `PreToolUse` guard on `git commit`/`git push`) that
-    runs `scripts/quality_gates.py --staged` and blocks before it ever
-    reaches CI.
-
-2- Regression-test retry-policy coverage across all lease-touching nodes.
+1- Regression-test retry-policy coverage across all lease-touching nodes.
     #43 closed the gap where `TARGETED_RETRY_POLICY` wasn't attached to
     every node that calls into the SQLite-backed lease through
     `_versioned_node`, but nothing stops a newly added node from silently
@@ -45,6 +35,17 @@ Priority 2 - Maintenance and developer experience
     guarantee as today - so they can search the codebase for related
     callers/regressions instead of only inspecting files already named in
     their context.
+
+4- `./shanks doctor` check for `core.hooksPath`.
+    #44 added `hooks/post-merge`/`hooks/post-checkout`, and a follow-up added
+    `hooks/pre-push` (quality-gate enforcement) - all real Git hooks that only
+    fire once a developer runs `git config core.hooksPath hooks`, a step in
+    the README Quick start that's easy to skip, with nothing that notices.
+    Fix: add a `./shanks doctor` check (same shape as the existing
+    `jq`/`gitleaks` checks from #40) that warns when
+    `git config --get core.hooksPath` isn't `hooks`, so both a stale local
+    graph and an unenforced push gate surface as a diagnostic instead of
+    silently drifting.
 
 Suggestions
 
@@ -170,12 +171,18 @@ Suggestions
   `workspaces.py`, `cli.py`, and `graph.py` (the largest and most stateful
   modules) are unchecked. Extend the list once those modules are clean under
   mypy, or budget time to fix what surfaces.
-- Roadmap bookkeeping (removing/renumbering a completed item in
-  `dev/new features.txt`) currently happens inside the feature PR that
-  completes it, which caused the same kind of conflict as the point above
-  when #42 and #43 both edited the Priority 1 header in parallel. Consider
-  doing that edit as a separate follow-up commit to `main` after each PR
-  merges instead of bundling it into the feature branch.
+- `hooks/post-merge` and `hooks/post-checkout` (#44) have no regression
+  harness, unlike `hooks/test-guard.sh`/`hooks/test-secret-scan.sh` (both
+  wired into `.github/workflows/tests.yml`). A small shell test asserting
+  the `post-checkout` no-op skip (same prev/new SHA -> no `graphify update`
+  call) and the "no `graphify` on PATH -> no-op" fallback would close the
+  parity gap.
+- `hooks/post-merge`/`hooks/post-checkout` (#44) run `graphify update .`
+  synchronously, unlike `hooks/graphify-update.sh` (the Claude Code hook),
+  which backgrounds the call with a lockdir debounce. Fine today since it's
+  AST-only and fast, but a `git checkout`/`git pull` that actually changes
+  the tree will block on the rescan - revisit if that becomes noticeable on
+  a larger codebase.
 
 Deferred
 

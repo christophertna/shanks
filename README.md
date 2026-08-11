@@ -23,7 +23,8 @@ and its recovery paths.
 - `skills/` contains shared skill sources; `.agents/skills/` and `.claude/skills/`
   expose project-scoped Codex and Claude entrypoints.
 - `.github/workflows/tests.yml` runs the unittest suite and the `hooks/test-guard.sh`/
-  `hooks/test-secret-scan.sh` guard harnesses on pushes and pull requests.
+  `hooks/test-secret-scan.sh`/`hooks/test-pre-push.sh` guard harnesses on pushes and
+  pull requests.
 - `tests/` covers graph routing, node contracts, viewer output, quality gates,
   run isolation, lifecycle recovery, and injected failure behavior.
 
@@ -37,7 +38,8 @@ python3.11 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt 
 ```
 
 Point Git at the repo's tracked hooks so `graphify-out/` (generated, gitignored)
-refreshes automatically after every pull or checkout:
+refreshes automatically after every pull or checkout, and `git push` is gated
+on `scripts/quality_gates.py`:
 
 ```bash
 git config core.hooksPath hooks
