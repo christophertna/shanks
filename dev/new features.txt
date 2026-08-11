@@ -1,22 +1,5 @@
 Shanks feature roadmap
 
-Priority 1
-
-1- Cover lease-contention nodes with the retry policy.
-    `retries.py` classifies `"database is locked"` as transient/retryable,
-    but `graph.py`'s `TARGETED_RETRY_POLICY` is only attached to
-    `preflight`, `learning`, `planning`, `critic_auditor`, `building`,
-    `validation`, and `debugger` - not `intake`, `commit_item`,
-    `item_router`, `github_node`, `pull_request_node`, `retry_backoff`, or
-    `attempt_limit`, all of which also call into the SQLite-backed lease
-    (`lifecycle_manager.acquire`/`.heartbeat`) through `_versioned_node`. A
-    lock-contention hit while heartbeating from any of those nodes crashes
-    the run unretried instead of backing off. Fix: attach the retry policy
-    uniformly (or move lease acquire/heartbeat itself behind
-    `retry_on_exception`), and add a file-DB test simulating concurrent
-    `BEGIN IMMEDIATE` contention - `tests/test_lifecycle.py` currently only
-    shares one in-process `:memory:` connection.
-
 Priority 2 - Maintenance and developer experience
 
 1- GitHub token permission documentation.

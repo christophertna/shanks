@@ -1,11 +1,14 @@
 import sqlite3
+import tempfile
 import unittest
+from pathlib import Path
 
 from graph import VersionedSqliteSaver, build_graph
 from langgraph.types import Command
 from workflow.adapters import StubAgentAdapter
 from workflow.lifecycle import RunBusyError, RunLifecycleManager
 from workflow.nodes import NodeDependencies, create_nodes
+from workflow.retries import classify_failure, retry_on_exception
 
 
 def dependencies(lifecycle: RunLifecycleManager) -> NodeDependencies:
@@ -105,6 +108,30 @@ class LifecycleTests(unittest.TestCase):
         self.assertEqual(result.checkpoints_deleted, 1)
         self.assertEqual(len(list(saver.list(config))), 2)
         connection.close()
+
+    def test_file_backed_lease_contention_is_transient_and_retryable(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db_path = str(Path(directory) / "leases.sqlite")
+
+            contender = sqlite3.connect(db_path, timeout=0, check_same_thread=False)
+            lifecycle = RunLifecycleManager(contender, owner_id="contender")
+            lifecycle._setup()
+
+            holder = sqlite3.connect(db_path, timeout=0, check_same_thread=False)
+            holder.execute("BEGIN IMMEDIATE")
+            try:
+                with self.assertRaises(sqlite3.OperationalError) as raised:
+                    lifecycle.acquire("run-1", now=100)
+                self.assertIn("locked", str(raised.exception).lower())
+                self.assertEqual(classify_failure(error=raised.exception), "transient")
+                self.assertTrue(retry_on_exception(raised.exception))
+            finally:
+                holder.rollback()
+                holder.close()
+
+            lease = lifecycle.acquire("run-1", now=101)
+            self.assertEqual(lease.owner_id, "contender")
+            contender.close()
 
     def test_graph_marks_interrupt_and_releases_after_resume(self) -> None:
         connection = sqlite3.connect(":memory:", check_same_thread=False)

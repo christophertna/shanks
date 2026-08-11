@@ -318,7 +318,12 @@ def build_graph(
         retry_policy=TARGETED_RETRY_POLICY,
         error_handler=agent_error_handler_for("preflight"),
     )
-    builder.add_node("intake", nodes["intake"])
+    builder.add_node(
+        "intake",
+        nodes["intake"],
+        retry_policy=TARGETED_RETRY_POLICY,
+        error_handler=agent_error_handler_for("intake"),
+    )
     builder.add_node(
         "learning",
         nodes["learning"],
@@ -353,18 +358,48 @@ def build_graph(
         retry_policy=TARGETED_RETRY_POLICY,
         error_handler=agent_error_handler_for("validation"),
     )
-    builder.add_node("commit_item", nodes["commit_item"])
+    builder.add_node(
+        "commit_item",
+        nodes["commit_item"],
+        retry_policy=TARGETED_RETRY_POLICY,
+        error_handler=agent_error_handler_for("commit_item"),
+    )
     builder.add_node(
         "debugger",
         nodes["debugger"],
         retry_policy=TARGETED_RETRY_POLICY,
         error_handler=agent_error_handler_for("debugger"),
     )
-    builder.add_node("item_router", nodes["item_router"])
-    builder.add_node("github_node", nodes["github_node"])
-    builder.add_node("pull_request_node", nodes["pull_request_node"])
-    builder.add_node("retry_backoff", nodes["retry_backoff"])
-    builder.add_node("attempt_limit", nodes["attempt_limit"])
+    builder.add_node(
+        "item_router",
+        nodes["item_router"],
+        retry_policy=TARGETED_RETRY_POLICY,
+        error_handler=agent_error_handler_for("item_router"),
+    )
+    builder.add_node(
+        "github_node",
+        nodes["github_node"],
+        retry_policy=TARGETED_RETRY_POLICY,
+        error_handler=agent_error_handler_for("github_node"),
+    )
+    builder.add_node(
+        "pull_request_node",
+        nodes["pull_request_node"],
+        retry_policy=TARGETED_RETRY_POLICY,
+        error_handler=agent_error_handler_for("pull_request_node"),
+    )
+    builder.add_node(
+        "retry_backoff",
+        nodes["retry_backoff"],
+        retry_policy=TARGETED_RETRY_POLICY,
+        error_handler=agent_error_handler_for("retry_backoff"),
+    )
+    builder.add_node(
+        "attempt_limit",
+        nodes["attempt_limit"],
+        retry_policy=TARGETED_RETRY_POLICY,
+        error_handler=agent_error_handler_for("attempt_limit"),
+    )
     builder.add_node("stop_run", nodes["stop_run"])
 
     builder.add_edge(START, "preflight")

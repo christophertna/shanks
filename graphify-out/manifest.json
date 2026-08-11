@@ -5,8 +5,8 @@
     "semantic_hash": ""
   },
   "graph.py": {
-    "mtime": 1786472438.459592,
-    "ast_hash": "04a5dabfcdb32e7615477a9abed6ae62",
+    "mtime": 1786473571.049285,
+    "ast_hash": "3da8364b4bf426e153e8678576738ba0",
     "semantic_hash": ""
   },
   "hooks/deny-dangerous.sh": {
@@ -65,8 +65,8 @@
     "semantic_hash": ""
   },
   "tests/test_lifecycle.py": {
-    "mtime": 1786472438.4593675,
-    "ast_hash": "0447cb032b6af7d71b341aa9e72f6632",
+    "mtime": 1786473571.0549467,
+    "ast_hash": "7a0fdd7486b51a9f379594daa26b02a0",
     "semantic_hash": ""
   },
   "tests/test_node_contracts.py": {
@@ -90,8 +90,8 @@
     "semantic_hash": ""
   },
   "tests/test_workspaces.py": {
-    "mtime": 1786472339.0293689,
-    "ast_hash": "0da5a9c82582bed3c8fc52fb684438de",
+    "mtime": 1786473570.9644933,
+    "ast_hash": "9cb9a2fb28a20de445ce3f10751e0c09",
     "semantic_hash": ""
   },
   "workflow/__init__.py": {
@@ -150,7 +150,7 @@
     "semantic_hash": ""
   },
   "workflow/workspaces.py": {
-    "mtime": 1786472311.0797467,
+    "mtime": 1786473570.9648051,
     "ast_hash": "dcbd000bae7f4cd4621299647c2d275b",
     "semantic_hash": ""
   },
