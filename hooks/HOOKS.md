@@ -16,8 +16,6 @@ use Codex's own `--sandbox` flag instead and never see them.
 | `graphify hook-guard search` | PreToolUse | `Bash\|Grep` | Injects a reminder to run `graphify query` before raw grep/Bash search | Advisory only, never blocks |
 | `graphify hook-guard read` | PreToolUse | `Read\|Glob` | Injects a reminder to run `graphify query`/`explain` before reading raw source | Advisory only, never blocks |
 | `graphify-update.sh` | PostToolUse | `Write\|Edit` | Refreshes the graphify graph in the background (AST-only, no LLM cost) | No-op if graphify isn't installed |
-| `pr-checkpoint-reminder.sh pre` | PreToolUse | `Bash` (`gh pr create` only) | Reminds to use the `AskUserQuestion` tool for the `github-commit-pr` skill's checkpoint 1 (open now vs. wait) | Advisory only, never blocks |
-| `pr-checkpoint-reminder.sh post` | PostToolUse | `Bash` (`gh pr create` only) | Reminds to use `AskUserQuestion` for checkpoint 2 (merge now vs. wait) once the PR is open | Advisory only, never blocks |
 
 Pattern files: `dangerous-patterns.txt` (for `deny-dangerous.sh`),
 `guarded-paths.txt` (for `guard-dependency-files.sh`). Regression harnesses:
@@ -46,16 +44,17 @@ on `Read`.
 `GPT56LunaCriticAdapter` and `DebuggerAdapter(tool="codex")` are Codex-based
 and see no Claude Code hooks at all.
 
-`pr-checkpoint-reminder.sh` never fires for either group above: PR creation
-goes through `GitHubAdapter`'s own direct `gh` subprocess call, not a Claude
-Bash tool call, so there's nothing for a Claude Code hook to see.
-
 ## Developer
 
 An interactive Claude Code session isn't tool-scoped by `--tools`, so every
 hook in the table is live: `deny-dangerous.sh`, `hook-guard search`,
 `hook-guard read`, `guard-dependency-files.sh`, `secret-scan.sh`, and
-`graphify-update.sh`. `pr-checkpoint-reminder.sh` is developer-only in
-practice — it only fires when `gh pr create` is run as a Bash tool call,
-which is how the `github-commit-pr` skill does it. Test the scriptable hooks
-with `bash hooks/test-guard.sh` and `bash hooks/test-secret-scan.sh`.
+`graphify-update.sh`. Test them with `bash hooks/test-guard.sh` and
+`bash hooks/test-secret-scan.sh`.
+
+A `PreToolUse`/`PostToolUse` hook on `gh pr create` (nudging toward the
+`github-commit-pr` skill's `AskUserQuestion` checkpoints) was tried and
+removed: it can only see tool-call boundaries, and the actual failure mode
+observed was asking in prose and never reaching a `gh pr create` call at
+all, so the hook never had anything to intercept. Revisit only if Claude
+Code hooks gain visibility into prior transcript/tool-call history.

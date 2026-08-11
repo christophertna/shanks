@@ -325,13 +325,8 @@
     "semantic_hash": ""
   },
   "hooks/HOOKS.md": {
-    "mtime": 1786421220.326887,
-    "ast_hash": "bc3d7d0c7f30805f51e9af14e11ff083",
-    "semantic_hash": ""
-  },
-  "hooks/pr-checkpoint-reminder.sh": {
-    "mtime": 1786419086.7675788,
-    "ast_hash": "b5bd5671d0412cc9429f015074bdc67c",
+    "mtime": 1786423117.7712111,
+    "ast_hash": "4a17916d01f26abaa1e4c0228bc722b0",
     "semantic_hash": ""
   }
 }
