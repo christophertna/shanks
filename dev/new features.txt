@@ -94,6 +94,30 @@ Suggestions
   like flaky runs, not a sandbox problem. Consider a `./shanks doctor`
   check that runs `claude --version` (and `codex --version`) through the
   sandbox wrapper to catch that drift immediately instead of mid-run.
+- Nothing verifies `jq`/`gitleaks` are present before a run starts writing
+  files - `secret-scan.sh` fails closed by design, so a Ralph run on a
+  machine without `gitleaks` installed won't fail fast at the first
+  preflight check, it'll fail confusingly at the agent's very first Write
+  call mid-run. `./shanks doctor` already checks for both; wiring that same
+  check into the `preflight` node (or requiring a passing `doctor` run
+  before `RunWorkspaceManager.ensure()`) would surface the missing
+  dependency before any agent work starts.
+- The `Write|Edit` `PreToolUse` hooks disagree on fail-open vs fail-closed
+  when `jq` is missing: `guard-dependency-files.sh` fails open (allows the
+  write) so a missing `jq` doesn't block all edits, while `secret-scan.sh`
+  (and `deny-dangerous.sh` on `Bash`) fail closed. That split was a
+  deliberate call per-hook based on how safety-critical each one is, but
+  it's not written down anywhere as a policy - worth a short note in
+  `hooks/HOOKS.md` (or a repo convention) on when a new hook should pick
+  which, so it's a decision and not just whatever the author of the next
+  hook happens to do.
+- `hooks/pr-checkpoint-reminder.sh` can only nudge
+  toward the `github-commit-pr` skill's `AskUserQuestion` checkpoints, not
+  enforce them - a `PreToolUse` hook only sees the current tool call's
+  input, not prior transcript history, so there's no way for a hook to
+  verify the question was actually asked (with the right tool, not prose)
+  before `gh pr create` runs. Revisit if Claude Code hooks ever gain
+  transcript/session context.
 
 Deferred
 

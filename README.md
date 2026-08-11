@@ -268,11 +268,13 @@ The repo-local
 run `hooks/test-guard.sh` to check it. `hooks/guard-dependency-files.sh` blocks
 Write/Edit on lockfiles, pinned dependency manifests, and `.env` files (patterns
 in `hooks/guarded-paths.txt`; override with `SHANKS_ALLOW_DEPENDENCY_EDIT=1`).
-`hooks/secret-scan.sh` scans Write/Edit content with `gitleaks` and blocks the
-write outright on a match, rather than flagging it after it's already on disk
-and possibly committed; run `hooks/test-secret-scan.sh` to check it. It fails
-closed (blocks the write) if `jq` or `gitleaks` aren't installed, and
-`./shanks doctor` checks for both.
+`hooks/secret-scan.sh` scans Write/Edit content and Bash command text with
+`gitleaks` and blocks outright on a match, rather than flagging it after
+it's already on disk (or already run) and possibly committed; run
+`hooks/test-secret-scan.sh` to check it. It fails closed (blocks) if `jq` or
+`gitleaks` aren't installed, and `./shanks doctor` checks for both. The Bash
+path only catches secrets typed literally into the command text, not ones
+assembled from existing files/variables at runtime.
 `hooks/graphify-update.sh` refreshes the graphify graph in the background after
 each Write/Edit (AST-only, no LLM cost). All are wired via a local
 `.claude/settings.json`, which is gitignored since it hardcodes a

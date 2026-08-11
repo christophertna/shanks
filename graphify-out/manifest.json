@@ -105,7 +105,7 @@
     "semantic_hash": ""
   },
   "workflow/cli.py": {
-    "mtime": 1786417528.526577,
+    "mtime": 1786418984.68481,
     "ast_hash": "0cd26729add753ccef04a014a4d1e444",
     "semantic_hash": ""
   },
@@ -185,7 +185,7 @@
     "semantic_hash": ""
   },
   ".agents/skills/github-commit-pr/SKILL.md": {
-    "mtime": 1786418127.536461,
+    "mtime": 1786418984.6752985,
     "ast_hash": "9878876252875be650dbf9280dd75ae9",
     "semantic_hash": ""
   },
@@ -230,8 +230,8 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1786417719.9069617,
-    "ast_hash": "c4c09046c46045cc4fc7ee145c8a3f81",
+    "mtime": 1786421236.943505,
+    "ast_hash": "eea89fc937170f3b2bceed1240d6dd15",
     "semantic_hash": ""
   },
   "graph.html": {
@@ -275,13 +275,13 @@
     "semantic_hash": ""
   },
   "skills/github-commit-pr/SKILL.md": {
-    "mtime": 1786418119.524793,
+    "mtime": 1786418984.6833403,
     "ast_hash": "9878876252875be650dbf9280dd75ae9",
     "semantic_hash": ""
   },
   "tests/tests.md": {
-    "mtime": 1786417620.3703623,
-    "ast_hash": "608e772242547f499dfad626c8eee72e",
+    "mtime": 1786421255.0939372,
+    "ast_hash": "17ff1d5774c466e83ff0202612023a48",
     "semantic_hash": ""
   },
   "hooks/graphify-update.sh": {
@@ -315,18 +315,18 @@
     "semantic_hash": ""
   },
   "hooks/secret-scan.sh": {
-    "mtime": 1786417465.0462484,
-    "ast_hash": "1929b484186f3383fdb76f9b40a9abe4",
+    "mtime": 1786420982.8646119,
+    "ast_hash": "903e511380c6bb2cf8438cc375843b7c",
     "semantic_hash": ""
   },
   "hooks/test-secret-scan.sh": {
-    "mtime": 1786417513.1296449,
-    "ast_hash": "bfe5c554a4921b0668a0487355f9bb1f",
+    "mtime": 1786421086.5735059,
+    "ast_hash": "59369413ec7f51afbd977f775b668dd1",
     "semantic_hash": ""
   },
   "hooks/HOOKS.md": {
-    "mtime": 1786417963.7195756,
-    "ast_hash": "f14767857ef074cb0060dcf97fd369f4",
+    "mtime": 1786423117.7712111,
+    "ast_hash": "4a17916d01f26abaa1e4c0228bc722b0",
     "semantic_hash": ""
   }
 }

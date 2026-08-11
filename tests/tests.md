@@ -3,7 +3,7 @@
 This document summarizes the behavior covered by the repository's tracked test
 files. The Python suite contains **157 unittest methods** across twelve
 modules; `hooks/test-guard.sh` and `hooks/test-secret-scan.sh` are separate
-shell regression harnesses with eight and five checks respectively.
+shell regression harnesses with eight and seven checks respectively.
 
 The tests use in-memory graphs, temporary SQLite databases and temporary
 projects, real temporary Git repositories, a fake `gh` executable, stub
@@ -40,7 +40,7 @@ Run the repository quality gates from a feature branch with:
 | [`test_agent_integration.py`](test_agent_integration.py) | 3 | Real Codex and Claude CLI smoke tests, including the sandboxed Claude write path, against a small deterministic project (opt-in) |
 | [`test_sandbox_claude.py`](test_sandbox_claude.py) | 4 | `scripts/sandbox_claude.sh` write containment: allows writes inside the target directory, denies writes outside it (including a shared-temp-root sibling and a `..` escape), and falls back to unsandboxed execution when `sandbox-exec` is unavailable |
 | [`../hooks/test-guard.sh`](../hooks/test-guard.sh) | 8 shell checks | Dangerous-command blocking and safe-command allowlisting |
-| [`../hooks/test-secret-scan.sh`](../hooks/test-secret-scan.sh) | 5 shell checks | gitleaks-backed secret blocking on Write/Edit content and new_string |
+| [`../hooks/test-secret-scan.sh`](../hooks/test-secret-scan.sh) | 7 shell checks | gitleaks-backed secret blocking on Write/Edit content, new_string, and Bash command text |
 
 ### CLI diagnostics
 
@@ -213,14 +213,16 @@ expectation fails. It verifies that the guard:
 ### Secret-scan regression checks
 
 The shell harness invokes `hooks/secret-scan.sh`, which scans a Write/Edit
-tool call's `content`/`new_string` with `gitleaks` before the file is written
-and blocks (rather than just flags) any match. It verifies that the guard:
+tool call's `content`/`new_string`, or a Bash tool call's `command`, with
+`gitleaks` before the file is written or the command runs, and blocks
+(rather than just flags) any match. It verifies that the guard:
 
 - Allows ordinary code and prose with no credential-shaped content.
-- Blocks a high-entropy GitHub personal-access-token-shaped string in both
-  `content` (Write) and `new_string` (Edit).
+- Blocks a high-entropy GitHub personal-access-token-shaped string in
+  `content` (Write), `new_string` (Edit), and `command` (Bash).
 - Allows a tool call with no content field at all (e.g. an Edit that only
   removes text).
+- Allows an ordinary Bash command with no credential-shaped content.
 
 ## GitHub commit and pull-request delivery
 
