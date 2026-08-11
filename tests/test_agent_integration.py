@@ -53,6 +53,28 @@ class RealAgentSmokeTests(unittest.TestCase):
         self.assertEqual(result.status, "completed", result.error or result.feedback)
         self.assertIn("ok", result.feedback.lower())
 
+    @unittest.skipUnless(shutil.which("claude"), "claude CLI not installed")
+    def test_claude_adapter_write_path_runs_inside_the_sandbox(self) -> None:
+        with TemporaryDirectory() as directory:
+            project = self._project(Path(directory))
+            adapter = ClaudeAdapter(project, read_only=False)
+            result = adapter.run(
+                AgentRequest(
+                    task=(
+                        "Create a file named sandbox_ok.txt containing the "
+                        "single word OK, then reply with the single word OK "
+                        "and take no other action."
+                    ),
+                    timeout_seconds=120,
+                )
+            )
+
+            self.assertEqual(result.assigned_model, "claude")
+            self.assertEqual(
+                result.status, "completed", result.error or result.feedback
+            )
+            self.assertTrue((project / "sandbox_ok.txt").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

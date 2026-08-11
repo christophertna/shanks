@@ -1,7 +1,7 @@
 # Test coverage
 
 This document summarizes the behavior covered by the repository's tracked test
-files. The Python suite contains **152 unittest methods** across eleven
+files. The Python suite contains **157 unittest methods** across twelve
 modules; `hooks/test-guard.sh` is a separate shell regression harness with
 eight command checks.
 
@@ -37,7 +37,8 @@ Run the repository quality gates from a feature branch with:
 | [`test_quality_gates.py`](test_quality_gates.py) | 9 | Quality command definitions, safe diff refs, numstat parsing, generated-output handling, diff limits, and gate failure reporting |
 | [`test_fault_injection.py`](test_fault_injection.py) | 7 | Injected Git, GitHub, validation, checkpoint, and agent process failures |
 | [`test_git_integration.py`](test_git_integration.py) | 2 | Real temporary Git repositories, worktrees, commits, pushes, PR creation/reuse, and fake-`gh` recovery |
-| [`test_agent_integration.py`](test_agent_integration.py) | 2 | Real Codex and Claude CLI smoke tests against a small deterministic project (opt-in) |
+| [`test_agent_integration.py`](test_agent_integration.py) | 3 | Real Codex and Claude CLI smoke tests, including the sandboxed Claude write path, against a small deterministic project (opt-in) |
+| [`test_sandbox_claude.py`](test_sandbox_claude.py) | 4 | `scripts/sandbox_claude.sh` write containment: allows writes inside the target directory, denies writes outside it (including a shared-temp-root sibling and a `..` escape), and falls back to unsandboxed execution when `sandbox-exec` is unavailable |
 | [`../hooks/test-guard.sh`](../hooks/test-guard.sh) | 8 shell checks | Dangerous-command blocking and safe-command allowlisting |
 
 ### CLI diagnostics

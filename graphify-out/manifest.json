@@ -30,8 +30,8 @@
     "semantic_hash": ""
   },
   "scripts/ralph/ralph.sh": {
-    "mtime": 1786405129.3919907,
-    "ast_hash": "56f1d4f09073a5e127de7b60ec138f4a",
+    "mtime": 1786410520.3773143,
+    "ast_hash": "11494b91a70618568a2b42062c73d176",
     "semantic_hash": ""
   },
   "serve_graph.py": {
@@ -90,7 +90,7 @@
     "semantic_hash": ""
   },
   "tests/test_workspaces.py": {
-    "mtime": 1786406907.1616242,
+    "mtime": 1786407196.9867203,
     "ast_hash": "1fcf2ad098ab0edfb8a561757e70e5d2",
     "semantic_hash": ""
   },
@@ -100,8 +100,8 @@
     "semantic_hash": ""
   },
   "workflow/adapters.py": {
-    "mtime": 1786405122.7385418,
-    "ast_hash": "aedf2deffb01da434041fde5eb4dc3ec",
+    "mtime": 1786410539.0437858,
+    "ast_hash": "f3dca6c460cb1c970831159fa4c0fd03",
     "semantic_hash": ""
   },
   "workflow/cli.py": {
@@ -150,7 +150,7 @@
     "semantic_hash": ""
   },
   "workflow/workspaces.py": {
-    "mtime": 1786406895.2416852,
+    "mtime": 1786407196.9881003,
     "ast_hash": "cf78d1b162706a808c6f097b155fb30d",
     "semantic_hash": ""
   },
@@ -225,8 +225,8 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1786406976.5405133,
-    "ast_hash": "3dcb56796ee3986436c2409da27c9223",
+    "mtime": 1786411845.1529992,
+    "ast_hash": "e8fd8c57d3442775a960c4eb75a94604",
     "semantic_hash": ""
   },
   "README.md": {
@@ -280,8 +280,8 @@
     "semantic_hash": ""
   },
   "tests/tests.md": {
-    "mtime": 1786407029.0974035,
-    "ast_hash": "c3c90c09304bb45f69f84d86c6b322b7",
+    "mtime": 1786411814.4372673,
+    "ast_hash": "a8d8fbe03d4c6b9b32f784ea67bc46ab",
     "semantic_hash": ""
   },
   "hooks/graphify-update.sh": {
@@ -300,8 +300,18 @@
     "semantic_hash": ""
   },
   "tests/test_agent_integration.py": {
-    "mtime": 1786387320.1840677,
-    "ast_hash": "f0d60ca24d0a5caff7f9911165ff93ff",
+    "mtime": 1786411774.3447454,
+    "ast_hash": "f4ae0101b0581205c5bfc0c7e3aca974",
+    "semantic_hash": ""
+  },
+  "scripts/sandbox_claude.sh": {
+    "mtime": 1786411664.039581,
+    "ast_hash": "49826428e0bbd2b9c643577ae0a14ed1",
+    "semantic_hash": ""
+  },
+  "tests/test_sandbox_claude.py": {
+    "mtime": 1786411739.3971694,
+    "ast_hash": "56c8511e178ed73fef7f05dc533d1602",
     "semantic_hash": ""
   }
 }

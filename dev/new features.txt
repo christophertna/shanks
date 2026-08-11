@@ -52,6 +52,31 @@ Suggestions
   documented floor (Git 2.30, gh 2.40) is never actually exercised. Pinning
   old Git/gh versions in CI to prove the floor works is real setup effort for
   a small payoff — defer unless a real floor-version bug shows up.
+- Give the critic/debugger adapters `Grep,Glob` alongside `Read` (still
+  fully read-only, same guarantee as today) so they can search the codebase
+  for related callers/regressions instead of only inspecting files already
+  named in their context.
+- `critic_auditor` runs *before* `validation` in the graph (build -> critic
+  -> validate), and `ClaudeOpus48CriticAdapter` has no `Bash` at all, so it
+  can never actually run the tests it's judging - only reason from source.
+  `GPT56LunaCriticAdapter` (`codex exec --sandbox read-only`) can execute
+  commands read-only, so the two critics have materially different
+  verification power. Worth a design discussion, not just a permissions
+  tweak, before changing it.
+- No network egress control on Ralph's build agent - the denylist only
+  blocks the specific `curl|sh` pattern, nothing stops `pip install
+  <package>` or other outbound calls. `scripts/sandbox_claude.sh` (the
+  filesystem sandbox) deliberately leaves `(allow network*)` in its
+  profile, since Claude itself needs network for its own API calls, so
+  this would need per-host allowlisting (Anthropic's API, not arbitrary
+  destinations), not a blanket deny. Defer until there's a concrete need
+  (e.g. running against untrusted PRD content).
+- No audit trail of what Ralph actually did inside a session - the run
+  manifest records the launching command and the final `--print` output,
+  not the individual tool calls (files read/written, Bash commands run)
+  during the session. Would help post-incident review; capturing
+  `--output-format stream-json` (or equivalent) into the run manifest is
+  the likely shape.
 
 Deferred
 

@@ -47,11 +47,17 @@ assembles the graph; `serve_graph.py` serves a live Mermaid viewer at
 - The build agent (`RalphAdapter` / `scripts/ralph/ralph.sh`,
   `ClaudeAdapter(read_only=False)`) runs Claude with `--permission-mode
   acceptEdits --tools Read,Write,Edit,Bash,Grep,Glob` rather than
-  `--dangerously-skip-permissions`. `Bash` is still an unrestricted shell —
-  the allowlist removes Claude's *other* tools (WebFetch, Task/subagents,
-  etc.), it isn't a command sandbox. `_validate_execution` only restricts
+  `--dangerously-skip-permissions`. `_validate_execution` only restricts
   which executable and paths *launch* the agent, not what it does once
   running.
+- On top of that, `scripts/sandbox_claude.sh` wraps the same Claude build
+  invocation in a real OS-level sandbox (`sandbox-exec`/Seatbelt on macOS)
+  confined to the target worktree, a fresh private per-run temp dir, and
+  `~/.claude`/`~/.codex`/`~/.npm`/`~/.cache` — so `Bash` can no longer write
+  outside the worktree even though it's an allowed tool. Falls back to
+  unsandboxed (with a stderr warning) on non-macOS or without `sandbox-exec`.
+  Network is intentionally left open for now. See `tests/test_sandbox_claude.py`
+  for the actual containment checks.
 - `.claude/` is gitignored, so a fresh run worktree from
   `RunWorkspaceManager.ensure()` (`workflow/workspaces.py`) wouldn't
   otherwise carry `.claude/settings.json` — and without it, Claude Code
