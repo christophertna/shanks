@@ -8,7 +8,13 @@ Priority 2 - Maintenance and developer experience
     PAT) in the README's "Supported toolchain" section, so setup failures
     surface as a doc reference instead of a live 403 diagnosis, and
     authentication setup is verified once instead of diagnosed per
-    failure.
+    failure. Also document that pushing changes to .github/workflows/*
+    needs its own, separate permission - a classic PAT needs the
+    `workflow` scope and a fine-grained PAT needs "Workflows: Read and
+    write" - or `git push` is rejected outright ("refusing to allow a
+    Personal Access Token to create or update workflow ... without
+    `workflow` scope"), hit firsthand landing #39. `gh auth refresh -h
+    github.com -s workflow` fixes it for a `gh`-managed token.
 
 2- Scoped test-impact hook.
     Add a `PostToolUse` hook on `Write|Edit` that runs just the test
@@ -94,14 +100,6 @@ Suggestions
   like flaky runs, not a sandbox problem. Consider a `./shanks doctor`
   check that runs `claude --version` (and `codex --version`) through the
   sandbox wrapper to catch that drift immediately instead of mid-run.
-- Nothing verifies `jq`/`gitleaks` are present before a run starts writing
-  files - `secret-scan.sh` fails closed by design, so a Ralph run on a
-  machine without `gitleaks` installed won't fail fast at the first
-  preflight check, it'll fail confusingly at the agent's very first Write
-  call mid-run. `./shanks doctor` already checks for both; wiring that same
-  check into the `preflight` node (or requiring a passing `doctor` run
-  before `RunWorkspaceManager.ensure()`) would surface the missing
-  dependency before any agent work starts.
 - The `Write|Edit` `PreToolUse` hooks disagree on fail-open vs fail-closed
   when `jq` is missing: `guard-dependency-files.sh` fails open (allows the
   write) so a missing `jq` doesn't block all edits, while `secret-scan.sh`
@@ -111,13 +109,42 @@ Suggestions
   `hooks/HOOKS.md` (or a repo convention) on when a new hook should pick
   which, so it's a decision and not just whatever the author of the next
   hook happens to do.
-- `hooks/pr-checkpoint-reminder.sh` can only nudge
-  toward the `github-commit-pr` skill's `AskUserQuestion` checkpoints, not
-  enforce them - a `PreToolUse` hook only sees the current tool call's
-  input, not prior transcript history, so there's no way for a hook to
-  verify the question was actually asked (with the right tool, not prose)
-  before `gh pr create` runs. Revisit if Claude Code hooks ever gain
-  transcript/session context.
+- `hooks/HOOKS.md` is a manually-maintained doc that's needed a hand-edit on
+  every single hook change so far (which agents get which hook, matched
+  against each adapter's `--tools` list) - nothing cross-checks its claims
+  against the actual `--tools` strings in `workflow/adapters.py`, so it can
+  silently drift the next time someone changes a tool list without
+  remembering to update the doc. A small test asserting the documented
+  tool-scope table stays consistent with `adapters.py` would catch that.
+- `./shanks doctor`'s `tools` check only verifies `gitleaks`/`jq` are
+  present, not their version (unlike `git`/`gh`, which have
+  `_MIN_TOOL_VERSIONS`) - a `gitleaks` upgrade could silently change
+  detection rules/behavior with nothing to notice. Low urgency; worth a
+  version floor if a real detection regression ever traces back to a
+  `gitleaks` upgrade.
+- Lesson from `hooks/pr-checkpoint-reminder.sh` (built, then removed this
+  session): before adding a new advisory `PreToolUse`/`PostToolUse` hook as
+  a "safeguard" against an agent skipping a step, check that the failure
+  mode is actually a tool-call boundary. Hooks can't see whether the agent
+  chose prose over calling a tool at all - only tool calls that do happen.
+  That hook's whole premise didn't hold up; worth checking this before
+  building the next one.
+- `workflow/cli.py`'s `_REQUIRED_TOOLS` (`./shanks doctor`) and
+  `GitHubAdapter.preflight()`'s `required_tools` (`workflow/adapters.py`,
+  extended to include `jq`/`gitleaks` in #40) are now two independently
+  hardcoded tuples checking the same tool set, with no test asserting they
+  stay in sync. A future tool addition to one and not the other would
+  silently reopen the same "doctor says fine, run stalls anyway" gap #40
+  just closed. Extract a shared constant or add a test asserting the two
+  lists match.
+- `dev/new features.txt` is tracked in git (`git ls-files dev/` confirms it)
+  even though `.gitignore` has a blanket `dev/` pattern and `dev/context.md`
+  says "because dev/ is ignored, it is not tracked or included in future
+  PRs unless deliberately copied out" - that note is now inaccurate for
+  this file specifically. Either deliberately untrack it and stop
+  hand-editing roadmap state into it, or update `dev/context.md` to say
+  this one file is a tracked exception, so the two docs stop disagreeing
+  about whether roadmap edits belong in a PR.
 
 Deferred
 
