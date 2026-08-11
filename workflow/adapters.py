@@ -579,7 +579,7 @@ class GitHubAdapter:
         """Check tools, branch state, GitHub auth, and the test environment."""
 
         commands: list[list[str]] = []
-        required_tools = ("git", "gh", "bash")
+        required_tools = ("git", "gh", "bash", "jq", "gitleaks")
         missing = [tool for tool in required_tools if shutil.which(tool) is None]
         if not Path(sys.executable).exists():
             missing.append(sys.executable)

@@ -1,7 +1,7 @@
 # Test coverage
 
 This document summarizes the behavior covered by the repository's tracked test
-files. The Python suite contains **157 unittest methods** across twelve
+files. The Python suite contains **158 unittest methods** across twelve
 modules; `hooks/test-guard.sh` and `hooks/test-secret-scan.sh` are separate
 shell regression harnesses with eight and seven checks respectively, both run
 in CI alongside the Python suite (see
@@ -31,7 +31,7 @@ Run the repository quality gates from a feature branch with:
 | --- | ---: | --- |
 | [`test_cli.py`](test_cli.py) | 14 | Execution-mode reporting, doctor diagnostics (including Git/gh version checks), and run listing, status, resume, cancellation, recovery, cleanup, pruning, and safety checks |
 | [`test_graph.py`](test_graph.py) | 39 | Workflow orchestration, item metadata, targeted retries, budgets, approvals, dry-run previews, and GitHub handoff |
-| [`test_node_contracts.py`](test_node_contracts.py) | 42 | Agent, failure-classification, subprocess, Ralph, local-test, critic, quality-gate, and GitHub adapter contracts |
+| [`test_node_contracts.py`](test_node_contracts.py) | 43 | Agent, failure-classification, subprocess, Ralph, local-test, critic, quality-gate, and GitHub adapter contracts |
 | [`test_state_schema.py`](test_state_schema.py) | 9 | State migration, retry metadata, versioned checkpoints, and legacy resume behavior |
 | [`test_lifecycle.py`](test_lifecycle.py) | 5 | Run leases, stale recovery, interruption/resume, terminal release, and checkpoint cleanup |
 | [`test_workspaces.py`](test_workspaces.py) | 11 | Run identity, Git worktree creation/reuse, syncing the gitignored Claude Code hook guard into new worktrees, local/remote branch listing and deletion, workspace context, and workspace state migration |
@@ -244,6 +244,9 @@ Sources: [`test_graph.py`](test_graph.py) and
 
 - Preflight checks tool availability, branch state, authentication, and local
   tests plus the quality gates, and returns the test output on success.
+- Preflight's tool check includes `jq` and `gitleaks` (needed by the secret-scan
+  hook) alongside `git`, `gh`, and `bash`; a missing tool fails preflight before
+  any Git command runs.
 - A dirty worktree fails preflight before local tests run.
 
 ### Publishing and PR reuse

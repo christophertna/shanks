@@ -193,9 +193,12 @@ agent and validation work.
 
 ## Preflight checks
 
-The default GitHub-backed graph checks that `git`, `gh`, and `bash` are
-available, the run is on a non-`main` clean branch, GitHub CLI authentication
-works, the unittest suite passes, and all quality gates pass. The gates run
+The default GitHub-backed graph checks that `git`, `gh`, `bash`, `jq`, and
+`gitleaks` are available (the last two are also required by the secret-scan
+hook, so a missing one now fails fast at preflight instead of stalling the
+build agent's first tool call), the run is on a non-`main` clean branch,
+GitHub CLI authentication works, the unittest suite passes, and all quality
+gates pass. The gates run
 Black in check mode, Ruff, Mypy, pip-audit across runtime and development
 requirements, and the diff-size limit. A failed check ends with
 `status="preflight_failed"` before intake or agent work. Lightweight injected
