@@ -65,8 +65,8 @@
       "source_location": "L89",
       "_origin": "ast",
       "id": "graph_versionedsqlitesaver_init",
-      "community": 35,
-      "community_name": ".cleanup",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": ".__init__()"
     },
     {
@@ -76,8 +76,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "connection",
-      "community": 35,
-      "community_name": ".cleanup",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": "connection"
     },
     {
@@ -1665,8 +1665,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_test_cli",
-      "community": 53,
-      "community_name": "test_cli.py",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": "test_cli.py"
     },
     {
@@ -1874,8 +1874,8 @@
       "source_location": "L485",
       "_origin": "ast",
       "id": "tests_test_cli_fakegraph",
-      "community": 53,
-      "community_name": "test_cli.py",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": "_fakegraph"
     },
     {
@@ -1885,8 +1885,8 @@
       "source_location": "L486",
       "_origin": "ast",
       "id": "tests_test_cli_fakegraph_init",
-      "community": 53,
-      "community_name": "test_cli.py",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": ".__init__()"
     },
     {
@@ -1896,8 +1896,8 @@
       "source_location": "L490",
       "_origin": "ast",
       "id": "tests_test_cli_fakegraph_update_state",
-      "community": 53,
-      "community_name": "test_cli.py",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": ".update_state()"
     },
     {
@@ -1907,8 +1907,8 @@
       "source_location": "L493",
       "_origin": "ast",
       "id": "tests_test_cli_fakegraph_invoke",
-      "community": 53,
-      "community_name": "test_cli.py",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": ".invoke()"
     },
     {
@@ -1918,8 +1918,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_test_fault_injection",
-      "community": 0,
-      "community_name": "AgentResult",
+      "community": 14,
+      "community_name": "migrate_state",
       "norm_label": "test_fault_injection.py"
     },
     {
@@ -1929,8 +1929,8 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "tests_test_fault_injection_initial_state",
-      "community": 0,
-      "community_name": "AgentResult",
+      "community": 14,
+      "community_name": "migrate_state",
       "norm_label": "_initial_state()"
     },
     {
@@ -1951,8 +1951,8 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "tests_test_fault_injection_checkpoint_payload",
-      "community": 35,
-      "community_name": ".cleanup",
+      "community": 14,
+      "community_name": "migrate_state",
       "norm_label": "_checkpoint_payload()"
     },
     {
@@ -1962,8 +1962,8 @@
       "source_location": "L67",
       "_origin": "ast",
       "id": "tests_test_fault_injection_explodingbuilder",
-      "community": 0,
-      "community_name": "AgentResult",
+      "community": 14,
+      "community_name": "migrate_state",
       "norm_label": "explodingbuilder"
     },
     {
@@ -1995,8 +1995,8 @@
       "source_location": "L75",
       "_origin": "ast",
       "id": "tests_test_fault_injection_faultinjectiontests_test_git_process_error_is_returned_as_a_classified_failure",
-      "community": 14,
-      "community_name": "migrate_state",
+      "community": 1,
+      "community_name": "GitHubAdapter",
       "norm_label": ".test_git_process_error_is_returned_as_a_classified_failure()"
     },
     {
@@ -2006,8 +2006,8 @@
       "source_location": "L89",
       "_origin": "ast",
       "id": "tests_test_fault_injection_faultinjectiontests_test_github_pr_creation_failure_stops_after_push_and_lookup",
-      "community": 14,
-      "community_name": "migrate_state",
+      "community": 1,
+      "community_name": "GitHubAdapter",
       "norm_label": ".test_github_pr_creation_failure_stops_after_push_and_lookup()"
     },
     {
@@ -2039,8 +2039,8 @@
       "source_location": "L143",
       "_origin": "ast",
       "id": "tests_test_fault_injection_faultinjectiontests_test_agent_exception_reaches_terminal_build_failure_with_audit_event",
-      "community": 0,
-      "community_name": "AgentResult",
+      "community": 14,
+      "community_name": "migrate_state",
       "norm_label": ".test_agent_exception_reaches_terminal_build_failure_with_audit_event()"
     },
     {
@@ -2050,8 +2050,8 @@
       "source_location": "L167",
       "_origin": "ast",
       "id": "tests_test_fault_injection_faultinjectiontests_test_checkpoint_write_failure_is_not_silently_swallowed",
-      "community": 35,
-      "community_name": ".cleanup",
+      "community": 14,
+      "community_name": "migrate_state",
       "norm_label": ".test_checkpoint_write_failure_is_not_silently_swallowed()"
     },
     {
@@ -2061,8 +2061,8 @@
       "source_location": "L182",
       "_origin": "ast",
       "id": "tests_test_fault_injection_faultinjectiontests_test_checkpoint_read_failure_is_not_silently_swallowed",
-      "community": 14,
-      "community_name": "migrate_state",
+      "community": 35,
+      "community_name": ".cleanup",
       "norm_label": ".test_checkpoint_read_failure_is_not_silently_swallowed()"
     },
     {
@@ -2083,8 +2083,8 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "tests_test_git_integration_githubintegrationtests",
-      "community": 2,
-      "community_name": "RunWorkspaceManager",
+      "community": 21,
+      "community_name": "migrate_state",
       "norm_label": "githubintegrationtests"
     },
     {
@@ -2094,8 +2094,8 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "tests_test_git_integration_githubintegrationtests_test_real_worktree_commit_push_and_pr_reuse",
-      "community": 2,
-      "community_name": "RunWorkspaceManager",
+      "community": 21,
+      "community_name": "migrate_state",
       "norm_label": ".test_real_worktree_commit_push_and_pr_reuse()"
     },
     {
@@ -2105,8 +2105,8 @@
       "source_location": "L85",
       "_origin": "ast",
       "id": "tests_test_git_integration_githubintegrationtests_test_pr_creation_failure_recovers_on_retry",
-      "community": 2,
-      "community_name": "RunWorkspaceManager",
+      "community": 21,
+      "community_name": "migrate_state",
       "norm_label": ".test_pr_creation_failure_recovers_on_retry()"
     },
     {
@@ -2116,8 +2116,8 @@
       "source_location": "L138",
       "_origin": "ast",
       "id": "tests_test_git_integration_githubintegrationtests_repository",
-      "community": 2,
-      "community_name": "RunWorkspaceManager",
+      "community": 21,
+      "community_name": "migrate_state",
       "norm_label": "._repository()"
     },
     {
@@ -2127,8 +2127,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tests_test_git_integration_py_path",
-      "community": 2,
-      "community_name": "RunWorkspaceManager",
+      "community": 21,
+      "community_name": "migrate_state",
       "norm_label": "path"
     },
     {
@@ -2138,8 +2138,8 @@
       "source_location": "L160",
       "_origin": "ast",
       "id": "tests_test_git_integration_githubintegrationtests_fake_gh",
-      "community": 2,
-      "community_name": "RunWorkspaceManager",
+      "community": 21,
+      "community_name": "migrate_state",
       "norm_label": "._fake_gh()"
     },
     {
@@ -2149,8 +2149,8 @@
       "source_location": "L277",
       "_origin": "ast",
       "id": "tests_test_git_integration_githubintegrationtests_fake_gh_state",
-      "community": 2,
-      "community_name": "RunWorkspaceManager",
+      "community": 21,
+      "community_name": "migrate_state",
       "norm_label": "._fake_gh_state()"
     },
     {
@@ -2160,8 +2160,8 @@
       "source_location": "L283",
       "_origin": "ast",
       "id": "tests_test_git_integration_githubintegrationtests_git",
-      "community": 2,
-      "community_name": "RunWorkspaceManager",
+      "community": 21,
+      "community_name": "migrate_state",
       "norm_label": "._git()"
     },
     {
@@ -2171,8 +2171,8 @@
       "source_location": "L287",
       "_origin": "ast",
       "id": "tests_test_git_integration_githubintegrationtests_run",
-      "community": 2,
-      "community_name": "RunWorkspaceManager",
+      "community": 21,
+      "community_name": "migrate_state",
       "norm_label": "._run()"
     },
     {
@@ -2831,8 +2831,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_test_lifecycle",
-      "community": 54,
-      "community_name": ".recover_stale",
+      "community": 5,
+      "community_name": "graph.py",
       "norm_label": "test_lifecycle.py"
     },
     {
@@ -2842,8 +2842,8 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "tests_test_lifecycle_dependencies",
-      "community": 54,
-      "community_name": ".recover_stale",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": "dependencies()"
     },
     {
@@ -2853,8 +2853,8 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "tests_test_lifecycle_lifecycletests",
-      "community": 54,
-      "community_name": ".recover_stale",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": "lifecycletests"
     },
     {
@@ -2864,8 +2864,8 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "tests_test_lifecycle_lifecycletests_test_live_lease_blocks_and_expired_lease_recovers",
-      "community": 54,
-      "community_name": ".recover_stale",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": ".test_live_lease_blocks_and_expired_lease_recovers()"
     },
     {
@@ -2875,8 +2875,8 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "tests_test_lifecycle_lifecycletests_test_interrupted_run_can_resume_with_the_same_owner",
-      "community": 54,
-      "community_name": ".recover_stale",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": ".test_interrupted_run_can_resume_with_the_same_owner()"
     },
     {
@@ -2886,8 +2886,8 @@
       "source_location": "L60",
       "_origin": "ast",
       "id": "tests_test_lifecycle_lifecycletests_test_graph_rejects_a_second_owner_before_running_a_node",
-      "community": 54,
-      "community_name": ".recover_stale",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": ".test_graph_rejects_a_second_owner_before_running_a_node()"
     },
     {
@@ -2897,8 +2897,8 @@
       "source_location": "L78",
       "_origin": "ast",
       "id": "tests_test_lifecycle_lifecycletests_test_checkpoint_cleanup_keeps_recent_terminal_history",
-      "community": 54,
-      "community_name": ".recover_stale",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": ".test_checkpoint_cleanup_keeps_recent_terminal_history()"
     },
     {
@@ -2908,8 +2908,8 @@
       "source_location": "L109",
       "_origin": "ast",
       "id": "tests_test_lifecycle_lifecycletests_test_graph_marks_interrupt_and_releases_after_resume",
-      "community": 54,
-      "community_name": ".recover_stale",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": ".test_graph_marks_interrupt_and_releases_after_resume()"
     },
     {
@@ -2974,8 +2974,8 @@
       "source_location": "L81",
       "_origin": "ast",
       "id": "tests_test_node_contracts_nodecontracttests_test_cheap_critic_is_an_adapter_with_a_model_name",
-      "community": 48,
-      "community_name": "Path",
+      "community": 11,
+      "community_name": "classify_failure",
       "norm_label": ".test_cheap_critic_is_an_adapter_with_a_model_name()"
     },
     {
@@ -3073,8 +3073,8 @@
       "source_location": "L254",
       "_origin": "ast",
       "id": "tests_test_node_contracts_nodecontracttests_test_debugger_adapter_maps_structured_failure_analysis",
-      "community": 20,
-      "community_name": "RunLifecycleManager",
+      "community": 19,
+      "community_name": "default_dependencies",
       "norm_label": ".test_debugger_adapter_maps_structured_failure_analysis()"
     },
     {
@@ -3177,10 +3177,21 @@
       "norm_label": ".test_github_preflight_checks_branch_auth_and_tests()"
     },
     {
-      "label": ".test_github_preflight_rejects_dirty_worktree()",
+      "label": ".test_github_preflight_rejects_missing_tools()",
       "file_type": "code",
       "source_file": "tests/test_node_contracts.py",
       "source_location": "L581",
+      "_origin": "ast",
+      "id": "tests_test_node_contracts_nodecontracttests_test_github_preflight_rejects_missing_tools",
+      "community": 1,
+      "community_name": "GitHubAdapter",
+      "norm_label": ".test_github_preflight_rejects_missing_tools()"
+    },
+    {
+      "label": ".test_github_preflight_rejects_dirty_worktree()",
+      "file_type": "code",
+      "source_file": "tests/test_node_contracts.py",
+      "source_location": "L599",
       "_origin": "ast",
       "id": "tests_test_node_contracts_nodecontracttests_test_github_preflight_rejects_dirty_worktree",
       "community": 1,
@@ -3191,7 +3202,7 @@
       "label": ".test_github_adapter_redacts_pr_text_and_limits_environment()",
       "file_type": "code",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L608",
+      "source_location": "L626",
       "_origin": "ast",
       "id": "tests_test_node_contracts_nodecontracttests_test_github_adapter_redacts_pr_text_and_limits_environment",
       "community": 1,
@@ -3202,7 +3213,7 @@
       "label": ".test_github_adapter_pushes_then_creates_a_pr()",
       "file_type": "code",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L656",
+      "source_location": "L674",
       "_origin": "ast",
       "id": "tests_test_node_contracts_nodecontracttests_test_github_adapter_pushes_then_creates_a_pr",
       "community": 1,
@@ -3213,7 +3224,7 @@
       "label": ".test_github_adapter_reuses_an_existing_pr_for_the_branch()",
       "file_type": "code",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L701",
+      "source_location": "L719",
       "_origin": "ast",
       "id": "tests_test_node_contracts_nodecontracttests_test_github_adapter_reuses_an_existing_pr_for_the_branch",
       "community": 1,
@@ -3224,7 +3235,7 @@
       "label": ".test_github_adapter_reconciles_open_pr_text_policy_and_staleness()",
       "file_type": "code",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L745",
+      "source_location": "L763",
       "_origin": "ast",
       "id": "tests_test_node_contracts_nodecontracttests_test_github_adapter_reconciles_open_pr_text_policy_and_staleness",
       "community": 1,
@@ -3235,7 +3246,7 @@
       "label": ".test_github_adapter_policy_updates_are_idempotent()",
       "file_type": "code",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L809",
+      "source_location": "L827",
       "_origin": "ast",
       "id": "tests_test_node_contracts_nodecontracttests_test_github_adapter_policy_updates_are_idempotent",
       "community": 1,
@@ -3246,7 +3257,7 @@
       "label": ".test_github_adapter_reopens_closed_pr_but_stops_on_merged_pr()",
       "file_type": "code",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L854",
+      "source_location": "L872",
       "_origin": "ast",
       "id": "tests_test_node_contracts_nodecontracttests_test_github_adapter_reopens_closed_pr_but_stops_on_merged_pr",
       "community": 1,
@@ -3257,7 +3268,7 @@
       "label": ".test_github_adapter_reports_commit_failure()",
       "file_type": "code",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L915",
+      "source_location": "L933",
       "_origin": "ast",
       "id": "tests_test_node_contracts_nodecontracttests_test_github_adapter_reports_commit_failure",
       "community": 1,
@@ -3268,7 +3279,7 @@
       "label": ".test_github_adapter_stops_after_push_failure()",
       "file_type": "code",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L942",
+      "source_location": "L960",
       "_origin": "ast",
       "id": "tests_test_node_contracts_nodecontracttests_test_github_adapter_stops_after_push_failure",
       "community": 1,
@@ -3279,7 +3290,7 @@
       "label": ".test_github_adapter_reports_pull_request_creation_failure()",
       "file_type": "code",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L962",
+      "source_location": "L980",
       "_origin": "ast",
       "id": "tests_test_node_contracts_nodecontracttests_test_github_adapter_reports_pull_request_creation_failure",
       "community": 1,
@@ -3290,40 +3301,40 @@
       "label": ".test_default_dependencies_use_local_tests()",
       "file_type": "code",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L985",
+      "source_location": "L1003",
       "_origin": "ast",
       "id": "tests_test_node_contracts_nodecontracttests_test_default_dependencies_use_local_tests",
-      "community": 19,
-      "community_name": "default_dependencies",
+      "community": 1,
+      "community_name": "GitHubAdapter",
       "norm_label": ".test_default_dependencies_use_local_tests()"
     },
     {
       "label": ".test_default_dependencies_share_the_configured_base_branch()",
       "file_type": "code",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L993",
+      "source_location": "L1011",
       "_origin": "ast",
       "id": "tests_test_node_contracts_nodecontracttests_test_default_dependencies_share_the_configured_base_branch",
-      "community": 19,
-      "community_name": "default_dependencies",
+      "community": 1,
+      "community_name": "GitHubAdapter",
       "norm_label": ".test_default_dependencies_share_the_configured_base_branch()"
     },
     {
       "label": ".test_default_dependencies_allow_a_claude_workflow()",
       "file_type": "code",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L999",
+      "source_location": "L1017",
       "_origin": "ast",
       "id": "tests_test_node_contracts_nodecontracttests_test_default_dependencies_allow_a_claude_workflow",
-      "community": 19,
-      "community_name": "default_dependencies",
+      "community": 1,
+      "community_name": "GitHubAdapter",
       "norm_label": ".test_default_dependencies_allow_a_claude_workflow()"
     },
     {
       "label": ".test_gpt_5_6_luna_critic_uses_read_only_max_reasoning()",
       "file_type": "code",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1014",
+      "source_location": "L1032",
       "_origin": "ast",
       "id": "tests_test_node_contracts_nodecontracttests_test_gpt_5_6_luna_critic_uses_read_only_max_reasoning",
       "community": 1,
@@ -3334,7 +3345,7 @@
       "label": ".test_gpt_5_6_luna_critic_maps_structured_output()",
       "file_type": "code",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1025",
+      "source_location": "L1043",
       "_origin": "ast",
       "id": "tests_test_node_contracts_nodecontracttests_test_gpt_5_6_luna_critic_maps_structured_output",
       "community": 19,
@@ -3345,7 +3356,7 @@
       "label": ".test_claude_opus_4_8_critic_uses_read_only_medium_effort()",
       "file_type": "code",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1042",
+      "source_location": "L1060",
       "_origin": "ast",
       "id": "tests_test_node_contracts_nodecontracttests_test_claude_opus_4_8_critic_uses_read_only_medium_effort",
       "community": 1,
@@ -3356,7 +3367,7 @@
       "label": ".test_claude_opus_4_8_critic_maps_structured_output()",
       "file_type": "code",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1057",
+      "source_location": "L1075",
       "_origin": "ast",
       "id": "tests_test_node_contracts_nodecontracttests_test_claude_opus_4_8_critic_maps_structured_output",
       "community": 19,
@@ -3367,7 +3378,7 @@
       "label": ".test_luna_dependency_factory_wires_the_critic_node()",
       "file_type": "code",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1074",
+      "source_location": "L1092",
       "_origin": "ast",
       "id": "tests_test_node_contracts_nodecontracttests_test_luna_dependency_factory_wires_the_critic_node",
       "community": 19,
@@ -3378,7 +3389,7 @@
       "label": ".test_claude_dependency_factory_wires_the_critic_node()",
       "file_type": "code",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1079",
+      "source_location": "L1097",
       "_origin": "ast",
       "id": "tests_test_node_contracts_nodecontracttests_test_claude_dependency_factory_wires_the_critic_node",
       "community": 19,
@@ -3389,55 +3400,55 @@
       "label": ".test_ralph_adapter_selects_a_project_skill()",
       "file_type": "code",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1084",
+      "source_location": "L1102",
       "_origin": "ast",
       "id": "tests_test_node_contracts_nodecontracttests_test_ralph_adapter_selects_a_project_skill",
-      "community": 1,
-      "community_name": "GitHubAdapter",
+      "community": 14,
+      "community_name": "migrate_state",
       "norm_label": ".test_ralph_adapter_selects_a_project_skill()"
     },
     {
       "label": ".test_ralph_adapter_passes_the_enriched_requirement_to_ralph()",
       "file_type": "code",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1101",
+      "source_location": "L1119",
       "_origin": "ast",
       "id": "tests_test_node_contracts_nodecontracttests_test_ralph_adapter_passes_the_enriched_requirement_to_ralph",
-      "community": 28,
-      "community_name": "RalphAdapter",
+      "community": 14,
+      "community_name": "migrate_state",
       "norm_label": ".test_ralph_adapter_passes_the_enriched_requirement_to_ralph()"
     },
     {
       "label": ".test_ralph_adapter_isolates_run_metadata_with_a_worktree()",
       "file_type": "code",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1157",
+      "source_location": "L1175",
       "_origin": "ast",
       "id": "tests_test_node_contracts_nodecontracttests_test_ralph_adapter_isolates_run_metadata_with_a_worktree",
-      "community": 28,
-      "community_name": "RalphAdapter",
+      "community": 14,
+      "community_name": "migrate_state",
       "norm_label": ".test_ralph_adapter_isolates_run_metadata_with_a_worktree()"
     },
     {
       "label": ".test_ralph_adapter_requires_the_item_built_signal()",
       "file_type": "code",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1191",
+      "source_location": "L1209",
       "_origin": "ast",
       "id": "tests_test_node_contracts_nodecontracttests_test_ralph_adapter_requires_the_item_built_signal",
-      "community": 28,
-      "community_name": "RalphAdapter",
+      "community": 14,
+      "community_name": "migrate_state",
       "norm_label": ".test_ralph_adapter_requires_the_item_built_signal()"
     },
     {
       "label": ".test_ralph_adapter_syncs_only_the_changed_prd_item()",
       "file_type": "code",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1209",
+      "source_location": "L1227",
       "_origin": "ast",
       "id": "tests_test_node_contracts_nodecontracttests_test_ralph_adapter_syncs_only_the_changed_prd_item",
-      "community": 28,
-      "community_name": "RalphAdapter",
+      "community": 14,
+      "community_name": "migrate_state",
       "norm_label": ".test_ralph_adapter_syncs_only_the_changed_prd_item()"
     },
     {
@@ -3678,8 +3689,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_test_state_schema",
-      "community": 21,
-      "community_name": "migrate_state",
+      "community": 35,
+      "community_name": ".cleanup",
       "norm_label": "test_state_schema.py"
     },
     {
@@ -3689,8 +3700,8 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "tests_test_state_schema_stateschematests",
-      "community": 21,
-      "community_name": "migrate_state",
+      "community": 35,
+      "community_name": ".cleanup",
       "norm_label": "stateschematests"
     },
     {
@@ -3711,8 +3722,8 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "tests_test_state_schema_stateschematests_test_unversioned_state_migrates_to_current_schema",
-      "community": 21,
-      "community_name": "migrate_state",
+      "community": 35,
+      "community_name": ".cleanup",
       "norm_label": ".test_unversioned_state_migrates_to_current_schema()"
     },
     {
@@ -3722,8 +3733,8 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "tests_test_state_schema_stateschematests_test_newer_state_schema_is_rejected",
-      "community": 21,
-      "community_name": "migrate_state",
+      "community": 35,
+      "community_name": ".cleanup",
       "norm_label": ".test_newer_state_schema_is_rejected()"
     },
     {
@@ -3733,8 +3744,8 @@
       "source_location": "L42",
       "_origin": "ast",
       "id": "tests_test_state_schema_stateschematests_test_v1_state_migrates_run_budget_defaults",
-      "community": 21,
-      "community_name": "migrate_state",
+      "community": 35,
+      "community_name": ".cleanup",
       "norm_label": ".test_v1_state_migrates_run_budget_defaults()"
     },
     {
@@ -3744,8 +3755,8 @@
       "source_location": "L54",
       "_origin": "ast",
       "id": "tests_test_state_schema_stateschematests_test_v2_state_migrates_run_manifest",
-      "community": 21,
-      "community_name": "migrate_state",
+      "community": 35,
+      "community_name": ".cleanup",
       "norm_label": ".test_v2_state_migrates_run_manifest()"
     },
     {
@@ -3755,8 +3766,8 @@
       "source_location": "L63",
       "_origin": "ast",
       "id": "tests_test_state_schema_stateschematests_test_v3_state_migrates_failure_and_retry_fields",
-      "community": 21,
-      "community_name": "migrate_state",
+      "community": 35,
+      "community_name": ".cleanup",
       "norm_label": ".test_v3_state_migrates_failure_and_retry_fields()"
     },
     {
@@ -3766,8 +3777,8 @@
       "source_location": "L75",
       "_origin": "ast",
       "id": "tests_test_state_schema_stateschematests_test_v5_state_migrates_run_lifecycle_fields",
-      "community": 21,
-      "community_name": "migrate_state",
+      "community": 35,
+      "community_name": ".cleanup",
       "norm_label": ".test_v5_state_migrates_run_lifecycle_fields()"
     },
     {
@@ -3788,8 +3799,8 @@
       "source_location": "L121",
       "_origin": "ast",
       "id": "tests_test_state_schema_stateschematests_test_sqlite_saver_stamps_new_checkpoint",
-      "community": 21,
-      "community_name": "migrate_state",
+      "community": 35,
+      "community_name": ".cleanup",
       "norm_label": ".test_sqlite_saver_stamps_new_checkpoint()"
     },
     {
@@ -3931,8 +3942,8 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "tests_test_workspaces_recordingadapter",
-      "community": 0,
-      "community_name": "AgentResult",
+      "community": 2,
+      "community_name": "RunWorkspaceManager",
       "norm_label": "recordingadapter"
     },
     {
@@ -3942,8 +3953,8 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "tests_test_workspaces_recordingadapter_init",
-      "community": 0,
-      "community_name": "AgentResult",
+      "community": 2,
+      "community_name": "RunWorkspaceManager",
       "norm_label": ".__init__()"
     },
     {
@@ -3953,8 +3964,8 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "tests_test_workspaces_recordingadapter_run",
-      "community": 0,
-      "community_name": "AgentResult",
+      "community": 2,
+      "community_name": "RunWorkspaceManager",
       "norm_label": ".run()"
     },
     {
@@ -3986,8 +3997,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tests_test_workspaces_py_path",
-      "community": 2,
-      "community_name": "RunWorkspaceManager",
+      "community": 20,
+      "community_name": "RunLifecycleManager",
       "norm_label": "path"
     },
     {
@@ -3997,8 +4008,8 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "tests_test_workspaces_fakeworkspacemanager_ensure",
-      "community": 2,
-      "community_name": "RunWorkspaceManager",
+      "community": 20,
+      "community_name": "RunLifecycleManager",
       "norm_label": ".ensure()"
     },
     {
@@ -4008,8 +4019,8 @@
       "source_location": "L53",
       "_origin": "ast",
       "id": "tests_test_workspaces_workspacetests",
-      "community": 2,
-      "community_name": "RunWorkspaceManager",
+      "community": 20,
+      "community_name": "RunLifecycleManager",
       "norm_label": "workspacetests"
     },
     {
@@ -4019,8 +4030,8 @@
       "source_location": "L54",
       "_origin": "ast",
       "id": "tests_test_workspaces_workspacetests_test_manager_creates_and_reuses_a_run_worktree",
-      "community": 2,
-      "community_name": "RunWorkspaceManager",
+      "community": 20,
+      "community_name": "RunLifecycleManager",
       "norm_label": ".test_manager_creates_and_reuses_a_run_worktree()"
     },
     {
@@ -4030,8 +4041,8 @@
       "source_location": "L76",
       "_origin": "ast",
       "id": "tests_test_workspaces_workspacetests_test_ensure_copies_gitignored_claude_settings_into_new_worktree",
-      "community": 2,
-      "community_name": "RunWorkspaceManager",
+      "community": 20,
+      "community_name": "RunLifecycleManager",
       "norm_label": ".test_ensure_copies_gitignored_claude_settings_into_new_worktree()"
     },
     {
@@ -4041,8 +4052,8 @@
       "source_location": "L101",
       "_origin": "ast",
       "id": "tests_test_workspaces_workspacetests_test_ensure_tolerates_missing_claude_settings",
-      "community": 2,
-      "community_name": "RunWorkspaceManager",
+      "community": 20,
+      "community_name": "RunLifecycleManager",
       "norm_label": ".test_ensure_tolerates_missing_claude_settings()"
     },
     {
@@ -4052,8 +4063,8 @@
       "source_location": "L116",
       "_origin": "ast",
       "id": "tests_test_workspaces_workspacetests_test_development_mode_can_delete_a_run_branch_after_worktree_removal",
-      "community": 2,
-      "community_name": "RunWorkspaceManager",
+      "community": 20,
+      "community_name": "RunLifecycleManager",
       "norm_label": ".test_development_mode_can_delete_a_run_branch_after_worktree_removal()"
     },
     {
@@ -4063,8 +4074,8 @@
       "source_location": "L147",
       "_origin": "ast",
       "id": "tests_test_workspaces_workspacetests_test_development_mode_cannot_delete_a_protected_branch",
-      "community": 2,
-      "community_name": "RunWorkspaceManager",
+      "community": 20,
+      "community_name": "RunLifecycleManager",
       "norm_label": ".test_development_mode_cannot_delete_a_protected_branch()"
     },
     {
@@ -4074,8 +4085,8 @@
       "source_location": "L158",
       "_origin": "ast",
       "id": "tests_test_workspaces_workspacetests_test_development_mode_cannot_delete_a_branch_outside_the_run_scope",
-      "community": 2,
-      "community_name": "RunWorkspaceManager",
+      "community": 20,
+      "community_name": "RunLifecycleManager",
       "norm_label": ".test_development_mode_cannot_delete_a_branch_outside_the_run_scope()"
     },
     {
@@ -4085,8 +4096,8 @@
       "source_location": "L171",
       "_origin": "ast",
       "id": "tests_test_workspaces_workspacetests_test_list_worktrees_and_branches_report_run_ids",
-      "community": 2,
-      "community_name": "RunWorkspaceManager",
+      "community": 20,
+      "community_name": "RunLifecycleManager",
       "norm_label": ".test_list_worktrees_and_branches_report_run_ids()"
     },
     {
@@ -4096,8 +4107,8 @@
       "source_location": "L191",
       "_origin": "ast",
       "id": "tests_test_workspaces_workspacetests_test_list_remote_branches_and_delete_remote_branch",
-      "community": 2,
-      "community_name": "RunWorkspaceManager",
+      "community": 20,
+      "community_name": "RunLifecycleManager",
       "norm_label": ".test_list_remote_branches_and_delete_remote_branch()"
     },
     {
@@ -4107,8 +4118,8 @@
       "source_location": "L210",
       "_origin": "ast",
       "id": "tests_test_workspaces_workspacetests_repository",
-      "community": 2,
-      "community_name": "RunWorkspaceManager",
+      "community": 20,
+      "community_name": "RunLifecycleManager",
       "norm_label": "._repository()"
     },
     {
@@ -4118,8 +4129,8 @@
       "source_location": "L225",
       "_origin": "ast",
       "id": "tests_test_workspaces_workspacetests_test_workspace_context_is_scoped_and_restored",
-      "community": 2,
-      "community_name": "RunWorkspaceManager",
+      "community": 20,
+      "community_name": "RunLifecycleManager",
       "norm_label": ".test_workspace_context_is_scoped_and_restored()"
     },
     {
@@ -4129,8 +4140,8 @@
       "source_location": "L233",
       "_origin": "ast",
       "id": "tests_test_workspaces_workspacetests_test_graph_nodes_persist_run_identity_and_route_requests",
-      "community": 2,
-      "community_name": "RunWorkspaceManager",
+      "community": 20,
+      "community_name": "RunLifecycleManager",
       "norm_label": ".test_graph_nodes_persist_run_identity_and_route_requests()"
     },
     {
@@ -4140,8 +4151,8 @@
       "source_location": "L271",
       "_origin": "ast",
       "id": "tests_test_workspaces_workspacetests_test_v4_state_migrates_workspace_fields",
-      "community": 21,
-      "community_name": "migrate_state",
+      "community": 35,
+      "community_name": ".cleanup",
       "norm_label": ".test_v4_state_migrates_workspace_fields()"
     },
     {
@@ -4151,8 +4162,8 @@
       "source_location": "L280",
       "_origin": "ast",
       "id": "tests_test_workspaces_workspacetests_git",
-      "community": 2,
-      "community_name": "RunWorkspaceManager",
+      "community": 20,
+      "community_name": "RunLifecycleManager",
       "norm_label": "._git()"
     },
     {
@@ -4162,8 +4173,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "workflow_init",
-      "community": 29,
-      "community_name": "contracts.py",
+      "community": 19,
+      "community_name": "default_dependencies",
       "norm_label": "__init__.py"
     },
     {
@@ -4173,8 +4184,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "workflow_init_rationale_1",
-      "community": 29,
-      "community_name": "contracts.py",
+      "community": 19,
+      "community_name": "default_dependencies",
       "norm_label": "reusable workflow state, agent contracts, adapters, and nodes."
     },
     {
@@ -4228,8 +4239,8 @@
       "source_location": "L130",
       "_origin": "ast",
       "id": "workflow_adapters_subprocessagentadapter_run",
-      "community": 11,
-      "community_name": "classify_failure",
+      "community": 14,
+      "community_name": "migrate_state",
       "norm_label": ".run()"
     },
     {
@@ -4261,8 +4272,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "workflow_adapters_py_path",
-      "community": 39,
-      "community_name": "RalphAdapter",
+      "community": 11,
+      "community_name": "classify_failure",
       "norm_label": "path"
     },
     {
@@ -4272,8 +4283,8 @@
       "source_location": "L253",
       "_origin": "ast",
       "id": "workflow_adapters_ralphadapter",
-      "community": 28,
-      "community_name": "RalphAdapter",
+      "community": 14,
+      "community_name": "migrate_state",
       "norm_label": "ralphadapter"
     },
     {
@@ -4283,8 +4294,8 @@
       "source_location": "L256",
       "_origin": "ast",
       "id": "workflow_adapters_ralphadapter_init",
-      "community": 39,
-      "community_name": "RalphAdapter",
+      "community": 11,
+      "community_name": "classify_failure",
       "norm_label": ".__init__()"
     },
     {
@@ -4294,8 +4305,8 @@
       "source_location": "L294",
       "_origin": "ast",
       "id": "workflow_adapters_ralphadapter_run",
-      "community": 28,
-      "community_name": "RalphAdapter",
+      "community": 14,
+      "community_name": "migrate_state",
       "norm_label": ".run()"
     },
     {
@@ -4305,8 +4316,8 @@
       "source_location": "L322",
       "_origin": "ast",
       "id": "workflow_adapters_ralphadapter_sync_prd_file",
-      "community": 28,
-      "community_name": "RalphAdapter",
+      "community": 14,
+      "community_name": "migrate_state",
       "norm_label": "._sync_prd_file()"
     },
     {
@@ -4316,8 +4327,8 @@
       "source_location": "L372",
       "_origin": "ast",
       "id": "workflow_adapters_ralphadapter_command_for",
-      "community": 11,
-      "community_name": "classify_failure",
+      "community": 14,
+      "community_name": "migrate_state",
       "norm_label": "._command_for()"
     },
     {
@@ -4338,8 +4349,8 @@
       "source_location": "L394",
       "_origin": "ast",
       "id": "workflow_adapters_localtestadapter_init",
-      "community": 39,
-      "community_name": "RalphAdapter",
+      "community": 11,
+      "community_name": "classify_failure",
       "norm_label": ".__init__()"
     },
     {
@@ -4371,8 +4382,8 @@
       "source_location": "L454",
       "_origin": "ast",
       "id": "workflow_adapters_debuggeradapter",
-      "community": 20,
-      "community_name": "RunLifecycleManager",
+      "community": 19,
+      "community_name": "default_dependencies",
       "norm_label": "debuggeradapter"
     },
     {
@@ -4382,8 +4393,8 @@
       "source_location": "L459",
       "_origin": "ast",
       "id": "workflow_adapters_debuggeradapter_init",
-      "community": 39,
-      "community_name": "RalphAdapter",
+      "community": 11,
+      "community_name": "classify_failure",
       "norm_label": ".__init__()"
     },
     {
@@ -4393,8 +4404,8 @@
       "source_location": "L503",
       "_origin": "ast",
       "id": "workflow_adapters_debuggeradapter_run",
-      "community": 20,
-      "community_name": "RunLifecycleManager",
+      "community": 14,
+      "community_name": "migrate_state",
       "norm_label": ".run()"
     },
     {
@@ -4822,8 +4833,8 @@
       "source_location": "L1634",
       "_origin": "ast",
       "id": "workflow_adapters_policy_values",
-      "community": 6,
-      "community_name": "run_quality_gates",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": "_policy_values()"
     },
     {
@@ -4932,8 +4943,8 @@
       "source_location": "L1745",
       "_origin": "ast",
       "id": "workflow_adapters_codexadapter_init",
-      "community": 39,
-      "community_name": "RalphAdapter",
+      "community": 11,
+      "community_name": "classify_failure",
       "norm_label": ".__init__()"
     },
     {
@@ -4954,8 +4965,8 @@
       "source_location": "L1769",
       "_origin": "ast",
       "id": "workflow_adapters_claudeadapter_init",
-      "community": 39,
-      "community_name": "RalphAdapter",
+      "community": 11,
+      "community_name": "classify_failure",
       "norm_label": ".__init__()"
     },
     {
@@ -4965,8 +4976,8 @@
       "source_location": "L1802",
       "_origin": "ast",
       "id": "workflow_adapters_structuredcriticadapter",
-      "community": 20,
-      "community_name": "RunLifecycleManager",
+      "community": 14,
+      "community_name": "migrate_state",
       "norm_label": "structuredcriticadapter"
     },
     {
@@ -4976,8 +4987,8 @@
       "source_location": "L1807",
       "_origin": "ast",
       "id": "workflow_adapters_structuredcriticadapter_run",
-      "community": 20,
-      "community_name": "RunLifecycleManager",
+      "community": 14,
+      "community_name": "migrate_state",
       "norm_label": ".run()"
     },
     {
@@ -4998,8 +5009,8 @@
       "source_location": "L1819",
       "_origin": "ast",
       "id": "workflow_adapters_gpt56lunacriticadapter_init",
-      "community": 39,
-      "community_name": "RalphAdapter",
+      "community": 11,
+      "community_name": "classify_failure",
       "norm_label": ".__init__()"
     },
     {
@@ -5020,8 +5031,8 @@
       "source_location": "L1855",
       "_origin": "ast",
       "id": "workflow_adapters_claudeopus48criticadapter_init",
-      "community": 39,
-      "community_name": "RalphAdapter",
+      "community": 11,
+      "community_name": "classify_failure",
       "norm_label": ".__init__()"
     },
     {
@@ -5031,8 +5042,8 @@
       "source_location": "L1890",
       "_origin": "ast",
       "id": "workflow_adapters_cheapcriticadapter",
-      "community": 48,
-      "community_name": "Path",
+      "community": 11,
+      "community_name": "classify_failure",
       "norm_label": "cheapcriticadapter"
     },
     {
@@ -5042,8 +5053,8 @@
       "source_location": "L1893",
       "_origin": "ast",
       "id": "workflow_adapters_cheapcriticadapter_init",
-      "community": 39,
-      "community_name": "RalphAdapter",
+      "community": 11,
+      "community_name": "classify_failure",
       "norm_label": ".__init__()"
     },
     {
@@ -5053,8 +5064,8 @@
       "source_location": "L1897",
       "_origin": "ast",
       "id": "workflow_adapters_parse_json_object",
-      "community": 20,
-      "community_name": "RunLifecycleManager",
+      "community": 11,
+      "community_name": "classify_failure",
       "norm_label": "_parse_json_object()"
     },
     {
@@ -5064,8 +5075,8 @@
       "source_location": "L1920",
       "_origin": "ast",
       "id": "workflow_adapters_parse_uncertainties",
-      "community": 28,
-      "community_name": "RalphAdapter",
+      "community": 11,
+      "community_name": "classify_failure",
       "norm_label": "_parse_uncertainties()"
     },
     {
@@ -5075,8 +5086,8 @@
       "source_location": "L1951",
       "_origin": "ast",
       "id": "workflow_adapters_critic_request",
-      "community": 20,
-      "community_name": "RunLifecycleManager",
+      "community": 14,
+      "community_name": "migrate_state",
       "norm_label": "_critic_request()"
     },
     {
@@ -5086,8 +5097,8 @@
       "source_location": "L1983",
       "_origin": "ast",
       "id": "workflow_adapters_debugger_request",
-      "community": 20,
-      "community_name": "RunLifecycleManager",
+      "community": 14,
+      "community_name": "migrate_state",
       "norm_label": "_debugger_request()"
     },
     {
@@ -5097,8 +5108,8 @@
       "source_location": "L2016",
       "_origin": "ast",
       "id": "workflow_adapters_critic_result",
-      "community": 20,
-      "community_name": "RunLifecycleManager",
+      "community": 14,
+      "community_name": "migrate_state",
       "norm_label": "_critic_result()"
     },
     {
@@ -5108,8 +5119,8 @@
       "source_location": "L2054",
       "_origin": "ast",
       "id": "workflow_adapters_debugger_result",
-      "community": 20,
-      "community_name": "RunLifecycleManager",
+      "community": 11,
+      "community_name": "classify_failure",
       "norm_label": "_debugger_result()"
     },
     {
@@ -5119,8 +5130,8 @@
       "source_location": "L2102",
       "_origin": "ast",
       "id": "workflow_adapters_format_request",
-      "community": 11,
-      "community_name": "classify_failure",
+      "community": 14,
+      "community_name": "migrate_state",
       "norm_label": "_format_request()"
     },
     {
@@ -5185,8 +5196,8 @@
       "source_location": "L254",
       "_origin": "ast",
       "id": "workflow_adapters_rationale_254",
-      "community": 28,
-      "community_name": "RalphAdapter",
+      "community": 14,
+      "community_name": "migrate_state",
       "norm_label": "adapter for the project-local ralph runner."
     },
     {
@@ -5196,8 +5207,8 @@
       "source_location": "L323",
       "_origin": "ast",
       "id": "workflow_adapters_rationale_323",
-      "community": 28,
-      "community_name": "RalphAdapter",
+      "community": 14,
+      "community_name": "migrate_state",
       "norm_label": "persist the graph's full prd before ralph reads its next story."
     },
     {
@@ -5218,8 +5229,8 @@
       "source_location": "L455",
       "_origin": "ast",
       "id": "workflow_adapters_rationale_455",
-      "community": 20,
-      "community_name": "RunLifecycleManager",
+      "community": 19,
+      "community_name": "default_dependencies",
       "norm_label": "analyze validation failures with a read-only structured codex run."
     },
     {
@@ -5317,8 +5328,8 @@
       "source_location": "L1635",
       "_origin": "ast",
       "id": "workflow_adapters_rationale_1635",
-      "community": 6,
-      "community_name": "run_quality_gates",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": "normalize and deduplicate configured reviewer or label names."
     },
     {
@@ -5405,8 +5416,8 @@
       "source_location": "L1803",
       "_origin": "ast",
       "id": "workflow_adapters_rationale_1803",
-      "community": 20,
-      "community_name": "RunLifecycleManager",
+      "community": 14,
+      "community_name": "migrate_state",
       "norm_label": "normalize a read-only cli critic into the common agent result shape."
     },
     {
@@ -5438,8 +5449,8 @@
       "source_location": "L1891",
       "_origin": "ast",
       "id": "workflow_adapters_rationale_1891",
-      "community": 48,
-      "community_name": "Path",
+      "community": 11,
+      "community_name": "classify_failure",
       "norm_label": "deterministic low-cost critic used by the default graph."
     },
     {
@@ -5449,8 +5460,8 @@
       "source_location": "L1898",
       "_origin": "ast",
       "id": "workflow_adapters_rationale_1898",
-      "community": 20,
-      "community_name": "RunLifecycleManager",
+      "community": 11,
+      "community_name": "classify_failure",
       "norm_label": "parse a json object even when the cli adds non-json log lines."
     },
     {
@@ -5460,8 +5471,8 @@
       "source_location": "L1921",
       "_origin": "ast",
       "id": "workflow_adapters_rationale_1921",
-      "community": 28,
-      "community_name": "RalphAdapter",
+      "community": 11,
+      "community_name": "classify_failure",
       "norm_label": "extract the builder's concise uncertainty bullets from ralph output."
     },
     {
@@ -5471,8 +5482,8 @@
       "source_location": "L1952",
       "_origin": "ast",
       "id": "workflow_adapters_rationale_1952",
-      "community": 20,
-      "community_name": "RunLifecycleManager",
+      "community": 14,
+      "community_name": "migrate_state",
       "norm_label": "add the shared read-only audit instructions to a critic request."
     },
     {
@@ -5482,8 +5493,8 @@
       "source_location": "L1984",
       "_origin": "ast",
       "id": "workflow_adapters_rationale_1984",
-      "community": 20,
-      "community_name": "RunLifecycleManager",
+      "community": 14,
+      "community_name": "migrate_state",
       "norm_label": "give the debugger failure evidence and a read-only analysis mandate."
     },
     {
@@ -5493,8 +5504,8 @@
       "source_location": "L2020",
       "_origin": "ast",
       "id": "workflow_adapters_rationale_2020",
-      "community": 20,
-      "community_name": "RunLifecycleManager",
+      "community": 14,
+      "community_name": "migrate_state",
       "norm_label": "translate a structured cli response into an agentresult."
     },
     {
@@ -5504,8 +5515,8 @@
       "source_location": "L2058",
       "_origin": "ast",
       "id": "workflow_adapters_rationale_2058",
-      "community": 20,
-      "community_name": "RunLifecycleManager",
+      "community": 11,
+      "community_name": "classify_failure",
       "norm_label": "translate structured debugger output into the shared result shape."
     },
     {
@@ -5515,8 +5526,8 @@
       "source_location": "L2103",
       "_origin": "ast",
       "id": "workflow_adapters_rationale_2103",
-      "community": 11,
-      "community_name": "classify_failure",
+      "community": 14,
+      "community_name": "migrate_state",
       "norm_label": "create a stable prompt envelope for cli-backed adapters."
     },
     {
@@ -6131,8 +6142,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "workflow_contracts",
-      "community": 29,
-      "community_name": "contracts.py",
+      "community": 19,
+      "community_name": "default_dependencies",
       "norm_label": "contracts.py"
     },
     {
@@ -6175,8 +6186,8 @@
       "source_location": "L78",
       "_origin": "ast",
       "id": "workflow_contracts_agentadapter",
-      "community": 48,
-      "community_name": "Path",
+      "community": 19,
+      "community_name": "default_dependencies",
       "norm_label": "agentadapter"
     },
     {
@@ -6186,8 +6197,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "protocol",
-      "community": 48,
-      "community_name": "Path",
+      "community": 0,
+      "community_name": "AgentResult",
       "norm_label": "protocol"
     },
     {
@@ -6197,8 +6208,8 @@
       "source_location": "L83",
       "_origin": "ast",
       "id": "workflow_contracts_agentadapter_run",
-      "community": 48,
-      "community_name": "Path",
+      "community": 19,
+      "community_name": "default_dependencies",
       "norm_label": ".run()"
     },
     {
@@ -6208,8 +6219,8 @@
       "source_location": "L89",
       "_origin": "ast",
       "id": "workflow_contracts_repositoryadapter",
-      "community": 29,
-      "community_name": "contracts.py",
+      "community": 0,
+      "community_name": "AgentResult",
       "norm_label": "repositoryadapter"
     },
     {
@@ -6285,8 +6296,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "workflow_contracts_rationale_1",
-      "community": 29,
-      "community_name": "contracts.py",
+      "community": 19,
+      "community_name": "default_dependencies",
       "norm_label": "common interfaces shared by agent adapters and graph nodes."
     },
     {
@@ -6329,8 +6340,8 @@
       "source_location": "L79",
       "_origin": "ast",
       "id": "workflow_contracts_rationale_79",
-      "community": 48,
-      "community_name": "Path",
+      "community": 19,
+      "community_name": "default_dependencies",
       "norm_label": "interface implemented by ralph, model clis, and test doubles."
     },
     {
@@ -6340,8 +6351,8 @@
       "source_location": "L84",
       "_origin": "ast",
       "id": "workflow_contracts_rationale_84",
-      "community": 48,
-      "community_name": "Path",
+      "community": 19,
+      "community_name": "default_dependencies",
       "norm_label": "run the backend for one workflow node invocation."
     },
     {
@@ -6351,8 +6362,8 @@
       "source_location": "L90",
       "_origin": "ast",
       "id": "workflow_contracts_rationale_90",
-      "community": 29,
-      "community_name": "contracts.py",
+      "community": 0,
+      "community_name": "AgentResult",
       "norm_label": "interface for local commits and the final github handoff."
     },
     {
@@ -6736,8 +6747,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "workflow_lifecycle",
-      "community": 27,
-      "community_name": "lifecycle.py",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": "lifecycle.py"
     },
     {
@@ -6747,8 +6758,8 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "workflow_lifecycle_runbusyerror",
-      "community": 27,
-      "community_name": "lifecycle.py",
+      "community": 4,
+      "community_name": "cli.py",
       "norm_label": "runbusyerror"
     },
     {
@@ -6758,8 +6769,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "workflow_lifecycle_py_runtimeerror",
-      "community": 27,
-      "community_name": "lifecycle.py",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": "runtimeerror"
     },
     {
@@ -6769,8 +6780,8 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "workflow_lifecycle_leaselosterror",
-      "community": 27,
-      "community_name": "lifecycle.py",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": "leaselosterror"
     },
     {
@@ -6780,8 +6791,8 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "workflow_lifecycle_runlease",
-      "community": 24,
-      "community_name": "._setup",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": "runlease"
     },
     {
@@ -6791,8 +6802,8 @@
       "source_location": "L53",
       "_origin": "ast",
       "id": "workflow_lifecycle_runrecord",
-      "community": 27,
-      "community_name": "lifecycle.py",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": "runrecord"
     },
     {
@@ -6802,8 +6813,8 @@
       "source_location": "L66",
       "_origin": "ast",
       "id": "workflow_lifecycle_runlifecyclemanager",
-      "community": 54,
-      "community_name": ".recover_stale",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": "runlifecyclemanager"
     },
     {
@@ -6813,8 +6824,8 @@
       "source_location": "L75",
       "_origin": "ast",
       "id": "workflow_lifecycle_runlifecyclemanager_post_init",
-      "community": 54,
-      "community_name": ".recover_stale",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": ".__post_init__()"
     },
     {
@@ -6824,8 +6835,8 @@
       "source_location": "L83",
       "_origin": "ast",
       "id": "workflow_lifecycle_runlifecyclemanager_database_lock",
-      "community": 54,
-      "community_name": ".recover_stale",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": ".database_lock()"
     },
     {
@@ -6835,8 +6846,8 @@
       "source_location": "L89",
       "_origin": "ast",
       "id": "workflow_lifecycle_runlifecyclemanager_acquire",
-      "community": 24,
-      "community_name": "._setup",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": ".acquire()"
     },
     {
@@ -6846,8 +6857,8 @@
       "source_location": "L180",
       "_origin": "ast",
       "id": "workflow_lifecycle_runlifecyclemanager_heartbeat",
-      "community": 24,
-      "community_name": "._setup",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": ".heartbeat()"
     },
     {
@@ -6857,8 +6868,8 @@
       "source_location": "L219",
       "_origin": "ast",
       "id": "workflow_lifecycle_runlifecyclemanager_mark_interrupted",
-      "community": 24,
-      "community_name": "._setup",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": ".mark_interrupted()"
     },
     {
@@ -6868,8 +6879,8 @@
       "source_location": "L243",
       "_origin": "ast",
       "id": "workflow_lifecycle_runlifecyclemanager_release",
-      "community": 24,
-      "community_name": "._setup",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": ".release()"
     },
     {
@@ -6879,8 +6890,8 @@
       "source_location": "L275",
       "_origin": "ast",
       "id": "workflow_lifecycle_runlifecyclemanager_recover_stale",
-      "community": 54,
-      "community_name": ".recover_stale",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": ".recover_stale()"
     },
     {
@@ -6890,8 +6901,8 @@
       "source_location": "L300",
       "_origin": "ast",
       "id": "workflow_lifecycle_runlifecyclemanager_get_run",
-      "community": 27,
-      "community_name": "lifecycle.py",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": ".get_run()"
     },
     {
@@ -6901,8 +6912,8 @@
       "source_location": "L315",
       "_origin": "ast",
       "id": "workflow_lifecycle_runlifecyclemanager_is_active",
-      "community": 24,
-      "community_name": "._setup",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": ".is_active()"
     },
     {
@@ -6912,8 +6923,8 @@
       "source_location": "L327",
       "_origin": "ast",
       "id": "workflow_lifecycle_runlifecyclemanager_list_runs",
-      "community": 27,
-      "community_name": "lifecycle.py",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": ".list_runs()"
     },
     {
@@ -6923,8 +6934,8 @@
       "source_location": "L339",
       "_origin": "ast",
       "id": "workflow_lifecycle_runlifecyclemanager_cleanup",
-      "community": 54,
-      "community_name": ".recover_stale",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": ".cleanup()"
     },
     {
@@ -6934,8 +6945,8 @@
       "source_location": "L371",
       "_origin": "ast",
       "id": "workflow_lifecycle_runlifecyclemanager_setup",
-      "community": 24,
-      "community_name": "._setup",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": "._setup()"
     },
     {
@@ -6945,8 +6956,8 @@
       "source_location": "L395",
       "_origin": "ast",
       "id": "workflow_lifecycle_runlifecyclemanager_recovery_count",
-      "community": 24,
-      "community_name": "._setup",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": "._recovery_count()"
     },
     {
@@ -6956,8 +6967,8 @@
       "source_location": "L402",
       "_origin": "ast",
       "id": "workflow_lifecycle_runlifecyclemanager_upsert_record",
-      "community": 24,
-      "community_name": "._setup",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": "._upsert_record()"
     },
     {
@@ -6967,8 +6978,8 @@
       "source_location": "L437",
       "_origin": "ast",
       "id": "workflow_lifecycle_lifecycle_status",
-      "community": 24,
-      "community_name": "._setup",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": "_lifecycle_status()"
     },
     {
@@ -6978,8 +6989,8 @@
       "source_location": "L447",
       "_origin": "ast",
       "id": "workflow_lifecycle_record",
-      "community": 27,
-      "community_name": "lifecycle.py",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": "_record()"
     },
     {
@@ -6989,8 +7000,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "workflow_lifecycle_rationale_1",
-      "community": 27,
-      "community_name": "lifecycle.py",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": "persistent run leases and lifecycle records."
     },
     {
@@ -7000,8 +7011,8 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "workflow_lifecycle_rationale_31",
-      "community": 27,
-      "community_name": "lifecycle.py",
+      "community": 4,
+      "community_name": "cli.py",
       "norm_label": "raised when another live owner holds the run lease."
     },
     {
@@ -7011,8 +7022,8 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "workflow_lifecycle_rationale_35",
-      "community": 27,
-      "community_name": "lifecycle.py",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": "raised when a process tries to heartbeat a lease it no longer owns."
     },
     {
@@ -7022,8 +7033,8 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "workflow_lifecycle_rationale_40",
-      "community": 24,
-      "community_name": "._setup",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": "the result of acquiring or renewing a run lease."
     },
     {
@@ -7033,8 +7044,8 @@
       "source_location": "L54",
       "_origin": "ast",
       "id": "workflow_lifecycle_rationale_54",
-      "community": 27,
-      "community_name": "lifecycle.py",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": "persisted lifecycle summary for a checkpoint thread."
     },
     {
@@ -7044,8 +7055,8 @@
       "source_location": "L67",
       "_origin": "ast",
       "id": "workflow_lifecycle_rationale_67",
-      "community": 54,
-      "community_name": ".recover_stale",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": "coordinate one active owner and durable status for each run."
     },
     {
@@ -7055,8 +7066,8 @@
       "source_location": "L84",
       "_origin": "ast",
       "id": "workflow_lifecycle_rationale_84",
-      "community": 54,
-      "community_name": ".recover_stale",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": "serialize checkpoint and lifecycle transactions on this connection."
     },
     {
@@ -7066,8 +7077,8 @@
       "source_location": "L90",
       "_origin": "ast",
       "id": "workflow_lifecycle_rationale_90",
-      "community": 24,
-      "community_name": "._setup",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": "acquire or renew a lease, recovering it when its owner is stale."
     },
     {
@@ -7077,8 +7088,8 @@
       "source_location": "L181",
       "_origin": "ast",
       "id": "workflow_lifecycle_rationale_181",
-      "community": 24,
-      "community_name": "._setup",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": "extend the current owner's lease before another node runs."
     },
     {
@@ -7088,8 +7099,8 @@
       "source_location": "L220",
       "_origin": "ast",
       "id": "workflow_lifecycle_rationale_220",
-      "community": 24,
-      "community_name": "._setup",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": "record a pause caused by a human interrupt while keeping the lease."
     },
     {
@@ -7099,8 +7110,8 @@
       "source_location": "L251",
       "_origin": "ast",
       "id": "workflow_lifecycle_rationale_251",
-      "community": 24,
-      "community_name": "._setup",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": "release the lease after its terminal checkpoint is persisted."
     },
     {
@@ -7110,8 +7121,8 @@
       "source_location": "L276",
       "_origin": "ast",
       "id": "workflow_lifecycle_rationale_276",
-      "community": 54,
-      "community_name": ".recover_stale",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": "mark expired leases as abandoned without taking ownership."
     },
     {
@@ -7121,8 +7132,8 @@
       "source_location": "L301",
       "_origin": "ast",
       "id": "workflow_lifecycle_rationale_301",
-      "community": 27,
-      "community_name": "lifecycle.py",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": "read a persisted lifecycle record."
     },
     {
@@ -7132,8 +7143,8 @@
       "source_location": "L316",
       "_origin": "ast",
       "id": "workflow_lifecycle_rationale_316",
-      "community": 24,
-      "community_name": "._setup",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": "return whether a live lease currently protects ``run_id``."
     },
     {
@@ -7143,8 +7154,8 @@
       "source_location": "L328",
       "_origin": "ast",
       "id": "workflow_lifecycle_rationale_328",
-      "community": 27,
-      "community_name": "lifecycle.py",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": "return lifecycle records, marking expired active runs first."
     },
     {
@@ -7154,8 +7165,8 @@
       "source_location": "L346",
       "_origin": "ast",
       "id": "workflow_lifecycle_rationale_346",
-      "community": 54,
-      "community_name": ".recover_stale",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": "delete old terminal or abandoned lifecycle records and leases."
     },
     {
@@ -7319,8 +7330,8 @@
       "source_location": "L148",
       "_origin": "ast",
       "id": "workflow_nodes_select_next_item",
-      "community": 7,
-      "community_name": "WorkflowState",
+      "community": 18,
+      "community_name": "create_nodes",
       "norm_label": "select_next_item()"
     },
     {
@@ -7330,8 +7341,8 @@
       "source_location": "L160",
       "_origin": "ast",
       "id": "workflow_nodes_item_complete",
-      "community": 7,
-      "community_name": "WorkflowState",
+      "community": 18,
+      "community_name": "create_nodes",
       "norm_label": "_item_complete()"
     },
     {
@@ -7341,8 +7352,8 @@
       "source_location": "L168",
       "_origin": "ast",
       "id": "workflow_nodes_versioned_node",
-      "community": 18,
-      "community_name": "create_nodes",
+      "community": 16,
+      "community_name": "state.py",
       "norm_label": "_versioned_node()"
     },
     {
@@ -7352,8 +7363,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "nodefunction",
-      "community": 18,
-      "community_name": "create_nodes",
+      "community": 16,
+      "community_name": "state.py",
       "norm_label": "nodefunction"
     },
     {
@@ -7484,8 +7495,8 @@
       "source_location": "L489",
       "_origin": "ast",
       "id": "workflow_nodes_remaining_runtime_seconds",
-      "community": 17,
-      "community_name": "nodes.py",
+      "community": 7,
+      "community_name": "WorkflowState",
       "norm_label": "remaining_runtime_seconds()"
     },
     {
@@ -7506,8 +7517,8 @@
       "source_location": "L571",
       "_origin": "ast",
       "id": "workflow_nodes_exception_failure_class",
-      "community": 51,
-      "community_name": "agent_error_handler",
+      "community": 16,
+      "community_name": "state.py",
       "norm_label": "_exception_failure_class()"
     },
     {
@@ -7517,8 +7528,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "workflow_nodes_py_baseexception",
-      "community": 51,
-      "community_name": "agent_error_handler",
+      "community": 16,
+      "community_name": "state.py",
       "norm_label": "baseexception"
     },
     {
@@ -7528,8 +7539,8 @@
       "source_location": "L577",
       "_origin": "ast",
       "id": "workflow_nodes_create_nodes",
-      "community": 18,
-      "community_name": "create_nodes",
+      "community": 5,
+      "community_name": "graph.py",
       "norm_label": "create_nodes()"
     },
     {
@@ -7550,8 +7561,8 @@
       "source_location": "L629",
       "_origin": "ast",
       "id": "workflow_nodes_intake",
-      "community": 18,
-      "community_name": "create_nodes",
+      "community": 17,
+      "community_name": "nodes.py",
       "norm_label": "intake()"
     },
     {
@@ -7671,8 +7682,8 @@
       "source_location": "L1082",
       "_origin": "ast",
       "id": "workflow_nodes_pull_request_node",
-      "community": 13,
-      "community_name": "RunLifecycleManager",
+      "community": 7,
+      "community_name": "WorkflowState",
       "norm_label": "pull_request_node()"
     },
     {
@@ -7682,8 +7693,8 @@
       "source_location": "L1145",
       "_origin": "ast",
       "id": "workflow_nodes_attempt_limit",
-      "community": 18,
-      "community_name": "create_nodes",
+      "community": 17,
+      "community_name": "nodes.py",
       "norm_label": "attempt_limit()"
     },
     {
@@ -7693,8 +7704,8 @@
       "source_location": "L1157",
       "_origin": "ast",
       "id": "workflow_nodes_retry_backoff",
-      "community": 18,
-      "community_name": "create_nodes",
+      "community": 17,
+      "community_name": "nodes.py",
       "norm_label": "retry_backoff()"
     },
     {
@@ -7704,8 +7715,8 @@
       "source_location": "L1169",
       "_origin": "ast",
       "id": "workflow_nodes_failed_build",
-      "community": 18,
-      "community_name": "create_nodes",
+      "community": 17,
+      "community_name": "nodes.py",
       "norm_label": "failed_build()"
     },
     {
@@ -7715,8 +7726,8 @@
       "source_location": "L1179",
       "_origin": "ast",
       "id": "workflow_nodes_failed_run",
-      "community": 18,
-      "community_name": "create_nodes",
+      "community": 17,
+      "community_name": "nodes.py",
       "norm_label": "failed_run()"
     },
     {
@@ -7726,8 +7737,8 @@
       "source_location": "L1189",
       "_origin": "ast",
       "id": "workflow_nodes_stop_run",
-      "community": 18,
-      "community_name": "create_nodes",
+      "community": 17,
+      "community_name": "nodes.py",
       "norm_label": "stop_run()"
     },
     {
@@ -7737,8 +7748,8 @@
       "source_location": "L1198",
       "_origin": "ast",
       "id": "workflow_nodes_build_error_handler",
-      "community": 5,
-      "community_name": "graph.py",
+      "community": 16,
+      "community_name": "state.py",
       "norm_label": "build_error_handler()"
     },
     {
@@ -7748,8 +7759,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "nodeerror",
-      "community": 51,
-      "community_name": "agent_error_handler",
+      "community": 16,
+      "community_name": "state.py",
       "norm_label": "nodeerror"
     },
     {
@@ -7770,8 +7781,8 @@
       "source_location": "L1227",
       "_origin": "ast",
       "id": "workflow_nodes_agent_error_handler",
-      "community": 51,
-      "community_name": "agent_error_handler",
+      "community": 16,
+      "community_name": "state.py",
       "norm_label": "agent_error_handler()"
     },
     {
@@ -7935,8 +7946,8 @@
       "source_location": "L1466",
       "_origin": "ast",
       "id": "workflow_nodes_debugger_details",
-      "community": 17,
-      "community_name": "nodes.py",
+      "community": 7,
+      "community_name": "WorkflowState",
       "norm_label": "_debugger_details()"
     },
     {
@@ -7979,8 +7990,8 @@
       "source_location": "L1582",
       "_origin": "ast",
       "id": "workflow_nodes_audit_result",
-      "community": 13,
-      "community_name": "RunLifecycleManager",
+      "community": 7,
+      "community_name": "WorkflowState",
       "norm_label": "_audit_result()"
     },
     {
@@ -7990,8 +8001,8 @@
       "source_location": "L1650",
       "_origin": "ast",
       "id": "workflow_nodes_pull_request_id",
-      "community": 13,
-      "community_name": "RunLifecycleManager",
+      "community": 17,
+      "community_name": "nodes.py",
       "norm_label": "_pull_request_id()"
     },
     {
@@ -8034,8 +8045,8 @@
       "source_location": "L1689",
       "_origin": "ast",
       "id": "workflow_nodes_mark_current_item_built",
-      "community": 7,
-      "community_name": "WorkflowState",
+      "community": 18,
+      "community_name": "create_nodes",
       "norm_label": "_mark_current_item_built()"
     },
     {
@@ -8045,8 +8056,8 @@
       "source_location": "L1698",
       "_origin": "ast",
       "id": "workflow_nodes_mark_current_item_validated",
-      "community": 7,
-      "community_name": "WorkflowState",
+      "community": 18,
+      "community_name": "create_nodes",
       "norm_label": "_mark_current_item_validated()"
     },
     {
@@ -8056,8 +8067,8 @@
       "source_location": "L1711",
       "_origin": "ast",
       "id": "workflow_nodes_default_plan",
-      "community": 7,
-      "community_name": "WorkflowState",
+      "community": 17,
+      "community_name": "nodes.py",
       "norm_label": "_default_plan()"
     },
     {
@@ -8122,8 +8133,8 @@
       "source_location": "L149",
       "_origin": "ast",
       "id": "workflow_nodes_rationale_149",
-      "community": 7,
-      "community_name": "WorkflowState",
+      "community": 18,
+      "community_name": "create_nodes",
       "norm_label": "select the first item that is not both built and validated."
     },
     {
@@ -8133,8 +8144,8 @@
       "source_location": "L161",
       "_origin": "ast",
       "id": "workflow_nodes_rationale_161",
-      "community": 7,
-      "community_name": "WorkflowState",
+      "community": 18,
+      "community_name": "create_nodes",
       "norm_label": "treat legacy passes-only items as complete while honoring validation."
     },
     {
@@ -8144,8 +8155,8 @@
       "source_location": "L173",
       "_origin": "ast",
       "id": "workflow_nodes_rationale_173",
-      "community": 18,
-      "community_name": "create_nodes",
+      "community": 16,
+      "community_name": "state.py",
       "norm_label": "migrate state, enforce run budgets, and stamp every checkpoint."
     },
     {
@@ -8199,8 +8210,8 @@
       "source_location": "L490",
       "_origin": "ast",
       "id": "workflow_nodes_rationale_490",
-      "community": 17,
-      "community_name": "nodes.py",
+      "community": 7,
+      "community_name": "WorkflowState",
       "norm_label": "return the current run's remaining wall-clock budget for adapters."
     },
     {
@@ -8221,8 +8232,8 @@
       "source_location": "L572",
       "_origin": "ast",
       "id": "workflow_nodes_rationale_572",
-      "community": 51,
-      "community_name": "agent_error_handler",
+      "community": 16,
+      "community_name": "state.py",
       "norm_label": "classify the original exception carried by langgraph's nodeerror."
     },
     {
@@ -8232,8 +8243,8 @@
       "source_location": "L580",
       "_origin": "ast",
       "id": "workflow_nodes_rationale_580",
-      "community": 18,
-      "community_name": "create_nodes",
+      "community": 5,
+      "community_name": "graph.py",
       "norm_label": "create state-only node callables with injected agent backends."
     },
     {
@@ -8254,8 +8265,8 @@
       "source_location": "L630",
       "_origin": "ast",
       "id": "workflow_nodes_rationale_630",
-      "community": 18,
-      "community_name": "create_nodes",
+      "community": 17,
+      "community_name": "nodes.py",
       "norm_label": "ask for the top-level workflow mode and route the run accordingly."
     },
     {
@@ -8375,8 +8386,8 @@
       "source_location": "L1086",
       "_origin": "ast",
       "id": "workflow_nodes_rationale_1086",
-      "community": 13,
-      "community_name": "RunLifecycleManager",
+      "community": 7,
+      "community_name": "WorkflowState",
       "norm_label": "request approval, then open or reuse the pull request."
     },
     {
@@ -8386,8 +8397,8 @@
       "source_location": "L1146",
       "_origin": "ast",
       "id": "workflow_nodes_rationale_1146",
-      "community": 18,
-      "community_name": "create_nodes",
+      "community": 17,
+      "community_name": "nodes.py",
       "norm_label": "stop safely when an item needs more build attempts than allowed."
     },
     {
@@ -8397,8 +8408,8 @@
       "source_location": "L1158",
       "_origin": "ast",
       "id": "workflow_nodes_rationale_1158",
-      "community": 18,
-      "community_name": "create_nodes",
+      "community": 17,
+      "community_name": "nodes.py",
       "norm_label": "wait between safe retries without retrying side-effecting operations."
     },
     {
@@ -8408,8 +8419,8 @@
       "source_location": "L1170",
       "_origin": "ast",
       "id": "workflow_nodes_rationale_1170",
-      "community": 18,
-      "community_name": "create_nodes",
+      "community": 17,
+      "community_name": "nodes.py",
       "norm_label": "stop safely when the builder fails after its retries are exhausted."
     },
     {
@@ -8419,8 +8430,8 @@
       "source_location": "L1180",
       "_origin": "ast",
       "id": "workflow_nodes_rationale_1180",
-      "community": 18,
-      "community_name": "create_nodes",
+      "community": 17,
+      "community_name": "nodes.py",
       "norm_label": "stop safely after a non-build agent failure cannot be retried."
     },
     {
@@ -8430,8 +8441,8 @@
       "source_location": "L1190",
       "_origin": "ast",
       "id": "workflow_nodes_rationale_1190",
-      "community": 18,
-      "community_name": "create_nodes",
+      "community": 17,
+      "community_name": "nodes.py",
       "norm_label": "finish a cancelled or budget-exhausted run without side effects."
     },
     {
@@ -8441,8 +8452,8 @@
       "source_location": "L1202",
       "_origin": "ast",
       "id": "workflow_nodes_rationale_1202",
-      "community": 5,
-      "community_name": "graph.py",
+      "community": 16,
+      "community_name": "state.py",
       "norm_label": "route an exhausted native build-node failure to the terminal path."
     },
     {
@@ -8452,8 +8463,8 @@
       "source_location": "L1232",
       "_origin": "ast",
       "id": "workflow_nodes_rationale_1232",
-      "community": 51,
-      "community_name": "agent_error_handler",
+      "community": 16,
+      "community_name": "state.py",
       "norm_label": "classify an exhausted non-build node exception and stop safely."
     },
     {
@@ -8617,8 +8628,8 @@
       "source_location": "L1471",
       "_origin": "ast",
       "id": "workflow_nodes_rationale_1471",
-      "community": 17,
-      "community_name": "nodes.py",
+      "community": 7,
+      "community_name": "WorkflowState",
       "norm_label": "format new debugger findings for the current prd requirement."
     },
     {
@@ -8639,8 +8650,8 @@
       "source_location": "L1588",
       "_origin": "ast",
       "id": "workflow_nodes_rationale_1588",
-      "community": 13,
-      "community_name": "RunLifecycleManager",
+      "community": 7,
+      "community_name": "WorkflowState",
       "norm_label": "capture one redacted agent or repository operation in the run manifest."
     },
     {
@@ -8650,8 +8661,8 @@
       "source_location": "L1651",
       "_origin": "ast",
       "id": "workflow_nodes_rationale_1651",
-      "community": 13,
-      "community_name": "RunLifecycleManager",
+      "community": 17,
+      "community_name": "nodes.py",
       "norm_label": "extract the numeric or opaque id at the end of a pull-request url."
     },
     {
@@ -8815,8 +8826,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "workflow_state",
-      "community": 16,
-      "community_name": "state.py",
+      "community": 35,
+      "community_name": ".cleanup",
       "norm_label": "state.py"
     },
     {
@@ -8826,8 +8837,8 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "workflow_state_prditem",
-      "community": 7,
-      "community_name": "WorkflowState",
+      "community": 18,
+      "community_name": "create_nodes",
       "norm_label": "prditem"
     },
     {
@@ -8837,8 +8848,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "typeddict",
-      "community": 7,
-      "community_name": "WorkflowState",
+      "community": 18,
+      "community_name": "create_nodes",
       "norm_label": "typeddict"
     },
     {
@@ -8848,8 +8859,8 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "workflow_state_workflowstate",
-      "community": 5,
-      "community_name": "graph.py",
+      "community": 7,
+      "community_name": "WorkflowState",
       "norm_label": "workflowstate"
     },
     {
@@ -8859,8 +8870,8 @@
       "source_location": "L101",
       "_origin": "ast",
       "id": "workflow_state_stateschemaerror",
-      "community": 21,
-      "community_name": "migrate_state",
+      "community": 35,
+      "community_name": ".cleanup",
       "norm_label": "stateschemaerror"
     },
     {
@@ -8870,8 +8881,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "valueerror",
-      "community": 6,
-      "community_name": "run_quality_gates",
+      "community": 9,
+      "community_name": "AgentRequest",
       "norm_label": "valueerror"
     },
     {
@@ -8914,8 +8925,8 @@
       "source_location": "L130",
       "_origin": "ast",
       "id": "workflow_state_migrate_v0_to_v1",
-      "community": 16,
-      "community_name": "state.py",
+      "community": 35,
+      "community_name": ".cleanup",
       "norm_label": "_migrate_v0_to_v1()"
     },
     {
@@ -8925,8 +8936,8 @@
       "source_location": "L137",
       "_origin": "ast",
       "id": "workflow_state_migrate_v1_to_v2",
-      "community": 16,
-      "community_name": "state.py",
+      "community": 35,
+      "community_name": ".cleanup",
       "norm_label": "_migrate_v1_to_v2()"
     },
     {
@@ -8936,8 +8947,8 @@
       "source_location": "L159",
       "_origin": "ast",
       "id": "workflow_state_migrate_v2_to_v3",
-      "community": 16,
-      "community_name": "state.py",
+      "community": 35,
+      "community_name": ".cleanup",
       "norm_label": "_migrate_v2_to_v3()"
     },
     {
@@ -8947,8 +8958,8 @@
       "source_location": "L167",
       "_origin": "ast",
       "id": "workflow_state_migrate_v3_to_v4",
-      "community": 16,
-      "community_name": "state.py",
+      "community": 35,
+      "community_name": ".cleanup",
       "norm_label": "_migrate_v3_to_v4()"
     },
     {
@@ -8958,8 +8969,8 @@
       "source_location": "L179",
       "_origin": "ast",
       "id": "workflow_state_migrate_v4_to_v5",
-      "community": 16,
-      "community_name": "state.py",
+      "community": 35,
+      "community_name": ".cleanup",
       "norm_label": "_migrate_v4_to_v5()"
     },
     {
@@ -8969,8 +8980,8 @@
       "source_location": "L189",
       "_origin": "ast",
       "id": "workflow_state_migrate_v5_to_v6",
-      "community": 16,
-      "community_name": "state.py",
+      "community": 35,
+      "community_name": ".cleanup",
       "norm_label": "_migrate_v5_to_v6()"
     },
     {
@@ -9002,8 +9013,8 @@
       "source_location": "L243",
       "_origin": "ast",
       "id": "workflow_state_migrate_state",
-      "community": 21,
-      "community_name": "migrate_state",
+      "community": 35,
+      "community_name": ".cleanup",
       "norm_label": "migrate_state()"
     },
     {
@@ -9013,8 +9024,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "workflow_state_rationale_1",
-      "community": 16,
-      "community_name": "state.py",
+      "community": 35,
+      "community_name": ".cleanup",
       "norm_label": "shared state types for the graph-engineering workflow."
     },
     {
@@ -9024,8 +9035,8 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "workflow_state_rationale_18",
-      "community": 7,
-      "community_name": "WorkflowState",
+      "community": 18,
+      "community_name": "create_nodes",
       "norm_label": "a single item that the workflow can build and validate."
     },
     {
@@ -9035,8 +9046,8 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "workflow_state_rationale_34",
-      "community": 5,
-      "community_name": "graph.py",
+      "community": 7,
+      "community_name": "WorkflowState",
       "norm_label": "state shared by every graph node and persisted between retries."
     },
     {
@@ -9046,8 +9057,8 @@
       "source_location": "L102",
       "_origin": "ast",
       "id": "workflow_state_rationale_102",
-      "community": 21,
-      "community_name": "migrate_state",
+      "community": 35,
+      "community_name": ".cleanup",
       "norm_label": "raised when persisted state cannot be migrated safely."
     },
     {
@@ -9079,8 +9090,8 @@
       "source_location": "L131",
       "_origin": "ast",
       "id": "workflow_state_rationale_131",
-      "community": 16,
-      "community_name": "state.py",
+      "community": 35,
+      "community_name": ".cleanup",
       "norm_label": "mark an unversioned legacy state as the first supported schema."
     },
     {
@@ -9090,8 +9101,8 @@
       "source_location": "L138",
       "_origin": "ast",
       "id": "workflow_state_rationale_138",
-      "community": 16,
-      "community_name": "state.py",
+      "community": 35,
+      "community_name": ".cleanup",
       "norm_label": "add run budgets and clean-cancellation fields to persisted state."
     },
     {
@@ -9101,8 +9112,8 @@
       "source_location": "L160",
       "_origin": "ast",
       "id": "workflow_state_rationale_160",
-      "community": 16,
-      "community_name": "state.py",
+      "community": 35,
+      "community_name": ".cleanup",
       "norm_label": "add the persisted run manifest and audit history."
     },
     {
@@ -9112,8 +9123,8 @@
       "source_location": "L168",
       "_origin": "ast",
       "id": "workflow_state_rationale_168",
-      "community": 16,
-      "community_name": "state.py",
+      "community": 35,
+      "community_name": ".cleanup",
       "norm_label": "add failure classification and targeted retry fields."
     },
     {
@@ -9123,8 +9134,8 @@
       "source_location": "L180",
       "_origin": "ast",
       "id": "workflow_state_rationale_180",
-      "community": 16,
-      "community_name": "state.py",
+      "community": 35,
+      "community_name": ".cleanup",
       "norm_label": "add the persisted run identity and isolated workspace fields."
     },
     {
@@ -9134,8 +9145,8 @@
       "source_location": "L190",
       "_origin": "ast",
       "id": "workflow_state_rationale_190",
-      "community": 16,
-      "community_name": "state.py",
+      "community": 35,
+      "community_name": ".cleanup",
       "norm_label": "add persisted run lease and recovery metadata."
     },
     {
@@ -9167,8 +9178,8 @@
       "source_location": "L244",
       "_origin": "ast",
       "id": "workflow_state_rationale_244",
-      "community": 21,
-      "community_name": "migrate_state",
+      "community": 35,
+      "community_name": ".cleanup",
       "norm_label": "upgrade persisted state to the current schema without mutating it."
     },
     {
@@ -9431,8 +9442,8 @@
       "source_location": "L358",
       "_origin": "ast",
       "id": "workflow_workspaces_workspace_scope",
-      "community": 2,
-      "community_name": "RunWorkspaceManager",
+      "community": 21,
+      "community_name": "migrate_state",
       "norm_label": "workspace_scope()"
     },
     {
@@ -9442,8 +9453,8 @@
       "source_location": "L368",
       "_origin": "ast",
       "id": "workflow_workspaces_current_workspace_directory",
-      "community": 11,
-      "community_name": "classify_failure",
+      "community": 2,
+      "community_name": "RunWorkspaceManager",
       "norm_label": "current_workspace_directory()"
     },
     {
@@ -9651,8 +9662,8 @@
       "source_location": "L359",
       "_origin": "ast",
       "id": "workflow_workspaces_rationale_359",
-      "community": 2,
-      "community_name": "RunWorkspaceManager",
+      "community": 21,
+      "community_name": "migrate_state",
       "norm_label": "make a run workspace available to adapters without shared mutation."
     },
     {
@@ -9662,8 +9673,8 @@
       "source_location": "L369",
       "_origin": "ast",
       "id": "workflow_workspaces_rationale_369",
-      "community": 11,
-      "community_name": "classify_failure",
+      "community": 2,
+      "community_name": "RunWorkspaceManager",
       "norm_label": "return the workspace for the current graph invocation, if any."
     },
     {
@@ -10308,7 +10319,7 @@
       "label": "Interactive workflow",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L205",
+      "source_location": "L208",
       "_origin": "ast",
       "id": "readme_interactive_workflow",
       "community": 37,
@@ -10935,7 +10946,7 @@
       "label": "Publishing and PR reuse",
       "file_type": "document",
       "source_file": "tests/tests.md",
-      "source_location": "L249",
+      "source_location": "L252",
       "_origin": "ast",
       "id": "tests_tests_publishing_and_pr_reuse",
       "community": 8,
@@ -10946,7 +10957,7 @@
       "label": "Approval and handoff behavior",
       "file_type": "document",
       "source_file": "tests/tests.md",
-      "source_location": "L269",
+      "source_location": "L272",
       "_origin": "ast",
       "id": "tests_tests_approval_and_handoff_behavior",
       "community": 8,
@@ -10957,7 +10968,7 @@
       "label": "Agent and adapter contracts",
       "file_type": "document",
       "source_file": "tests/tests.md",
-      "source_location": "L283",
+      "source_location": "L286",
       "_origin": "ast",
       "id": "tests_tests_agent_and_adapter_contracts",
       "community": 8,
@@ -10968,7 +10979,7 @@
       "label": "Common agent and subprocess behavior",
       "file_type": "document",
       "source_file": "tests/tests.md",
-      "source_location": "L287",
+      "source_location": "L290",
       "_origin": "ast",
       "id": "tests_tests_common_agent_and_subprocess_behavior",
       "community": 8,
@@ -10979,7 +10990,7 @@
       "label": "Local validation and debugging adapters",
       "file_type": "document",
       "source_file": "tests/tests.md",
-      "source_location": "L296",
+      "source_location": "L299",
       "_origin": "ast",
       "id": "tests_tests_local_validation_and_debugging_adapters",
       "community": 8,
@@ -10990,7 +11001,7 @@
       "label": "Dependency factories and critic models",
       "file_type": "document",
       "source_file": "tests/tests.md",
-      "source_location": "L309",
+      "source_location": "L312",
       "_origin": "ast",
       "id": "tests_tests_dependency_factories_and_critic_models",
       "community": 8,
@@ -11001,7 +11012,7 @@
       "label": "Ralph adapter",
       "file_type": "document",
       "source_file": "tests/tests.md",
-      "source_location": "L324",
+      "source_location": "L327",
       "_origin": "ast",
       "id": "tests_tests_ralph_adapter",
       "community": 8,
@@ -11012,7 +11023,7 @@
       "label": "State schema and checkpoint persistence",
       "file_type": "document",
       "source_file": "tests/tests.md",
-      "source_location": "L337",
+      "source_location": "L340",
       "_origin": "ast",
       "id": "tests_tests_state_schema_and_checkpoint_persistence",
       "community": 8,
@@ -11023,7 +11034,7 @@
       "label": "Schema migration",
       "file_type": "document",
       "source_file": "tests/tests.md",
-      "source_location": "L342",
+      "source_location": "L345",
       "_origin": "ast",
       "id": "tests_tests_schema_migration",
       "community": 8,
@@ -11034,7 +11045,7 @@
       "label": "SQLite checkpoints and compatibility",
       "file_type": "document",
       "source_file": "tests/tests.md",
-      "source_location": "L357",
+      "source_location": "L360",
       "_origin": "ast",
       "id": "tests_tests_sqlite_checkpoints_and_compatibility",
       "community": 8,
@@ -11045,7 +11056,7 @@
       "label": "Run isolation and lifecycle safety",
       "file_type": "document",
       "source_file": "tests/tests.md",
-      "source_location": "L368",
+      "source_location": "L371",
       "_origin": "ast",
       "id": "tests_tests_run_isolation_and_lifecycle_safety",
       "community": 8,
@@ -11056,7 +11067,7 @@
       "label": "Viewer and observability",
       "file_type": "document",
       "source_file": "tests/tests.md",
-      "source_location": "L385",
+      "source_location": "L388",
       "_origin": "ast",
       "id": "tests_tests_viewer_and_observability",
       "community": 8,
@@ -11067,7 +11078,7 @@
       "label": "Viewer page and execution state",
       "file_type": "document",
       "source_file": "tests/tests.md",
-      "source_location": "L389",
+      "source_location": "L392",
       "_origin": "ast",
       "id": "tests_tests_viewer_page_and_execution_state",
       "community": 8,
@@ -11078,7 +11089,7 @@
       "label": "Mermaid graph rendering",
       "file_type": "document",
       "source_file": "tests/tests.md",
-      "source_location": "L404",
+      "source_location": "L407",
       "_origin": "ast",
       "id": "tests_tests_mermaid_graph_rendering",
       "community": 8,
@@ -20948,7 +20959,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1079",
+      "source_location": "L1097",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests",
@@ -20959,7 +20970,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1057",
+      "source_location": "L1075",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests",
@@ -20970,7 +20981,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1042",
+      "source_location": "L1060",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests",
@@ -20992,7 +21003,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L999",
+      "source_location": "L1017",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests",
@@ -21003,7 +21014,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L993",
+      "source_location": "L1011",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests",
@@ -21014,7 +21025,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L985",
+      "source_location": "L1003",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests",
@@ -21069,7 +21080,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L809",
+      "source_location": "L827",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests",
@@ -21080,7 +21091,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L656",
+      "source_location": "L674",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests",
@@ -21091,7 +21102,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L745",
+      "source_location": "L763",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests",
@@ -21102,7 +21113,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L608",
+      "source_location": "L626",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests",
@@ -21146,7 +21157,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L854",
+      "source_location": "L872",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests",
@@ -21157,7 +21168,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L915",
+      "source_location": "L933",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests",
@@ -21168,7 +21179,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L962",
+      "source_location": "L980",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests",
@@ -21179,7 +21190,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L701",
+      "source_location": "L719",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests",
@@ -21190,7 +21201,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L942",
+      "source_location": "L960",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests",
@@ -21212,11 +21223,22 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L581",
+      "source_location": "L599",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests",
       "target": "tests_test_node_contracts_nodecontracttests_test_github_preflight_rejects_dirty_worktree",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_node_contracts.py",
+      "source_location": "L581",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_node_contracts_nodecontracttests",
+      "target": "tests_test_node_contracts_nodecontracttests_test_github_preflight_rejects_missing_tools",
       "confidence_score": 1.0
     },
     {
@@ -21245,7 +21267,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1025",
+      "source_location": "L1043",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests",
@@ -21256,7 +21278,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1014",
+      "source_location": "L1032",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests",
@@ -21289,7 +21311,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1074",
+      "source_location": "L1092",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests",
@@ -21300,7 +21322,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1157",
+      "source_location": "L1175",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests",
@@ -21311,7 +21333,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1101",
+      "source_location": "L1119",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests",
@@ -21322,7 +21344,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1191",
+      "source_location": "L1209",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests",
@@ -21333,7 +21355,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1084",
+      "source_location": "L1102",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests",
@@ -21344,7 +21366,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1209",
+      "source_location": "L1227",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests",
@@ -22024,6 +22046,18 @@
       "source_location": "L582",
       "weight": 1.0,
       "_origin": "ast",
+      "source": "tests_test_node_contracts_nodecontracttests_test_github_preflight_rejects_missing_tools",
+      "target": "workflow_adapters_githubadapter"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tests/test_node_contracts.py",
+      "source_location": "L600",
+      "weight": 1.0,
+      "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests_test_github_preflight_rejects_dirty_worktree",
       "target": "workflow_adapters_githubadapter"
     },
@@ -22033,7 +22067,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L584",
+      "source_location": "L602",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests_test_github_preflight_rejects_dirty_worktree",
@@ -22045,7 +22079,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L609",
+      "source_location": "L627",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests_test_github_adapter_redacts_pr_text_and_limits_environment",
@@ -22057,7 +22091,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L657",
+      "source_location": "L675",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests_test_github_adapter_pushes_then_creates_a_pr",
@@ -22069,7 +22103,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L702",
+      "source_location": "L720",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests_test_github_adapter_reuses_an_existing_pr_for_the_branch",
@@ -22081,7 +22115,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L746",
+      "source_location": "L764",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests_test_github_adapter_reconciles_open_pr_text_policy_and_staleness",
@@ -22093,7 +22127,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L810",
+      "source_location": "L828",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests_test_github_adapter_policy_updates_are_idempotent",
@@ -22105,7 +22139,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L855",
+      "source_location": "L873",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests_test_github_adapter_reopens_closed_pr_but_stops_on_merged_pr",
@@ -22117,7 +22151,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L916",
+      "source_location": "L934",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests_test_github_adapter_reports_commit_failure",
@@ -22129,7 +22163,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L943",
+      "source_location": "L961",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests_test_github_adapter_stops_after_push_failure",
@@ -22141,7 +22175,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L963",
+      "source_location": "L981",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests_test_github_adapter_reports_pull_request_creation_failure",
@@ -22153,7 +22187,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L986",
+      "source_location": "L1004",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests_test_default_dependencies_use_local_tests",
@@ -22165,7 +22199,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L994",
+      "source_location": "L1012",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests_test_default_dependencies_share_the_configured_base_branch",
@@ -22177,7 +22211,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1000",
+      "source_location": "L1018",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests_test_default_dependencies_allow_a_claude_workflow",
@@ -22189,7 +22223,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1015",
+      "source_location": "L1033",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests_test_gpt_5_6_luna_critic_uses_read_only_max_reasoning",
@@ -22201,7 +22235,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1026",
+      "source_location": "L1044",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests_test_gpt_5_6_luna_critic_maps_structured_output",
@@ -22213,7 +22247,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1035",
+      "source_location": "L1053",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests_test_gpt_5_6_luna_critic_maps_structured_output",
@@ -22225,7 +22259,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1043",
+      "source_location": "L1061",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests_test_claude_opus_4_8_critic_uses_read_only_medium_effort",
@@ -22237,7 +22271,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1058",
+      "source_location": "L1076",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests_test_claude_opus_4_8_critic_maps_structured_output",
@@ -22249,7 +22283,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1067",
+      "source_location": "L1085",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests_test_claude_opus_4_8_critic_maps_structured_output",
@@ -22261,7 +22295,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1075",
+      "source_location": "L1093",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests_test_luna_dependency_factory_wires_the_critic_node",
@@ -22273,7 +22307,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1080",
+      "source_location": "L1098",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests_test_claude_dependency_factory_wires_the_critic_node",
@@ -22285,7 +22319,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1085",
+      "source_location": "L1103",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests_test_ralph_adapter_selects_a_project_skill",
@@ -22297,7 +22331,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1102",
+      "source_location": "L1120",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests_test_ralph_adapter_passes_the_enriched_requirement_to_ralph",
@@ -22309,7 +22343,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1106",
+      "source_location": "L1124",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests_test_ralph_adapter_passes_the_enriched_requirement_to_ralph",
@@ -22321,7 +22355,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1164",
+      "source_location": "L1182",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests_test_ralph_adapter_isolates_run_metadata_with_a_worktree",
@@ -22333,7 +22367,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1165",
+      "source_location": "L1183",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests_test_ralph_adapter_isolates_run_metadata_with_a_worktree",
@@ -22345,7 +22379,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1192",
+      "source_location": "L1210",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests_test_ralph_adapter_requires_the_item_built_signal",
@@ -22357,7 +22391,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1204",
+      "source_location": "L1222",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests_test_ralph_adapter_requires_the_item_built_signal",
@@ -22369,7 +22403,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1240",
+      "source_location": "L1258",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests_test_ralph_adapter_syncs_only_the_changed_prd_item",
@@ -22381,7 +22415,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/test_node_contracts.py",
-      "source_location": "L1241",
+      "source_location": "L1259",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_node_contracts_nodecontracttests_test_ralph_adapter_syncs_only_the_changed_prd_item",
@@ -39960,7 +39994,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "README.md",
-      "source_location": "L205",
+      "source_location": "L208",
       "weight": 1.0,
       "_origin": "ast",
       "source": "readme_shanks",
@@ -40378,7 +40412,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "tests/tests.md",
-      "source_location": "L283",
+      "source_location": "L286",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_tests_test_coverage",
@@ -40433,7 +40467,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "tests/tests.md",
-      "source_location": "L368",
+      "source_location": "L371",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_tests_test_coverage",
@@ -40444,7 +40478,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "tests/tests.md",
-      "source_location": "L337",
+      "source_location": "L340",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_tests_test_coverage",
@@ -40466,7 +40500,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "tests/tests.md",
-      "source_location": "L385",
+      "source_location": "L388",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_tests_test_coverage",
@@ -40587,7 +40621,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "tests/tests.md",
-      "source_location": "L269",
+      "source_location": "L272",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_tests_github_commit_and_pull_request_delivery",
@@ -40620,7 +40654,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "tests/tests.md",
-      "source_location": "L249",
+      "source_location": "L252",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_tests_github_commit_and_pull_request_delivery",
@@ -40631,7 +40665,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "tests/tests.md",
-      "source_location": "L287",
+      "source_location": "L290",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_tests_agent_and_adapter_contracts",
@@ -40642,7 +40676,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "tests/tests.md",
-      "source_location": "L309",
+      "source_location": "L312",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_tests_agent_and_adapter_contracts",
@@ -40653,7 +40687,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "tests/tests.md",
-      "source_location": "L296",
+      "source_location": "L299",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_tests_agent_and_adapter_contracts",
@@ -40664,7 +40698,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "tests/tests.md",
-      "source_location": "L324",
+      "source_location": "L327",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_tests_agent_and_adapter_contracts",
@@ -40675,7 +40709,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "tests/tests.md",
-      "source_location": "L342",
+      "source_location": "L345",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_tests_state_schema_and_checkpoint_persistence",
@@ -40686,7 +40720,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "tests/tests.md",
-      "source_location": "L357",
+      "source_location": "L360",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_tests_state_schema_and_checkpoint_persistence",
@@ -40697,7 +40731,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "tests/tests.md",
-      "source_location": "L404",
+      "source_location": "L407",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_tests_viewer_and_observability",
@@ -40708,7 +40742,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "tests/tests.md",
-      "source_location": "L389",
+      "source_location": "L392",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_tests_viewer_and_observability",
@@ -40717,5 +40751,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "95306a1dd0e0b734a7e8a158ad1f17595d3e2685"
+  "built_at_commit": "3c845bb7b5935fd78de06f74cc7d6407272adce5"
 }

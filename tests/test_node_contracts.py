@@ -578,6 +578,24 @@ class NodeContractTests(unittest.TestCase):
         self.assertEqual(run.call_count, 4)
         tests.assert_called_once()
 
+    def test_github_preflight_rejects_missing_tools(self) -> None:
+        adapter = GitHubAdapter(Path("/tmp/shanks"), initial_dirty_files=())
+
+        def which(tool: str) -> str | None:
+            return None if tool == "gitleaks" else "/usr/bin/tool"
+
+        with (
+            patch("workflow.adapters.shutil.which", side_effect=which),
+            patch.object(GitHubAdapter, "_run") as run,
+            patch.object(LocalTestAdapter, "run") as tests,
+        ):
+            result = adapter.preflight()
+
+        self.assertEqual(result.status, "preflight_failed")
+        self.assertIn("Missing required tools: gitleaks", result.error)
+        run.assert_not_called()
+        tests.assert_not_called()
+
     def test_github_preflight_rejects_dirty_worktree(self) -> None:
         adapter = GitHubAdapter(Path("/tmp/shanks"), initial_dirty_files=())
         responses = [
