@@ -23,6 +23,9 @@ CLAUDE_OPUS_48_MODEL = "claude-opus-4-8"
 CLAUDE_OPUS_48_EFFORT = "medium"
 CRITIC_OUTPUT_SCHEMA_PATH = Path(__file__).with_name("critic_output.schema.json")
 DEBUGGER_OUTPUT_SCHEMA_PATH = Path(__file__).with_name("debugger_output.schema.json")
+SANDBOX_CLAUDE_SCRIPT_PATH = (
+    Path(__file__).resolve().parent.parent / "scripts" / "sandbox_claude.sh"
+)
 ITEM_BUILT_MARKER = "<promise>ITEM_BUILT</promise>"
 UNCERTAINTIES_MARKER = "RALPH_UNCERTAINTIES:"
 ALLOWED_AGENT_EXECUTABLES = frozenset({"bash", "claude", "codex", "python", "python3"})
@@ -1769,7 +1772,7 @@ class ClaudeAdapter(SubprocessAgentAdapter):
         *,
         read_only: bool = True,
     ) -> None:
-        command = (
+        claude_command = (
             "claude",
             "--print",
             "--permission-mode",
@@ -1778,11 +1781,21 @@ class ClaudeAdapter(SubprocessAgentAdapter):
             "Read" if read_only else "Read,Write,Edit,Bash,Grep,Glob",
             "--no-session-persistence",
         )
+        command = (
+            claude_command
+            if read_only
+            else (
+                "bash",
+                str(SANDBOX_CLAUDE_SCRIPT_PATH),
+                str(project_directory),
+                *claude_command,
+            )
+        )
         super().__init__(
             command=command,
             model_name="claude",
             working_directory=project_directory,
-            allowed_directories=(project_directory,),
+            allowed_directories=(project_directory, SANDBOX_CLAUDE_SCRIPT_PATH.parent),
         )
 
 

@@ -48,5 +48,8 @@
   "46": "grilling/SKILL.md",
   "47": "skills/decisions/SKILL.md",
   "48": "Path",
-  "49": ".run"
+  "49": ".run",
+  "50": "sandbox_claude.sh",
+  "51": "PRDItem",
+  "52": "DebuggerAdapter"
 }
