@@ -91,7 +91,9 @@ class RunWorkspaceManager:
 
         with self._lock:
             if directory.exists():
-                return self._validate_existing(run_id, branch, directory)
+                workspace = self._validate_existing(run_id, branch, directory)
+                self._sync_local_guardrails(directory)
+                return workspace
 
             self.worktree_root.mkdir(parents=True, exist_ok=True)
             branch_exists = self._branch_exists(branch)
