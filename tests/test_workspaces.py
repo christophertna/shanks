@@ -116,13 +116,17 @@ class WorkspaceTests(unittest.TestCase):
             manager = RunWorkspaceManager(root)
             first = manager.ensure("thread/four")
             copied = first.directory / ".claude" / "settings.json"
-            self.assertEqual(copied.read_text(encoding="utf-8"), '{"hooks": {"old": true}}\n')
+            self.assertEqual(
+                copied.read_text(encoding="utf-8"), '{"hooks": {"old": true}}\n'
+            )
 
             settings.write_text('{"hooks": {"new": true}}\n', encoding="utf-8")
             second = manager.ensure("thread/four")
 
             self.assertEqual(second.directory, first.directory)
-            self.assertEqual(copied.read_text(encoding="utf-8"), '{"hooks": {"new": true}}\n')
+            self.assertEqual(
+                copied.read_text(encoding="utf-8"), '{"hooks": {"new": true}}\n'
+            )
 
     def test_ensure_tolerates_missing_claude_settings(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
