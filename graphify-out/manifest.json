@@ -215,8 +215,8 @@
     "semantic_hash": ""
   },
   ".github/workflows/tests.yml": {
-    "mtime": 1785983128.0235884,
-    "ast_hash": "f4bee48528c413645dd9d92c4d38d848",
+    "mtime": 1786425200.2074776,
+    "ast_hash": "0ac7a27babade4056e2bc6063433887f",
     "semantic_hash": ""
   },
   "AGENTS.md": {
@@ -230,8 +230,8 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1786421236.943505,
-    "ast_hash": "eea89fc937170f3b2bceed1240d6dd15",
+    "mtime": 1786425433.7080362,
+    "ast_hash": "11e2476d035d6a98e97ab2459b7384f6",
     "semantic_hash": ""
   },
   "graph.html": {
@@ -280,8 +280,8 @@
     "semantic_hash": ""
   },
   "tests/tests.md": {
-    "mtime": 1786421255.0939372,
-    "ast_hash": "17ff1d5774c466e83ff0202612023a48",
+    "mtime": 1786425439.305701,
+    "ast_hash": "886fafe647ac11dfcc22f2fd813b1c83",
     "semantic_hash": ""
   },
   "hooks/graphify-update.sh": {
@@ -315,17 +315,17 @@
     "semantic_hash": ""
   },
   "hooks/secret-scan.sh": {
-    "mtime": 1786420982.8646119,
+    "mtime": 1786423634.6725533,
     "ast_hash": "903e511380c6bb2cf8438cc375843b7c",
     "semantic_hash": ""
   },
   "hooks/test-secret-scan.sh": {
-    "mtime": 1786421086.5735059,
+    "mtime": 1786423634.6729603,
     "ast_hash": "59369413ec7f51afbd977f775b668dd1",
     "semantic_hash": ""
   },
   "hooks/HOOKS.md": {
-    "mtime": 1786423117.7712111,
+    "mtime": 1786423634.671123,
     "ast_hash": "4a17916d01f26abaa1e4c0228bc722b0",
     "semantic_hash": ""
   }

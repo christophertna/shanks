@@ -22,7 +22,8 @@ and its recovery paths.
   dependency/security, and diff-size checks.
 - `skills/` contains shared skill sources; `.agents/skills/` and `.claude/skills/`
   expose project-scoped Codex and Claude entrypoints.
-- `.github/workflows/tests.yml` runs the unittest suite on pushes and pull requests.
+- `.github/workflows/tests.yml` runs the unittest suite and the `hooks/test-guard.sh`/
+  `hooks/test-secret-scan.sh` guard harnesses on pushes and pull requests.
 - `tests/` covers graph routing, node contracts, viewer output, quality gates,
   run isolation, lifecycle recovery, and injected failure behavior.
 

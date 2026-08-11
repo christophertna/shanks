@@ -3,7 +3,9 @@
 This document summarizes the behavior covered by the repository's tracked test
 files. The Python suite contains **157 unittest methods** across twelve
 modules; `hooks/test-guard.sh` and `hooks/test-secret-scan.sh` are separate
-shell regression harnesses with eight and seven checks respectively.
+shell regression harnesses with eight and seven checks respectively, both run
+in CI alongside the Python suite (see
+[`.github/workflows/tests.yml`](../.github/workflows/tests.yml)).
 
 The tests use in-memory graphs, temporary SQLite databases and temporary
 projects, real temporary Git repositories, a fake `gh` executable, stub
