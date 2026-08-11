@@ -1,0 +1,3 @@
+#!/bin/sh
+# Same graph refresh as post-merge, run after `git checkout`/`git clone`.
+exec "$(dirname "$0")/post-merge"

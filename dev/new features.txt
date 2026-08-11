@@ -1,22 +1,30 @@
 Shanks feature roadmap
 
+Priority 1
+
+1- Gate commits/pushes on quality_gates.py, not just CI.
+    `scripts/quality_gates.py` (black/ruff/mypy/diff-size) isn't run by
+    `.venv/bin/python -m unittest discover -s tests`, and nothing local
+    blocks a commit or push that fails it - it only surfaces once CI runs.
+    Landing #42 and #43 both hit the same black-formatting failure on push,
+    caught only after opening the PR. Fix: add a `pre-push` git hook (or
+    extend an existing `PreToolUse` guard on `git commit`/`git push`) that
+    runs `scripts/quality_gates.py --staged` and blocks before it ever
+    reaches CI.
+
+2- Regression-test retry-policy coverage across all lease-touching nodes.
+    #43 closed the gap where `TARGETED_RETRY_POLICY` wasn't attached to
+    every node that calls into the SQLite-backed lease through
+    `_versioned_node`, but nothing stops a newly added node from silently
+    reintroducing it - the same "guard silently doesn't apply" pattern the
+    `hooks/HOOKS.md`-drift suggestion below calls out for hook scoping.
+    Fix: add a test asserting every key in `create_nodes()`'s dict has a
+    matching `retry_policy=TARGETED_RETRY_POLICY` registration in
+    `build_graph()`.
+
 Priority 2 - Maintenance and developer experience
 
-1- GitHub token permission documentation.
-    Document the exact token permissions the GitHub handoff needs (at
-    least Contents and Pull requests, read and write, for a fine-grained
-    PAT) in the README's "Supported toolchain" section, so setup failures
-    surface as a doc reference instead of a live 403 diagnosis, and
-    authentication setup is verified once instead of diagnosed per
-    failure. Also document that pushing changes to .github/workflows/*
-    needs its own, separate permission - a classic PAT needs the
-    `workflow` scope and a fine-grained PAT needs "Workflows: Read and
-    write" - or `git push` is rejected outright ("refusing to allow a
-    Personal Access Token to create or update workflow ... without
-    `workflow` scope"), hit firsthand landing #39. `gh auth refresh -h
-    github.com -s workflow` fixes it for a `gh`-managed token.
-
-2- Scoped test-impact hook.
+1- Scoped test-impact hook.
     Add a `PostToolUse` hook on `Write|Edit` that runs just the test
     module matching the touched file by naming convention (e.g.
     `workflow/workspaces.py` -> `tests.test_workspaces`), and skip the run
@@ -24,13 +32,13 @@ Priority 2 - Maintenance and developer experience
     test, so regressions surface on every edit without paying for a full
     suite run each time.
 
-3- Wire real-agent smoke tests into CI.
+2- Wire real-agent smoke tests into CI.
     Wire tests/test_agent_integration.py into an opt-in, manually-triggered
     CI job (workflow_dispatch, with the CLI auth secrets scoped to it) so
     the smoke tests - including the sandboxed Claude write path added in
     #36 - get run on a schedule instead of only ad hoc by a developer.
 
-4- Grep/Glob for the read-only Claude adapters.
+3- Grep/Glob for the read-only Claude adapters.
     Give the Claude-based read-only adapters (DebuggerAdapter,
     ClaudeAdapter(read_only=True), ClaudeOpus48CriticAdapter) `Grep,Glob`
     alongside `Read` in their `--tools` list - still fully read-only, same
@@ -162,6 +170,12 @@ Suggestions
   `workspaces.py`, `cli.py`, and `graph.py` (the largest and most stateful
   modules) are unchecked. Extend the list once those modules are clean under
   mypy, or budget time to fix what surfaces.
+- Roadmap bookkeeping (removing/renumbering a completed item in
+  `dev/new features.txt`) currently happens inside the feature PR that
+  completes it, which caused the same kind of conflict as the point above
+  when #42 and #43 both edited the Priority 1 header in parallel. Consider
+  doing that edit as a separate follow-up commit to `main` after each PR
+  merges instead of bundling it into the feature branch.
 
 Deferred
 
