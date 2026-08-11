@@ -50,6 +50,7 @@
   "48": "Path",
   "49": ".run",
   "50": "sandbox_claude.sh",
-  "51": "PRDItem",
-  "52": "DebuggerAdapter"
+  "51": ".get_run",
+  "52": "RalphAdapter",
+  "55": "test-secret-scan.sh"
 }
