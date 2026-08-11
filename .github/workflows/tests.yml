@@ -50,6 +50,7 @@ jobs:
         run: |
           bash hooks/test-guard.sh
           bash hooks/test-secret-scan.sh
+          bash hooks/test-pre-push.sh
 
       - name: Run quality gates
         run: python scripts/quality_gates.py --diff-base origin/main

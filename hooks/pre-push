@@ -1,0 +1,17 @@
+#!/bin/sh
+# Gate `git push` on the same quality gates CI runs (formatting, linting,
+# typing, dependency audit, diff size), so a failure surfaces locally
+# instead of only after opening a PR - #42 and #43 both hit the same
+# black-formatting failure on push, caught only once CI ran.
+set -u
+
+ROOT="$(git rev-parse --show-toplevel)"
+PYTHON="${SHANKS_QUALITY_GATES_PYTHON:-$ROOT/.venv/bin/python}"
+QUALITY_GATES="${SHANKS_QUALITY_GATES_SCRIPT:-$ROOT/scripts/quality_gates.py}"
+
+if ! command -v "$PYTHON" >/dev/null 2>&1; then
+  echo "pre-push: $PYTHON not found; skipping quality gates (see README Quick start)" >&2
+  exit 0
+fi
+
+"$PYTHON" "$QUALITY_GATES" --diff-base origin/main

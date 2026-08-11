@@ -61,11 +61,18 @@ Code hooks gain visibility into prior transcript/tool-call history.
 
 ## Real Git hooks
 
-`post-merge` and `post-checkout` are ordinary Git hooks, not Claude Code
-hooks — they run `graphify update .` after a pull/checkout so the untracked,
-generated `graphify-out/graph.json` (and friends) stay current. They only
-fire once a clone points Git at this directory:
+`post-merge`, `post-checkout`, and `pre-push` are ordinary Git hooks, not
+Claude Code hooks. They only fire once a clone points Git at this directory:
 
 ```bash
 git config core.hooksPath hooks
 ```
+
+`post-merge`/`post-checkout` run `graphify update .` after a pull/checkout so
+the untracked, generated `graphify-out/graph.json` (and friends) stay
+current. `pre-push` runs `scripts/quality_gates.py --diff-base origin/main`
+(formatting, linting, typing, dependency audit, diff size) and blocks the
+push on failure, so a gate failure surfaces locally instead of only after
+opening a PR — fails open with a stderr warning if `.venv/bin/python` isn't
+present, rather than blocking every push on a missing dev environment.
+Regression harness: `test-pre-push.sh`.
