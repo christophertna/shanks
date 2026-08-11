@@ -1,7 +1,7 @@
 # Test coverage
 
 This document summarizes the behavior covered by the repository's tracked test
-files. The Python suite contains **150 unittest methods** across eleven
+files. The Python suite contains **152 unittest methods** across eleven
 modules; `hooks/test-guard.sh` is a separate shell regression harness with
 eight command checks.
 
@@ -32,7 +32,7 @@ Run the repository quality gates from a feature branch with:
 | [`test_node_contracts.py`](test_node_contracts.py) | 42 | Agent, failure-classification, subprocess, Ralph, local-test, critic, quality-gate, and GitHub adapter contracts |
 | [`test_state_schema.py`](test_state_schema.py) | 9 | State migration, retry metadata, versioned checkpoints, and legacy resume behavior |
 | [`test_lifecycle.py`](test_lifecycle.py) | 5 | Run leases, stale recovery, interruption/resume, terminal release, and checkpoint cleanup |
-| [`test_workspaces.py`](test_workspaces.py) | 9 | Run identity, Git worktree creation/reuse, local/remote branch listing and deletion, workspace context, and workspace state migration |
+| [`test_workspaces.py`](test_workspaces.py) | 11 | Run identity, Git worktree creation/reuse, syncing the gitignored Claude Code hook guard into new worktrees, local/remote branch listing and deletion, workspace context, and workspace state migration |
 | [`test_viewer.py`](test_viewer.py) | 5 | Viewer HTML, execution-state data, checkpoint sharing, and Mermaid output |
 | [`test_quality_gates.py`](test_quality_gates.py) | 9 | Quality command definitions, safe diff refs, numstat parsing, generated-output handling, diff limits, and gate failure reporting |
 | [`test_fault_injection.py`](test_fault_injection.py) | 7 | Injected Git, GitHub, validation, checkpoint, and agent process failures |

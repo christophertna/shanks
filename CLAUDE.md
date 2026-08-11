@@ -44,6 +44,21 @@ assembles the graph; `serve_graph.py` serves a live Mermaid viewer at
 - Skills are split across three locations with overlapping content:
   `.claude/skills/`, `.agents/skills/`, and top-level `skills/`. Check which
   copy is canonical before editing one.
+- The build agent (`RalphAdapter` / `scripts/ralph/ralph.sh`,
+  `ClaudeAdapter(read_only=False)`) runs Claude with `--permission-mode
+  acceptEdits --tools Read,Write,Edit,Bash,Grep,Glob` rather than
+  `--dangerously-skip-permissions`. `Bash` is still an unrestricted shell —
+  the allowlist removes Claude's *other* tools (WebFetch, Task/subagents,
+  etc.), it isn't a command sandbox. `_validate_execution` only restricts
+  which executable and paths *launch* the agent, not what it does once
+  running.
+- `.claude/` is gitignored, so a fresh run worktree from
+  `RunWorkspaceManager.ensure()` (`workflow/workspaces.py`) wouldn't
+  otherwise carry `.claude/settings.json` — and without it, Claude Code
+  loads no project hooks (e.g. `hooks/deny-dangerous.sh`, the dangerous-shell-
+  command guard) in that worktree. `_sync_local_guardrails()` copies it in
+  right after `git worktree add`. `hooks/` itself is tracked, so it's
+  already checked out normally.
 
 ## Repo etiquette
 

@@ -2,20 +2,12 @@ Shanks feature roadmap
 
 Priority 2 - Maintenance and developer experience
 
-1- Supported toolchain compatibility matrix.
-    Document and verify supported Python, Git, and `gh` versions alongside the
-    locked runtime and development dependencies.
-
-2- Real-agent integration smoke tests.
-    Exercise the Codex and Claude adapters against a small deterministic
-    project so adapter drift is caught before a full workflow run.
-
-3- GitHub token permission documentation.
+1- GitHub token permission documentation.
     Document the exact token permissions the GitHub handoff needs (at least
     Contents and Pull requests, read and write, for a fine-grained PAT) so
     setup failures surface as a doc reference instead of a live 403 diagnosis.
 
-4- Scoped test-impact hook.
+2- Scoped test-impact hook.
     Add a `PostToolUse` hook on `Write|Edit` that runs just the test module
     matching the touched file (e.g. `workflow/workspaces.py` ->
     `tests.test_workspaces`) so regressions surface on every edit without
@@ -23,12 +15,17 @@ Priority 2 - Maintenance and developer experience
 
 Suggestions
 
-- Keep real-agent smoke tests opt-in or lightweight so CI remains deterministic
-  while still catching changes to the Codex and Claude subprocess contracts.
+- Real-agent smoke tests (tests/test_agent_integration.py) only cover the
+  Codex and Claude planner/builder adapters; the GPT-5.6 Luna and Claude
+  Opus 4.8 critic adapters still have no real-CLI coverage. Extend once
+  there's an authenticated environment to run them in.
+- Wire tests/test_agent_integration.py into an opt-in, manually-triggered CI
+  job (workflow_dispatch, with the CLI auth secrets scoped to it) so the
+  smoke tests get run on a schedule instead of only ad hoc by a developer.
 - Preserve fail-closed token, branch, reviewer, label, and subprocess policies
   as new lifecycle capabilities are added.
-- Document required token permissions alongside the toolchain compatibility
-  matrix so authentication setup is verified once, not diagnosed per failure.
+- Document required token permissions in the README's "Supported toolchain"
+  section so authentication setup is verified once, not diagnosed per failure.
 - Add a secret-scanning hook (e.g. gitleaks or detect-secrets, not a
   hand-rolled regex) to catch hardcoded API keys, JWT tokens, or private URLs
   before they reach the source tree. A `PreToolUse` hook on `Write|Edit` is
@@ -50,6 +47,11 @@ Suggestions
 - Map changed files to their test module by naming convention (e.g.
   `workflow/foo.py` -> `tests/test_foo.py`) and skip the run when there's no
   direct match, rather than guessing broadly at what to test.
+- `./shanks doctor`'s Git/gh version check only guards a stale local dev
+  machine; CI's `ubuntu-latest` always ships far newer versions, so the
+  documented floor (Git 2.30, gh 2.40) is never actually exercised. Pinning
+  old Git/gh versions in CI to prove the floor works is real setup effort for
+  a small payoff — defer unless a real floor-version bug shows up.
 
 Deferred
 

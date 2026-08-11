@@ -19,14 +19,14 @@
   "17": "nodes.py",
   "18": "create_nodes",
   "19": "default_dependencies",
-  "20": "adapters.py",
+  "20": "RunLifecycleManager",
   "21": "github_node",
   "22": "debugger_output.schema.json",
   "23": "ralph.sh",
   "24": "._setup",
   "25": "critic_output.schema.json",
   "26": "Ralph Agent Instructions",
-  "27": "PRDItem",
+  "27": "RalphAdapter",
   "28": "lifecycle.py",
   "29": "contracts.py",
   "30": "current_workspace_directory",
@@ -47,5 +47,6 @@
   "45": "grill-with-docs/SKILL.md",
   "46": "grilling/SKILL.md",
   "47": "skills/decisions/SKILL.md",
-  "48": "DebuggerAdapter"
+  "48": "Path",
+  "49": ".run"
 }

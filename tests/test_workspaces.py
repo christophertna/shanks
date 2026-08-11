@@ -73,6 +73,46 @@ class WorkspaceTests(unittest.TestCase):
                 first.branch,
             )
 
+    def test_ensure_copies_gitignored_claude_settings_into_new_worktree(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._git(root, "init", "-b", "main")
+            self._git(root, "config", "user.email", "tests@example.com")
+            self._git(root, "config", "user.name", "Tests")
+            (root / "README.md").write_text("initial\n", encoding="utf-8")
+            self._git(root, "add", "README.md")
+            self._git(root, "commit", "-m", "initial")
+
+            claude_dir = root / ".claude"
+            claude_dir.mkdir()
+            (claude_dir / "settings.json").write_text(
+                '{"hooks": {}}\n', encoding="utf-8"
+            )
+
+            manager = RunWorkspaceManager(root)
+            workspace = manager.ensure("thread/two")
+
+            copied = workspace.directory / ".claude" / "settings.json"
+            self.assertTrue(copied.exists())
+            self.assertEqual(copied.read_text(encoding="utf-8"), '{"hooks": {}}\n')
+
+    def test_ensure_tolerates_missing_claude_settings(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._git(root, "init", "-b", "main")
+            self._git(root, "config", "user.email", "tests@example.com")
+            self._git(root, "config", "user.name", "Tests")
+            (root / "README.md").write_text("initial\n", encoding="utf-8")
+            self._git(root, "add", "README.md")
+            self._git(root, "commit", "-m", "initial")
+
+            manager = RunWorkspaceManager(root)
+            workspace = manager.ensure("thread/three")
+
+            self.assertFalse((workspace.directory / ".claude").exists())
+
     def test_development_mode_can_delete_a_run_branch_after_worktree_removal(
         self,
     ) -> None:
