@@ -46,6 +46,8 @@ class GraphViewerTests(unittest.TestCase):
         self.assertIn("fetch(`/graph-state?", content)
         self.assertIn("Checkpoint history", content)
         self.assertIn("Run manifest", content)
+        self.assertIn('<details class="execution-shell" open>', content)
+        self.assertIn('<summary class="execution-header">', content)
 
     def test_execution_state_reads_current_snapshot_and_history(self) -> None:
         current = SimpleNamespace(

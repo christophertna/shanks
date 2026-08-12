@@ -415,7 +415,9 @@ Source: [`test_viewer.py`](test_viewer.py).
 
 - `graph.html` listens for server reconnects, resets the cached graph
   definition, exposes thread and execution-budget controls, fetches graph
-  state, and displays checkpoint history and the run manifest.
+  state, and displays checkpoint history and the run manifest. The Live
+  execution panel is a native `<details>`/`<summary>` disclosure so it can
+  be collapsed without custom JS.
 - `load_graph_module()`'s dynamic `exec()` of `graph.py`'s source draws a
   Mermaid diagram without raising, so a change to `graph.py` (e.g. a
   `dataclass` whose `from __future__ import annotations` string

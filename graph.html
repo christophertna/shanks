@@ -136,6 +136,27 @@
         justify-content: space-between;
         gap: 1rem;
         margin-bottom: 1rem;
+        cursor: pointer;
+        list-style: none;
+      }
+
+      .execution-header::-webkit-details-marker {
+        display: none;
+      }
+
+      .execution-header::after {
+        align-self: center;
+        color: #64748b;
+        content: "▾";
+        font-size: 0.85rem;
+      }
+
+      .execution-shell:not([open]) .execution-header {
+        margin-bottom: 0;
+      }
+
+      .execution-shell:not([open]) .execution-header::after {
+        content: "▸";
       }
 
       .execution-header h2,
@@ -423,14 +444,14 @@
         </div>
       </section>
 
-      <section class="execution-shell" aria-labelledby="execution-heading">
-        <div class="execution-header">
+      <details class="execution-shell" open>
+        <summary class="execution-header">
           <div>
             <h2 id="execution-heading">Live execution</h2>
             <p>Inspect the latest state and checkpoints for a workflow thread.</p>
           </div>
           <p id="execution-status" role="status">Loading execution…</p>
-        </div>
+        </summary>
 
         <form id="execution-form" class="execution-controls">
           <label for="thread-id">Thread ID</label>
@@ -474,7 +495,7 @@
           <h3>Run manifest</h3>
           <ol id="run-manifest" aria-live="polite"></ol>
         </div>
-      </section>
+      </details>
 
       <section class="graph-shell">
         <div id="diagram" aria-live="polite"></div>
