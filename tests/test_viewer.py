@@ -8,7 +8,12 @@ from unittest.mock import patch
 from langgraph.checkpoint.memory import InMemorySaver
 
 from graph import build_graph as compile_graph
-from serve_graph import execution_state, structured_mermaid, style_mermaid
+from serve_graph import (
+    execution_state,
+    load_graph_module,
+    structured_mermaid,
+    style_mermaid,
+)
 from workflow.adapters import StubAgentAdapter
 from workflow.nodes import NodeDependencies
 
@@ -127,6 +132,20 @@ class GraphViewerTests(unittest.TestCase):
 
         self.assertEqual(snapshot.next, ("intake",))
         self.assertGreaterEqual(len(history), 1)
+
+    def test_load_graph_module_draws_mermaid_without_raising(self) -> None:
+        # load_graph_module() execs graph.py's source into a synthetic
+        # module rather than a normal import; dataclasses' resolution of
+        # graph.py's `from __future__ import annotations` string
+        # annotations requires that module to be registered in
+        # sys.modules, or CheckpointCleanup's @dataclass(slots=True)
+        # processing raises AttributeError deep inside draw_mermaid().
+        module = load_graph_module()
+        drawable_graph = module.build_graph(checkpointer=InMemorySaver()).get_graph()
+
+        content = drawable_graph.draw_mermaid()
+
+        self.assertIn("preflight", content)
 
     def test_viewer_keeps_forward_edges_solid_and_backward_edges_dashed(self) -> None:
         drawable_graph = build_graph().get_graph()
