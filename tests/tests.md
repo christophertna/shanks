@@ -1,7 +1,7 @@
 # Test coverage
 
 This document summarizes the behavior covered by the repository's tracked test
-files. The Python suite contains **159 unittest methods** across twelve
+files. The Python suite contains **160 unittest methods** across twelve
 modules; `hooks/test-guard.sh` and `hooks/test-secret-scan.sh` are separate
 shell regression harnesses with eight and seven checks respectively, both run
 in CI alongside the Python suite (see
@@ -30,7 +30,7 @@ Run the repository quality gates from a feature branch with:
 | File | Tests | Main areas |
 | --- | ---: | --- |
 | [`test_cli.py`](test_cli.py) | 15 | Execution-mode reporting, doctor diagnostics (including Git/gh version checks and `core.hooksPath`), and run listing, status, resume, cancellation, recovery, cleanup, pruning, and safety checks |
-| [`test_graph.py`](test_graph.py) | 39 | Workflow orchestration, item metadata, targeted retries, budgets, approvals, dry-run previews, and GitHub handoff |
+| [`test_graph.py`](test_graph.py) | 40 | Workflow orchestration, item metadata, targeted retries, budgets, approvals, dry-run previews, and GitHub handoff |
 | [`test_node_contracts.py`](test_node_contracts.py) | 43 | Agent, failure-classification, subprocess, Ralph, local-test, critic, quality-gate, and GitHub adapter contracts |
 | [`test_state_schema.py`](test_state_schema.py) | 9 | State migration, retry metadata, versioned checkpoints, and legacy resume behavior |
 | [`test_lifecycle.py`](test_lifecycle.py) | 5 | Run leases, stale recovery, interruption/resume, terminal release, and checkpoint cleanup |
@@ -67,6 +67,9 @@ in [`test_viewer.py`](test_viewer.py).
 
 ### Entry, intake, and item routing
 
+- Every node returned by `create_nodes()` is registered in `build_graph()`
+  with the targeted retry policy, so a newly added lease-touching node can't
+  silently skip retry coverage.
 - GitHub preflight runs before intake; a successful preflight opens the intake
   interrupt, while a failed preflight records `preflight_failed` and ends the
   run without entering intake.
