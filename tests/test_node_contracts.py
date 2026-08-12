@@ -290,6 +290,15 @@ class NodeContractTests(unittest.TestCase):
         self.assertIn("read-only", adapter.command)
         self.assertIn("--output-schema", adapter.command)
 
+    def test_debugger_adapter_claude_tool_uses_read_only_tools(self) -> None:
+        adapter = DebuggerAdapter(Path("/tmp/shanks"), tool="claude")
+
+        self.assertIn("--permission-mode", adapter.command)
+        self.assertIn("plan", adapter.command)
+        self.assertIn("--tools", adapter.command)
+        self.assertIn("Read,Grep,Glob", adapter.command)
+        self.assertIn("--json-schema", adapter.command)
+
     def test_github_adapter_commits_only_fresh_story_files(self) -> None:
         adapter = GitHubAdapter(
             Path("/tmp/shanks"),
