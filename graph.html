@@ -249,22 +249,22 @@
       }
 
       .execution-grid {
-        display: flex;
-        flex-wrap: wrap;
-        row-gap: 0.9rem;
-        column-gap: 1.5rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+        gap: 0.65rem;
         margin-bottom: 1.4rem;
       }
 
       .metric {
-        min-width: 6rem;
-        padding-left: 1.5rem;
-        border-left: 1px solid #e6e9ef;
+        min-width: 0;
+        padding: 0.65rem 0.85rem;
+        border: 1px solid #e6e9ef;
+        border-radius: 0.65rem;
+        background: #f8fafc;
       }
 
-      .metric:first-child {
-        padding-left: 0;
-        border-left: 0;
+      .metric-wide {
+        grid-column: span 2;
       }
 
       .metric-label {
@@ -286,18 +286,33 @@
       }
 
       .metric-alert {
-        border-left-color: #fecaca;
+        border-color: #fecaca;
+        background: #fef2f2;
+      }
+
+      .metric-value.has-error {
+        color: #b91c1c;
       }
 
       #execution-error {
-        color: #b91c1c;
         overflow-wrap: anywhere;
         white-space: normal;
       }
 
-      .history {
+      .history-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
         border-top: 1px solid #e2e8f0;
         padding-top: 1rem;
+      }
+
+      .history {
+        min-width: 0;
+        padding: 0.9rem 1rem;
+        border: 1px solid #e6e9ef;
+        border-radius: 0.65rem;
+        background: #f8fafc;
       }
 
       #checkpoint-history {
@@ -375,7 +390,7 @@
 
       #diagram svg {
         display: inline-block;
-        max-width: 100%;
+        max-width: none;
         height: auto;
       }
 
@@ -414,6 +429,13 @@
         font-weight: 700;
       }
 
+      #diagram svg .cluster-label foreignObject,
+      #diagram svg .cluster-label foreignObject > div {
+        max-width: none !important;
+        overflow: visible !important;
+        white-space: nowrap !important;
+      }
+
       #diagram svg .edgeLabel rect {
         fill: #ffffff !important;
         opacity: 0.95;
@@ -447,11 +469,6 @@
 
         .execution-header-right {
           align-self: flex-end;
-        }
-
-        .metric {
-          padding-left: 0;
-          border-left: 0;
         }
 
         .checkpoint {
@@ -522,11 +539,11 @@
             <span class="metric-label">Attempts</span>
             <strong id="execution-attempts" class="metric-value">—</strong>
           </div>
-          <div class="metric">
+          <div class="metric metric-wide">
             <span class="metric-label">Budget</span>
             <strong id="execution-budget" class="metric-value">—</strong>
           </div>
-          <div class="metric metric-alert">
+          <div class="metric">
             <span class="metric-label">Last error</span>
             <strong id="execution-error" class="metric-value">—</strong>
           </div>
@@ -536,14 +553,16 @@
           </div>
         </div>
 
-        <div class="history">
-          <h3>Checkpoint history</h3>
-          <ol id="checkpoint-history" aria-live="polite"></ol>
-        </div>
+        <div class="history-grid">
+          <div class="history">
+            <h3>Checkpoint history</h3>
+            <ol id="checkpoint-history" aria-live="polite"></ol>
+          </div>
 
-        <div class="history">
-          <h3>Run manifest</h3>
-          <ol id="run-manifest" aria-live="polite"></ol>
+          <div class="history">
+            <h3>Run manifest</h3>
+            <ol id="run-manifest" aria-live="polite"></ol>
+          </div>
         </div>
       </details>
 
@@ -721,6 +740,9 @@
           maxCost > 0 ? `$${cost.toFixed(2)}/$${maxCost.toFixed(2)}` : `$${cost.toFixed(2)}`,
         ].join(" · ");
         executionError.textContent = displayValue(data.last_error, "None");
+        const hasError = Boolean(data.last_error);
+        executionError.classList.toggle("has-error", hasError);
+        executionError.closest(".metric").classList.toggle("metric-alert", hasError);
         executionModel.textContent = displayValue(data.model);
         renderCheckpointHistory(data.checkpoint_history || []);
         renderRunManifest(data.run_manifest || []);

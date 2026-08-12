@@ -52,6 +52,18 @@ Priority 1 - Maintenance and developer experience
 
 Suggestions
 
+- `_send_mermaid()` (`serve_graph.py`, backs `/graph.mmd`) calls
+  `load_graph_module()` unconditionally on every request, re-executing
+  `graph.py` and re-importing all of `workflow/*.py` from source every time,
+  even when nothing changed. `load_execution_graph()` (backs `/graph-state`)
+  avoids this by only reloading when `graph_revision()` actually changes,
+  caching the result in `_execution_graph`. Since #54 made
+  `load_graph_module()` hold `_graph_module_lock` for the full reload, every
+  `/graph.mmd` request now also briefly blocks `/graph-state` polling (and
+  vice versa) for work that's usually redundant. Fix: have `_send_mermaid()`
+  reuse `load_execution_graph()`'s revision-cached module instead of calling
+  `load_graph_module()` raw. Low urgency - single local dev viewer, page
+  loads aren't frequent - but a straightforward win when touched next.
 - Split oversized workflow modules for maintainability and iteration speed.
   `workflow/adapters.py` combines agent, critic, test, GitHub, parsing, and
   security boundaries, while `workflow/nodes.py` combines orchestration,
@@ -164,6 +176,29 @@ Suggestions
   there's no new code to gate - the local sha for a deleted ref is all
   zeros, a cheap check to skip on. Minor cost today, worth trimming if
   branch-deletion pushes become frequent.
+- `graph.html`'s mermaid-rendered text (`.node` labels, `.cluster-label`
+  subgraph titles) lives inside an SVG `foreignObject` that mermaid sizes
+  using its own default font metrics at render time - any page CSS that
+  later bumps `font-weight`/`font-size` on that text (as the node-label and
+  cluster-label rules both do) can make the real text wider than the box
+  mermaid already committed to, and `foreignObject` clips overflow by
+  default. Hit this twice this session (node labels, then cluster labels
+  after the same pattern of styling change) before landing on the fix: pair
+  any such CSS rule with `overflow: visible !important` and
+  `max-width: none !important` on the `foreignObject` itself (see the
+  `#diagram svg .node foreignObject` and `#diagram svg .cluster-label
+  foreignObject` rules). Worth remembering before the next label-styling
+  tweak.
+- Mermaid/dagre quirk found while prototyping a (since-reverted) serpentine
+  workflow layout in `serve_graph.py`: a nested subgraph declared
+  `direction: RL` inside a `TB`-direction parent renders *above* its sibling
+  in the vertical stack, even when it's the topological successor (i.e. the
+  connecting edge points into it) - the rank order comes out inverted from
+  what the edges imply. `direction: BT` in the same position didn't have
+  this problem. No fix needed today since the serpentine layout was
+  reverted in favor of a flat `LR` flow, but worth knowing before attempting
+  another mirrored/serpentine mermaid layout so the rank-inversion isn't
+  re-discovered by trial and error.
 
 OS-specific (macOS-only mechanisms and fixes)
 
