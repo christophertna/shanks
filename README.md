@@ -45,6 +45,9 @@ on `scripts/quality_gates.py`:
 git config core.hooksPath hooks
 ```
 
+`./shanks doctor` checks this is set, so a skipped step surfaces as a
+diagnostic instead of silently disabling local push gating.
+
 Run the tests:
 
 ```bash
@@ -105,7 +108,7 @@ gh auth refresh -h github.com -s workflow
 
 - `python3.11 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt -r requirements-dev.txt` — create a fresh environment with locked dependencies.
 - `./shanks --mode` / `./shanks -mode` / `./shanks mode` — show the current mode.
-- `./shanks doctor` — check tool presence and versions (see Supported toolchain), pinned dependencies, GitHub authentication, environment variables, and SQLite checkpoint setup.
+- `./shanks doctor` — check tool presence and versions (see Supported toolchain), pinned dependencies, GitHub authentication, environment variables, SQLite checkpoint setup, and that `core.hooksPath` is set to `hooks`.
 - `./shanks runs list|status RUN_ID|resume RUN_ID RESPONSE|cancel RUN_ID` — manage checkpointed runs.
 - `./shanks runs recover` — mark expired leases as abandoned.
 - `./shanks runs cleanup --keep-latest COUNT` — prune terminal checkpoint history; add `--delete-records --max-age SECONDS` to prune old lifecycle records too.
