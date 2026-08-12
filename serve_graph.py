@@ -374,10 +374,10 @@ def structured_mermaid(
         return style_mermaid(content, decision_node_ids)
 
     lines = [
-        '%%{init: {"flowchart": {"curve": "basis", "nodeSpacing": 54, "rankSpacing": 60}}}%%',
-        "flowchart TB",
+        '%%{init: {"flowchart": {"curve": "basis", "nodeSpacing": 34, "rankSpacing": 12, "padding": 14}, "themeVariables": {"fontSize": "14px"}}}%%',
+        "flowchart LR",
         '  subgraph main["Main workflow"]',
-        "    direction TB",
+        "    direction LR",
     ]
 
     for node_id in VIEW_MAIN_NODES:
@@ -401,7 +401,7 @@ def structured_mermaid(
         lines.extend(
             [
                 '  subgraph recovery["Recovery and safety"]',
-                "    direction TB",
+                "    direction LR",
             ]
         )
         for node_id in VIEW_RECOVERY_NODES:
