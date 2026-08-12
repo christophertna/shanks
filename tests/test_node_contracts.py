@@ -1069,7 +1069,7 @@ class NodeContractTests(unittest.TestCase):
         self.assertIn("--permission-mode", adapter.command)
         self.assertIn("plan", adapter.command)
         self.assertIn("--tools", adapter.command)
-        self.assertIn("Read", adapter.command)
+        self.assertIn("Read,Grep,Glob", adapter.command)
         self.assertIn("--json-schema", adapter.command)
 
     def test_claude_opus_4_8_critic_maps_structured_output(self) -> None:

@@ -476,7 +476,7 @@ class DebuggerAdapter(SubprocessAgentAdapter):
                 "--permission-mode",
                 "plan",
                 "--tools",
-                "Read",
+                "Read,Grep,Glob",
                 "--json-schema",
                 schema,
                 "--no-session-persistence",
@@ -1778,7 +1778,7 @@ class ClaudeAdapter(SubprocessAgentAdapter):
             "--permission-mode",
             "plan" if read_only else "acceptEdits",
             "--tools",
-            "Read" if read_only else "Read,Write,Edit,Bash,Grep,Glob",
+            "Read,Grep,Glob" if read_only else "Read,Write,Edit,Bash,Grep,Glob",
             "--no-session-persistence",
         )
         command = (
@@ -1874,7 +1874,7 @@ class ClaudeOpus48CriticAdapter(StructuredCriticAdapter):
                 "--permission-mode",
                 "plan",
                 "--tools",
-                "Read",
+                "Read,Grep,Glob",
                 "--json-schema",
                 schema,
                 "--no-session-persistence",

@@ -322,7 +322,6 @@ def execution_state(
 def style_mermaid(content: str, decision_node_ids: set[str]) -> str:
     """Apply the viewer's white-node theme and diamond decision shapes."""
 
-    content = content.replace("graph TD;", "graph LR;")
     content = style_edge_directions(content)
 
     # LangGraph includes node metadata in labels; keep it for styling, not display.
@@ -370,10 +369,10 @@ def structured_mermaid(
         return style_mermaid(content, decision_node_ids)
 
     lines = [
-        '%%{init: {"flowchart": {"curve": "basis", "nodeSpacing": 54, "rankSpacing": 88}}}%%',
-        "flowchart LR",
+        '%%{init: {"flowchart": {"curve": "basis", "nodeSpacing": 54, "rankSpacing": 60}}}%%',
+        "flowchart TB",
         '  subgraph main["Main workflow"]',
-        "    direction LR",
+        "    direction TB",
     ]
 
     for node_id in VIEW_MAIN_NODES:

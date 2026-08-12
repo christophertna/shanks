@@ -159,7 +159,7 @@ class GraphViewerTests(unittest.TestCase):
 
         content = style_mermaid(drawable_graph.draw_mermaid(), decision_nodes)
 
-        self.assertIn("graph LR;", content)
+        self.assertIn("graph TD;", content)
         self.assertIn("preflight --> intake;", content)
         self.assertIn("validation{validation}", content)
         self.assertIn("planning --> building;", content)
