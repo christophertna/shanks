@@ -186,7 +186,15 @@ def load_graph_module() -> types.ModuleType:
     source = GRAPH_FILE.read_text(encoding="utf-8")
     module = types.ModuleType("graph_live")
     module.__file__ = str(GRAPH_FILE)
-    exec(compile(source, str(GRAPH_FILE), "exec"), module.__dict__)
+    # dataclasses' string-annotation resolution (from graph.py's `from
+    # __future__ import annotations`) looks the module up by name via
+    # sys.modules, so an unregistered module breaks @dataclass processing.
+    sys.modules[module.__name__] = module
+    try:
+        exec(compile(source, str(GRAPH_FILE), "exec"), module.__dict__)
+    except BaseException:
+        del sys.modules[module.__name__]
+        raise
     return module
 
 

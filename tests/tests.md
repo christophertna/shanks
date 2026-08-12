@@ -1,7 +1,7 @@
 # Test coverage
 
 This document summarizes the behavior covered by the repository's tracked test
-files. The Python suite contains **160 unittest methods** across twelve
+files. The Python suite contains **161 unittest methods** across twelve
 modules; `hooks/test.hooks/test-guard.sh`, `hooks/test.hooks/test-secret-scan.sh`,
 `hooks/test.hooks/test-pre-push.sh`, and `hooks/test.hooks/test-run-impacted-tests.sh`
 are separate shell regression harnesses, all run in CI alongside the Python
@@ -35,7 +35,7 @@ Run the repository quality gates from a feature branch with:
 | [`test_state_schema.py`](test_state_schema.py) | 9 | State migration, retry metadata, versioned checkpoints, and legacy resume behavior |
 | [`test_lifecycle.py`](test_lifecycle.py) | 5 | Run leases, stale recovery, interruption/resume, terminal release, and checkpoint cleanup |
 | [`test_workspaces.py`](test_workspaces.py) | 11 | Run identity, Git worktree creation/reuse, syncing the gitignored Claude Code hook guard into new worktrees, local/remote branch listing and deletion, workspace context, and workspace state migration |
-| [`test_viewer.py`](test_viewer.py) | 5 | Viewer HTML, execution-state data, checkpoint sharing, and Mermaid output |
+| [`test_viewer.py`](test_viewer.py) | 6 | Viewer HTML, execution-state data, checkpoint sharing, the live-reload module path, and Mermaid output |
 | [`test_quality_gates.py`](test_quality_gates.py) | 9 | Quality command definitions, safe diff refs, numstat parsing, generated-output handling, diff limits, and gate failure reporting |
 | [`test_fault_injection.py`](test_fault_injection.py) | 7 | Injected Git, GitHub, validation, checkpoint, and agent process failures |
 | [`test_git_integration.py`](test_git_integration.py) | 2 | Real temporary Git repositories, worktrees, commits, pushes, PR creation/reuse, and fake-`gh` recovery |
@@ -416,6 +416,12 @@ Source: [`test_viewer.py`](test_viewer.py).
 - `graph.html` listens for server reconnects, resets the cached graph
   definition, exposes thread and execution-budget controls, fetches graph
   state, and displays checkpoint history and the run manifest.
+- `load_graph_module()`'s dynamic `exec()` of `graph.py`'s source draws a
+  Mermaid diagram without raising, so a change to `graph.py` (e.g. a
+  `dataclass` whose `from __future__ import annotations` string
+  annotations need module-namespace resolution) can't silently reintroduce
+  the "module not registered in `sys.modules`" failure that broke the live
+  viewer.
 - Mermaid output includes the targeted retry backoff node, dashed recovery edges,
   and the separate terminal route for non-build failures.
 - `execution_state` reads the current checkpoint and bounded history using the
