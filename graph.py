@@ -348,8 +348,19 @@ def build_graph(
         retry_policy=TARGETED_RETRY_POLICY,
         error_handler=build_error_handler,
     )
-    builder.add_node("failed_build", nodes["failed_build"])
-    builder.add_node("failed_run", nodes["failed_run"])
+    builder.add_node(
+        "failed_build",
+        nodes["failed_build"],
+        retry_policy=TARGETED_RETRY_POLICY,
+        error_handler=agent_error_handler_for("failed_build"),
+    )
+    builder.add_node(
+        "failed_run",
+        nodes["failed_run"],
+        retry_policy=TARGETED_RETRY_POLICY,
+        # No error_handler: agent_error_handler always routes exhausted
+        # retries to "failed_run", which would self-loop this node forever.
+    )
     # The viewer renders the validation decision node as a diamond.
     builder.add_node(
         "validation",
@@ -400,7 +411,12 @@ def build_graph(
         retry_policy=TARGETED_RETRY_POLICY,
         error_handler=agent_error_handler_for("attempt_limit"),
     )
-    builder.add_node("stop_run", nodes["stop_run"])
+    builder.add_node(
+        "stop_run",
+        nodes["stop_run"],
+        retry_policy=TARGETED_RETRY_POLICY,
+        error_handler=agent_error_handler_for("stop_run"),
+    )
 
     builder.add_edge(START, "preflight")
     builder.add_conditional_edges(

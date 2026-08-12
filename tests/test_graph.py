@@ -5,12 +5,14 @@ from unittest.mock import patch
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.types import Command
 
+from graph import TARGETED_RETRY_POLICY
 from graph import build_graph as compile_graph
 from workflow.adapters import StubAgentAdapter
 from workflow.contracts import AgentRequest, AgentResult
 from workflow.nodes import (
     NodeDependencies,
     commit_item,
+    create_nodes,
     github_node,
     route_after_github,
     route_after_preflight,
@@ -645,6 +647,14 @@ class GraphRoutingTests(unittest.TestCase):
             result["uncertainties_by_item"],
             {"item-1": ["Kept the fallback behavior."]},
         )
+
+    def test_every_create_node_has_the_targeted_retry_policy(self) -> None:
+        graph = build_graph(_stub_dependencies())
+        for name in create_nodes().keys():
+            with self.subTest(node=name):
+                self.assertEqual(
+                    graph.nodes[name].retry_policy, (TARGETED_RETRY_POLICY,)
+                )
 
     def test_exhausted_build_node_error_uses_failed_build_route(self) -> None:
         class FailingBuilder:

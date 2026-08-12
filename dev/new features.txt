@@ -1,18 +1,6 @@
 Shanks feature roadmap
 
-Priority 1
-
-1- Regression-test retry-policy coverage across all lease-touching nodes.
-    #43 closed the gap where `TARGETED_RETRY_POLICY` wasn't attached to
-    every node that calls into the SQLite-backed lease through
-    `_versioned_node`, but nothing stops a newly added node from silently
-    reintroducing it - the same "guard silently doesn't apply" pattern the
-    `hooks/HOOKS.md`-drift suggestion below calls out for hook scoping.
-    Fix: add a test asserting every key in `create_nodes()`'s dict has a
-    matching `retry_policy=TARGETED_RETRY_POLICY` registration in
-    `build_graph()`.
-
-Priority 2 - Maintenance and developer experience
+Priority 1 - Maintenance and developer experience
 
 1- Scoped test-impact hook.
     Add a `PostToolUse` hook on `Write|Edit` that runs just the test
