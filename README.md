@@ -12,6 +12,42 @@ the next unfinished item.
 The repository also includes a lightweight Mermaid viewer for seeing the main workflow
 and its recovery paths.
 
+## Project structure
+
+```text
+.
+├── workflow/                  # LangGraph workflow core
+│   ├── adapters.py            # Agent, repository, GitHub, critic, and test boundaries
+│   ├── cli.py                 # Mode and run-management command handling
+│   ├── contracts.py           # Adapter and node contracts
+│   ├── critic_output.schema.json
+│   ├── debugger_output.schema.json
+│   ├── lifecycle.py           # Run records, leases, recovery, and retention
+│   ├── mode.py                # Runtime, development, and dry-run modes
+│   ├── nodes.py               # Orchestration, routing, retries, approvals, and handoff
+│   ├── retries.py             # Retry policy helpers
+│   ├── state.py               # Workflow state, migrations, cancellation, and manifests
+│   └── workspaces.py          # Isolated branches and Git worktrees
+├── graph.py                   # Compiles the workflow and configures SQLite checkpoints
+├── serve_graph.py             # Serves the Mermaid workflow viewer
+├── shanks                     # Shell entrypoint for the CLI
+├── scripts/
+│   ├── quality_gates.py       # Formatting, lint, typing, audit, and diff-size checks
+│   ├── sandbox_claude.sh      # macOS filesystem sandbox for Claude runs
+│   └── ralph/                 # Ralph loop, instructions, and PRD example
+├── hooks/                     # Git and agent safety/automation hooks
+│   └── test.hooks/            # Hook regression harnesses
+├── tests/                     # Standard-library unittest suite
+├── skills/                    # Shared project skill sources
+├── .github/workflows/
+│   └── tests.yml              # CI tests and hook harnesses
+├── requirements.txt           # Runtime dependencies
+├── requirements-dev.txt       # Development dependencies
+├── pyproject.toml             # Python tool configuration
+├── README.md                  # Project documentation
+└── CLAUDE.md                  # Developer and agent guidance
+```
+
 ## Main pieces
 
 - `workflow/` contains the shared state, contracts, adapters, and workflow nodes.
@@ -106,24 +142,40 @@ gh auth refresh -h github.com -s workflow
 
 ## Commands
 
-- `python3.11 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt -r requirements-dev.txt` — create a fresh environment with locked dependencies.
-- `./shanks --mode` / `./shanks -mode` / `./shanks mode` — show the current mode.
-- `./shanks doctor` — check tool presence and versions (see Supported toolchain), pinned dependencies, GitHub authentication, environment variables, SQLite checkpoint setup, and that `core.hooksPath` is set to `hooks`.
-- `./shanks runs list|status RUN_ID|resume RUN_ID RESPONSE|cancel RUN_ID` — manage checkpointed runs.
-- `./shanks runs recover` — mark expired leases as abandoned.
-- `./shanks runs cleanup --keep-latest COUNT` — prune terminal checkpoint history; add `--delete-records --max-age SECONDS` to prune old lifecycle records too.
-- `SHANKS_MODE=development ./shanks runs remove RUN_ID --delete-branch` — remove a completed run worktree and its local branch (use `--force` for unmerged or failed/cancelled runs).
-- `./shanks runs prune` / `./shanks runs prune --apply` — report, then optionally remove, orphaned run worktrees and branches; add `--delete-branches --include-remote` (requires `SHANKS_MODE=development`) to also clean up branches.
-- `SHANKS_MODE=dry-run ./shanks --mode` — inspect the delivery-preview mode.
-- `.venv/bin/python -m pip install -r requirements-dev.txt` — install development dependencies.
-- `.venv/bin/python -m unittest discover -s tests` — run all tests.
-- `bash hooks/test.hooks/test-deny-dangerous.sh` — test dangerous-command guard behavior.
-- `.venv/bin/python scripts/quality_gates.py --diff-base origin/main` — run all quality gates.
-- `.venv/bin/python scripts/quality_gates.py --diff-base origin/main --staged` — check staged changes.
-- `.venv/bin/python serve_graph.py [--port PORT]` — start the workflow viewer.
-- `./scripts/ralph/ralph.sh [options]` — run the Ralph agent loop.
-- `graphify query|path|explain|update .` — inspect or refresh the project graph.
-- `git status -sb`, `git diff --check`, `git commit`, `git push`, `gh pr create` — inspect and hand off reviewed changes.
+| Command | Explanation |
+| --- | --- |
+| `python3.11 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt -r requirements-dev.txt` | Create a fresh environment with locked runtime and development dependencies. |
+| `./shanks --mode` | Show the current mode. `-mode` and `mode` are aliases. |
+| `./shanks -mode` | Show the current mode. |
+| `./shanks mode` | Show the current mode. |
+| `./shanks doctor` | Check tools and versions, pinned dependencies, GitHub authentication, environment variables, SQLite setup, and `core.hooksPath`. |
+| `./shanks runs list` | List checkpointed runs. |
+| `./shanks runs status RUN_ID` | Show a run's persisted lifecycle and checkpoint status. |
+| `./shanks runs resume RUN_ID RESPONSE` | Resume a run with a response such as `implement`, `learn`, `approve`, or `reject`. |
+| `./shanks runs cancel RUN_ID` | Request cancellation at the next safe boundary. |
+| `./shanks runs recover` | Mark expired leases as abandoned. |
+| `./shanks runs cleanup --keep-latest COUNT` | Prune terminal checkpoint history; add `--delete-records --max-age SECONDS` to prune old lifecycle records too. |
+| `SHANKS_MODE=development ./shanks runs remove RUN_ID --delete-branch` | Remove a completed run worktree and local branch; use `--force` for unmerged or failed/cancelled runs. |
+| `./shanks runs prune` | Report orphaned run worktrees and branches. |
+| `./shanks runs prune --apply` | Remove reported orphaned run worktrees and branches. |
+| `./shanks runs prune --apply --delete-branches --include-remote` | Also remove local and remote branches; requires `SHANKS_MODE=development`. |
+| `SHANKS_MODE=dry-run ./shanks --mode` | Inspect the delivery-preview mode. |
+| `.venv/bin/python -m pip install -r requirements-dev.txt` | Install development dependencies. |
+| `.venv/bin/python -m unittest discover -s tests` | Run the full test suite. |
+| `bash hooks/test.hooks/test-deny-dangerous.sh` | Test the dangerous-command guard. |
+| `.venv/bin/python scripts/quality_gates.py --diff-base origin/main` | Run all quality gates against `origin/main`. |
+| `.venv/bin/python scripts/quality_gates.py --diff-base origin/main --staged` | Run all quality gates against the staged diff. |
+| `.venv/bin/python serve_graph.py` | Start the workflow viewer; add `--port PORT` to choose a port. |
+| `./scripts/ralph/ralph.sh [options]` | Run the Ralph agent loop. |
+| `graphify query "<question>"` | Inspect a scoped graph for a codebase question. |
+| `graphify path "<A>" "<B>"` | Inspect the relationship between two graph nodes. |
+| `graphify explain "<concept>"` | Inspect a focused graph concept. |
+| `graphify update .` | Refresh the generated project graph. |
+| `git status -sb` | Show branch and worktree status. |
+| `git diff --check` | Check for whitespace errors. |
+| `git commit` | Create a reviewed local commit. |
+| `git push` | Push reviewed changes. |
+| `gh pr create` | Open a pull request. |
 
 See the local `dev/commands.md` reference for detailed command capabilities and options.
 
@@ -239,6 +291,8 @@ test repositories can omit the preflight capability and are explicitly marked
 
 ## Interactive workflow
 
+### Start a run
+
 The first graph invocation runs preflight and then pauses at intake. Resume the
 same thread with the user's label:
 
@@ -257,82 +311,87 @@ Use `"learn"` to run the documentation branch; it returns to intake afterward.
 Choose `tool="codex"` or `tool="claude"` when building the graph to use that
 CLI throughout the agent workflow.
 
-Critic feedback is included in the next builder attempt when a review rejects
-an item. A permanent failed build follows the explicit failed-build terminal
-route and does not proceed to critic or validation.
+### Workflow paths
 
-Transient preflight, learning, planner, builder, critic, validator, and debugger
-failures return to the exact failed node after backoff. Permanent and guardrail
-failures stop in a terminal failure route instead of receiving the same retry
-treatment.
+| Path | Sequence |
+| --- | --- |
+| Learn | `preflight → intake → learn → intake` |
+| Implement | `preflight → intake → implement → planning → building → critic/auditor → validation → commit → push → pull request → next item or stop` |
+| Validation recovery | `validation → debugger → planning → building` |
+| Transient failure | Retry the exact failed node after bounded backoff. |
 
-When validation fails, the read-only debugger analyzes the failure, records its
-root cause and repair instructions in the current PRD item, then planning sends
-the enriched requirement to the builder.
+### Recovery and validation
 
-In each PRD item, `passes` means Ralph finished the build and `validation`
-means the graph’s authoritative test gate passed.
+| Event | Behavior |
+| --- | --- |
+| Critic rejection | Feedback is included in the next builder attempt. |
+| Permanent build failure | Follows the explicit failed-build terminal route and skips critic and validation. |
+| Transient failure | Preflight, learning, planning, building, critic, validation, and debugger failures retry at the exact failed node. |
+| Guardrail failure | Stops in a terminal failure route instead of retrying. |
+| Validation failure | The read-only debugger records the root cause and repair instructions in the PRD item; planning sends the enriched requirement back to the builder. |
+| `passes` | Means Ralph finished the build for the current PRD item. |
+| `validation` | Means the graph's authoritative test gate passed. |
+| `validationCommand` | Runs from the project directory when provided; otherwise the full `.venv/bin/python -m unittest discover -s tests` suite runs. Commands are tokenized and executed without a shell. |
 
-Each PRD item may also include an `acceptanceCriteria` list and a
-`validationCommand`. The validation node runs the current item's command from
-the project directory when one is provided; otherwise it falls back to the
-full `.venv/bin/python -m unittest discover -s tests` suite. Commands are
-tokenized and executed without a shell.
+### Delivery approvals
 
-Validated implement runs pause for human approval before committing each item.
-After the last item, they pause again before pushing the branch and reconciling
-its pull request. Resume an approval interrupt with `Command(resume="approve")` or
-end the run without the side effect with `Command(resume="reject")`.
+- **Validated implement runs:** Pause for human approval before committing each
+  item, then pause again before pushing the branch and reconciling its pull
+  request after the final item passes.
+- **Approval responses:** Resume with `Command(resume="approve")`, or end the
+  run without the side effect with `Command(resume="reject")`.
+- **Dry-run implement runs:** Skip approval pauses and finish with the same
+  handoff details in the run manifest without committing, pushing, or changing
+  a pull request.
 
-Dry-run implement runs skip those approval pauses and finish with the same
-handoff details as previews in the run manifest without committing, pushing, or
-changing a pull request.
+### Safety and hooks
 
-Security guardrails keep subprocesses on approved executables and configured
-directories, resolve GitHub file paths through the project root (including
-symlinks), redact common credentials from command output and PR text, and limit
-the GitHub adapter to the required read/commit/push and PR-lifecycle commands.
-GitHub credentials are passed only to the `gh` adapter boundary; agent and test
-subprocesses do not receive `GH_TOKEN` or `GITHUB_TOKEN`, and GitHub CLI prompts
-are disabled. Shanks protects `main`, `master`, and its configured base branch
-from direct pushes or local deletion. Reviewer and label values are
-validated against their configured allowlists before a PR command can run. The
-CI test workflow requests only `contents: read`; write-capable GitHub operations
-use the operator's authenticated `gh` session after the separate approvals.
-The repo-local
-`hooks/deny-dangerous.sh` hook adds a denylist for catastrophic shell commands;
-run `hooks/test.hooks/test-deny-dangerous.sh` to check it. `hooks/guard-dependency-files.sh` blocks
-Write/Edit on lockfiles, pinned dependency manifests, and `.env` files (patterns
-in `hooks/guarded-paths.txt`; override with `SHANKS_ALLOW_DEPENDENCY_EDIT=1`).
-`hooks/secret-scan.sh` scans Write/Edit content and Bash command text with
-`gitleaks` and blocks outright on a match, rather than flagging it after
-it's already on disk (or already run) and possibly committed; run
-`hooks/test.hooks/test-secret-scan.sh` to check it. It fails closed (blocks) if `jq` or
-`gitleaks` aren't installed, and `./shanks doctor` checks for both. The Bash
-path only catches secrets typed literally into the command text, not ones
-assembled from existing files/variables at runtime.
-`hooks/graphify-update.sh` refreshes the graphify graph in the background after
-each Write/Edit (AST-only, no LLM cost). `hooks/run-impacted-tests.sh` runs just
-the check matching a touched file after each Write/Edit: a Python file
-(`<name>.py` -> `tests/test_<name>.py`) runs the matching unittest module, and
-a hook script (`hooks/<name>.sh` -> `hooks/test.hooks/test-<name>.sh`) runs the
-matching shell harness; it skips silently when nothing matches. Run
-`hooks/test.hooks/test-run-impacted-tests.sh` to check it. All are wired via a
-local `.claude/settings.json`, which is gitignored since it hardcodes a
-machine-specific `graphify` path.
+- **Subprocess and GitHub boundaries:** Security guardrails keep subprocesses on
+  approved executables and configured directories, resolve GitHub file paths
+  through the project root (including symlinks), redact common credentials from
+  command output and PR text, and limit the GitHub adapter to required
+  read/commit/push and pull-request lifecycle commands.
+- **Credentials and branches:** GitHub credentials are passed only to the `gh`
+  adapter boundary. Agent and test subprocesses do not receive `GH_TOKEN` or
+  `GITHUB_TOKEN`, GitHub CLI prompts are disabled, and Shanks protects `main`,
+  `master`, and its configured base branch from direct pushes or local deletion.
+  Reviewer and label values are validated before a pull-request command can
+  run. CI requests only `contents: read`; write-capable GitHub operations use
+  the operator's authenticated `gh` session after separate approvals.
+- **Dangerous commands and paths:** `hooks/deny-dangerous.sh` blocks
+  catastrophic shell commands; `hooks/guard-dependency-files.sh` blocks
+  Write/Edit on lockfiles, pinned dependency manifests, and `.env` files. See
+  `hooks/guarded-paths.txt`; set `SHANKS_ALLOW_DEPENDENCY_EDIT=1` to override
+  the dependency-path guard. Run
+  `hooks/test.hooks/test-deny-dangerous.sh` to test the dangerous-command
+  guard.
+- **Secret scanning:** `hooks/secret-scan.sh` scans Write/Edit content and Bash
+  command text with `gitleaks` and blocks matches before they are written or
+  run. It fails closed when `jq` or `gitleaks` is unavailable; `./shanks doctor`
+  checks for both. The Bash path catches secrets typed literally into command
+  text, not values assembled from existing files or variables at runtime. Run
+  `hooks/test.hooks/test-secret-scan.sh` to test it.
+- **Graph and impacted-test hooks:** `hooks/graphify-update.sh` refreshes the
+  graphify graph in the background after each Write/Edit. `hooks/run-impacted-tests.sh`
+  runs the matching unittest module for a touched Python file or the matching
+  shell harness for a touched hook, and skips silently when no match exists.
+  Run `hooks/test.hooks/test-run-impacted-tests.sh` to test it. These hooks are
+  wired through the gitignored `.claude/settings.json`, which contains a
+  machine-specific `graphify` path.
 
-Ralph records only genuinely uncertain implementation decisions reported by the
-builder. They are parsed from the `RALPH_UNCERTAINTIES` output section and stored
-per PRD item for later review.
+### Agent decisions and GitHub handoff
 
-For implement runs, each validated item is committed locally. After the last
-item passes, the final GitHub handoff pushes the current non-`main` branch and
-reconciles its pull request with the GitHub CLI (`gh`). Existing open PRs have
-their generated text and configured reviewer/label policy updated only when
-needed; closed unmerged PRs are reported without reopening by default, merged
-PRs are reported as complete, and behind or aged PR branches are marked stale.
-Set `reopen_closed=True` on `GitHubAdapter` when reopening is explicitly desired.
-Persisted commit and PR IDs
-make commit and pull-request handoff safe to resume without duplicating those
-side effects; the same handoff details are added to the run manifest. Authenticate
-`gh` before starting the run.
+- **Uncertainties:** Ralph records only genuinely uncertain implementation
+  decisions reported by the builder. They come from the `RALPH_UNCERTAINTIES`
+  output section and are stored per PRD item for later review.
+- **Implement handoff:** Each validated item is committed locally. After the
+  last item passes, the final handoff pushes the current non-`main` branch and
+  reconciles its pull request with `gh`.
+- **Pull-request reconciliation:** Open PRs have generated text and configured
+  reviewer/label policy updated only when needed. Closed unmerged PRs are
+  reported without reopening by default; merged PRs are reported as complete;
+  behind or aged PR branches are marked stale. Set `reopen_closed=True` on
+  `GitHubAdapter` when reopening is explicitly desired.
+- **Resumability:** Persisted commit and PR IDs make commit and pull-request
+  handoff safe to resume without duplicating side effects. Handoff details are
+  also added to the run manifest. Authenticate `gh` before starting the run.
