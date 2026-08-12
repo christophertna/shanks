@@ -95,10 +95,14 @@ class ShanksCliTests(unittest.TestCase):
                 ),
                 patch(
                     "workflow.cli.subprocess.run",
-                    return_value=subprocess.CompletedProcess(
-                        args=("gh", "auth", "status"),
+                    side_effect=lambda command, **kwargs: subprocess.CompletedProcess(
+                        args=command,
                         returncode=0,
-                        stdout="authenticated",
+                        stdout=(
+                            "hooks"
+                            if command[:2] == ("git", "config")
+                            else "authenticated"
+                        ),
                         stderr="",
                     ),
                 ),
@@ -109,6 +113,7 @@ class ShanksCliTests(unittest.TestCase):
         self.assertIn("[OK] mode", output.getvalue())
         self.assertIn("[OK] dependencies", output.getvalue())
         self.assertIn("[OK] authentication", output.getvalue())
+        self.assertIn("[OK] hooks", output.getvalue())
         self.assertIn("Doctor: PASS", output.getvalue())
 
     def test_doctor_fails_invalid_environment(self) -> None:
@@ -153,6 +158,8 @@ class ShanksCliTests(unittest.TestCase):
                 return subprocess.CompletedProcess(command, 0, "git version 2.10.1", "")
             if command == ("gh", "--version"):
                 return subprocess.CompletedProcess(command, 0, "gh version 2.20.0", "")
+            if command[:2] == ("git", "config"):
+                return subprocess.CompletedProcess(command, 0, "hooks", "")
             return subprocess.CompletedProcess(command, 0, "authenticated", "")
 
         with tempfile.TemporaryDirectory() as directory:
@@ -191,6 +198,52 @@ class ShanksCliTests(unittest.TestCase):
         self.assertIn("[FAIL] tools", output.getvalue())
         self.assertIn("git 2.30+ (found 2.10)", output.getvalue())
         self.assertIn("gh 2.40+ (found 2.20)", output.getvalue())
+
+    def test_doctor_fails_when_hooks_path_is_unconfigured(self) -> None:
+        output = io.StringIO()
+
+        def fake_run(
+            command: tuple[str, ...], **kwargs: object
+        ) -> subprocess.CompletedProcess[str]:
+            if command[:2] == ("git", "config"):
+                return subprocess.CompletedProcess(command, 1, "", "")
+            return subprocess.CompletedProcess(command, 0, "authenticated", "")
+
+        with tempfile.TemporaryDirectory() as directory:
+            with (
+                patch.dict(
+                    "os.environ",
+                    {
+                        "SHANKS_MODE": "runtime",
+                        "SHANKS_CHECKPOINT_DB": str(
+                            Path(directory) / "checkpoints.sqlite"
+                        ),
+                        "SHANKS_RUN_LEASE_SECONDS": "3600",
+                        "SHANKS_CHECKPOINT_RETENTION": "100",
+                        "HOME": "/tmp",
+                        "PATH": "/usr/bin",
+                    },
+                    clear=True,
+                ),
+                patch("workflow.cli.shutil.which", return_value="/usr/bin/tool"),
+                patch(
+                    "workflow.cli.importlib_metadata.version",
+                    side_effect=lambda name: {
+                        "langgraph": "1.2.10",
+                        "langgraph-checkpoint-sqlite": "3.1.1",
+                        "black": "26.5.1",
+                        "mypy": "1.20.2",
+                        "pip-audit": "2.10.1",
+                        "ruff": "0.16.1",
+                    }[name],
+                ),
+                patch("workflow.cli.subprocess.run", side_effect=fake_run),
+                redirect_stdout(output),
+            ):
+                self.assertEqual(main(["doctor"]), 1)
+
+        self.assertIn("[FAIL] hooks", output.getvalue())
+        self.assertIn("git config core.hooksPath hooks", output.getvalue())
 
     def test_runs_list_and_status_support_json_output(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

@@ -77,6 +77,7 @@ def doctor_checks(
         _check_authentication(project, environment, runner),
         _check_environment(environment),
         _check_checkpoint(project, environment),
+        _check_hooks_path(project, runner),
     ]
 
 
@@ -312,6 +313,29 @@ def _check_checkpoint(
             "checkpoint", False, f"SQLite database is not usable: {error}"
         )
     return DoctorCheck("checkpoint", True, f"SQLite database is ready: {path}")
+
+
+def _check_hooks_path(project: Path, runner: Runner) -> DoctorCheck:
+    try:
+        result = runner(
+            ("git", "config", "--get", "core.hooksPath"),
+            cwd=project,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        return DoctorCheck("hooks", False, f"git config check failed: {error}")
+    configured = result.stdout.strip()
+    if configured != "hooks":
+        return DoctorCheck(
+            "hooks",
+            False,
+            "core.hooksPath is not 'hooks'; run: git config core.hooksPath hooks"
+            + (f" (currently {configured!r})" if configured else ""),
+        )
+    return DoctorCheck("hooks", True, "core.hooksPath=hooks")
 
 
 def _github_environment(environment: Mapping[str, str]) -> dict[str, str]:

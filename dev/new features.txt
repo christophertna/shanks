@@ -36,17 +36,6 @@ Priority 2 - Maintenance and developer experience
     callers/regressions instead of only inspecting files already named in
     their context.
 
-4- `./shanks doctor` check for `core.hooksPath`.
-    #44 added `hooks/post-merge`/`hooks/post-checkout`, and a follow-up added
-    `hooks/pre-push` (quality-gate enforcement) - all real Git hooks that only
-    fire once a developer runs `git config core.hooksPath hooks`, a step in
-    the README Quick start that's easy to skip, with nothing that notices.
-    Fix: add a `./shanks doctor` check (same shape as the existing
-    `jq`/`gitleaks` checks from #40) that warns when
-    `git config --get core.hooksPath` isn't `hooks`, so both a stale local
-    graph and an unenforced push gate surface as a diagnostic instead of
-    silently drifting.
-
 Suggestions
 
 - Real-agent smoke tests (tests/test_agent_integration.py) only cover the
@@ -183,6 +172,21 @@ Suggestions
   AST-only and fast, but a `git checkout`/`git pull` that actually changes
   the tree will block on the rescan - revisit if that becomes noticeable on
   a larger codebase.
+- `hooks/pre-push` (#45) hardcodes `origin/main` as the diff base rather than
+  reading the remote/ref Git actually passes it (`$1`/`$2` args, plus a
+  `<local ref> <local sha1> <remote ref> <remote sha1>` line per ref on
+  stdin). Matches every push in this repo today (single remote named
+  `origin`, default branch `main`), but a fork-based push to a different
+  remote would hit a diff base that doesn't exist and fail closed - blocks
+  the push instead of gating it. Low urgency while this repo has one
+  contributor pushing straight to `origin`; revisit if a fork workflow shows
+  up.
+- `hooks/pre-push` (#45) doesn't read its stdin ref list, so a
+  `git push origin --delete branch` still pays for a full
+  `scripts/quality_gates.py` run (black/ruff/mypy/pip_audit) even though
+  there's no new code to gate - the local sha for a deleted ref is all
+  zeros, a cheap check to skip on. Minor cost today, worth trimming if
+  branch-deletion pushes become frequent.
 
 Deferred
 
