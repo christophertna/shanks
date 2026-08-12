@@ -1,6 +1,7 @@
 import unittest
 import os
 import tempfile
+import threading
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -148,6 +149,47 @@ class GraphViewerTests(unittest.TestCase):
         content = drawable_graph.draw_mermaid()
 
         self.assertIn("preflight", content)
+
+    def test_load_graph_module_serializes_on_shared_lock(self) -> None:
+        # _send_mermaid() and load_execution_graph() both call
+        # load_graph_module() from separate request threads (e.g. on every
+        # page load, graph.html fires refreshGraph() and refreshExecution()
+        # back-to-back). Without a lock shared by every caller, one thread's
+        # sys.modules["graph_live"] cleanup can race another thread's
+        # in-flight exec() and raise KeyError. Prove mutual exclusion
+        # directly instead of relying on timing to reproduce the race.
+        import serve_graph
+
+        holder_started = threading.Event()
+        release_holder = threading.Event()
+
+        def hold_lock() -> None:
+            with serve_graph._graph_module_lock:
+                holder_started.set()
+                release_holder.wait(timeout=2)
+
+        holder = threading.Thread(target=hold_lock)
+        holder.start()
+        self.assertTrue(holder_started.wait(timeout=2))
+
+        result: dict[str, object] = {}
+
+        def call_load() -> None:
+            result["module"] = load_graph_module()
+
+        caller = threading.Thread(target=call_load)
+        caller.start()
+        caller.join(timeout=0.2)
+        self.assertTrue(
+            caller.is_alive(), "load_graph_module() did not block on the shared lock"
+        )
+
+        release_holder.set()
+        caller.join(timeout=2)
+        holder.join(timeout=2)
+
+        self.assertIn("module", result)
+        self.assertTrue(hasattr(result["module"], "build_graph"))
 
     def test_viewer_keeps_forward_edges_solid_and_backward_edges_dashed(self) -> None:
         drawable_graph = build_graph().get_graph()
