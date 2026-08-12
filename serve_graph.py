@@ -34,7 +34,7 @@ GRAPH_NODE_ORDER = {
     "commit_item": 8,
     "debugger": 9,
     "item_router": 10,
-    "github_node": 11,
+    "push_node": 11,
     "pull_request_node": 12,
     "attempt_limit": 13,
     "failed_build": 14,
@@ -54,7 +54,7 @@ VIEW_NODE_LABELS = {
     "commit_item": "commit item",
     "debugger": "Debug failure",
     "item_router": "more items",
-    "github_node": "github node",
+    "push_node": "push branch",
     "pull_request_node": "open pull request",
     "attempt_limit": "Attempt limit",
     "failed_build": "Failed build",
@@ -70,7 +70,7 @@ VIEW_MAIN_FLOW = (
     "validation",
     "commit_item",
     "item_router",
-    "github_node",
+    "push_node",
     "pull_request_node",
     "__end__",
 )
@@ -85,7 +85,7 @@ VIEW_MAIN_NODES = (
     "validation",
     "commit_item",
     "item_router",
-    "github_node",
+    "push_node",
     "pull_request_node",
     "__end__",
 )
@@ -435,7 +435,7 @@ def _view_node(node_id: str, decision_node_ids: set[str]) -> str:
     )
     if node_id in VIEW_MAIN_NODES:
         node_class = "mainNode"
-    if node_id in {"github_node", "pull_request_node"}:
+    if node_id in {"push_node", "pull_request_node"}:
         node_class = "yellowNode"
     return f'    {node_id}["{label}"]:::{node_class}'
 

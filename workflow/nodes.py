@@ -510,7 +510,7 @@ _RETRYABLE_NODES = frozenset(
         "critic_auditor",
         "validation",
         "debugger",
-        "github_node",
+        "push_node",
         "pull_request_node",
     }
 )
@@ -592,7 +592,7 @@ def create_nodes(
         "commit_item": lambda state: commit_item(state, deps),
         "debugger": lambda state: debugger(state, deps),
         "item_router": item_router,
-        "github_node": lambda state: github_node(state, deps),
+        "push_node": lambda state: push_node(state, deps),
         "pull_request_node": lambda state: pull_request_node(state, deps),
         "retry_backoff": retry_backoff,
         "attempt_limit": attempt_limit,
@@ -1034,7 +1034,7 @@ def commit_item(
     return update
 
 
-def github_node(
+def push_node(
     state: WorkflowState,
     dependencies: NodeDependencies,
 ) -> WorkflowState:
@@ -1075,8 +1075,8 @@ def github_node(
     else:
         result = repository.push_branch()
     update = state_update_from_result(result)
-    update.update(_audit_result(state, "github_node", result))
-    return _apply_failure_policy(state, "github_node", result, update)
+    update.update(_audit_result(state, "push_node", result))
+    return _apply_failure_policy(state, "push_node", result, update)
 
 
 def pull_request_node(
@@ -1399,7 +1399,7 @@ def route_after_retry_backoff(
     "critic_auditor",
     "validation",
     "debugger",
-    "github_node",
+    "push_node",
     "pull_request_node",
     "failed_run",
     "stop_run",
@@ -1431,15 +1431,15 @@ def route_after_commit(
 
 def route_after_item_router(
     state: WorkflowState,
-) -> Literal["planning", "github_node", "stop_run"]:
+) -> Literal["planning", "push_node", "stop_run"]:
     """Start the next incomplete item or finish the workflow."""
 
     if _run_stopped(state):
         return "stop_run"
-    return "planning" if select_next_item(state) is not None else "github_node"
+    return "planning" if select_next_item(state) is not None else "push_node"
 
 
-def route_after_github(
+def route_after_push(
     state: WorkflowState,
 ) -> Literal["pull_request_node", "retry_backoff", "__end__"]:
     """Route a successful push to its separately approved PR handoff."""
@@ -1728,7 +1728,7 @@ __all__ = [
     "default_dependencies",
     "claude_opus_4_8_dependencies",
     "gpt_5_6_luna_dependencies",
-    "github_node",
+    "push_node",
     "pull_request_node",
     "intake",
     "learning",
@@ -1746,7 +1746,7 @@ __all__ = [
     "route_after_commit",
     "route_after_critic",
     "route_after_debugger",
-    "route_after_github",
+    "route_after_push",
     "route_after_pull_request",
     "stop_run",
     "route_after_item_router",

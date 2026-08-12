@@ -151,7 +151,7 @@ class GraphViewerTests(unittest.TestCase):
         self.assertIn("validation --> commit_item;", content)
         self.assertIn("commit_item --> item_router;", content)
         self.assertIn("validation --> debugger;", content)
-        self.assertNotIn("github_node -.-> debugger;", content)
+        self.assertNotIn("push_node -.-> debugger;", content)
         self.assertIn("building --> critic_auditor;", content)
         self.assertIn("critic_auditor -.-> building;", content)
         self.assertIn("debugger -.-> planning;", content)
@@ -181,7 +181,7 @@ class GraphViewerTests(unittest.TestCase):
         self.assertIn('item_router{"more items"}', content)
         self.assertIn('validation{"Validate"}:::yellowNode', content)
         self.assertIn('commit_item["commit item"]:::mainNode', content)
-        self.assertIn('github_node["github node"]:::yellowNode', content)
+        self.assertIn('push_node["push branch"]:::yellowNode', content)
         self.assertIn(
             'pull_request_node["open pull request"]:::yellowNode',
             content,
@@ -196,8 +196,8 @@ class GraphViewerTests(unittest.TestCase):
         self.assertIn("learning -.-> intake", main_section)
         self.assertNotIn("building --> building", main_section)
         self.assertIn("item_router -.-> planning", main_section)
-        self.assertIn("item_router --> github_node", main_section)
-        self.assertIn("github_node --> pull_request_node", main_section)
+        self.assertIn("item_router --> push_node", main_section)
+        self.assertIn("push_node --> pull_request_node", main_section)
         self.assertIn("pull_request_node --> __end__", main_section)
         self.assertNotIn("critic_auditor -.-> validation", content)
         self.assertNotIn("critic_auditor -.-> item_router", content)
@@ -210,7 +210,7 @@ class GraphViewerTests(unittest.TestCase):
         self.assertIn("main -.-> recovery", detailed_content)
         self.assertIn("recovery -.-> main", detailed_content)
         self.assertNotIn("validation -.-> debugger", detailed_content)
-        self.assertNotIn("github_node -.-> debugger", detailed_content)
+        self.assertNotIn("push_node -.-> debugger", detailed_content)
         self.assertNotIn("building -.-> attempt_limit", detailed_content)
 
 
