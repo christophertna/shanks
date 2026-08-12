@@ -2,19 +2,21 @@ Shanks feature roadmap
 
 Priority 1 - Maintenance and developer experience
 
-1- Wire real-agent smoke tests into CI.
-    Wire tests/test_agent_integration.py into an opt-in, manually-triggered
-    CI job (workflow_dispatch, with the CLI auth secrets scoped to it) so
-    the smoke tests - including the sandboxed Claude write path added in
-    #36 - get run on a schedule instead of only ad hoc by a developer.
-
-2- Grep/Glob for the read-only Claude adapters.
+1- Grep/Glob for the read-only Claude adapters.
     Give the Claude-based read-only adapters (DebuggerAdapter,
     ClaudeAdapter(read_only=True), ClaudeOpus48CriticAdapter) `Grep,Glob`
     alongside `Read` in their `--tools` list - still fully read-only, same
     guarantee as today - so they can search the codebase for related
     callers/regressions instead of only inspecting files already named in
     their context.
+
+2- Wire real-agent smoke tests into CI.
+    Wire tests/test_agent_integration.py into an opt-in, manually-triggered
+    CI job (workflow_dispatch, with the CLI auth secrets scoped to it) so
+    the smoke tests - including the sandboxed Claude write path added in
+    #36 - get run on a schedule instead of only ad hoc by a developer. Needs
+    a human step first: the CLI auth secrets have to be added in GitHub
+    repo settings before this job can run green.
 
 3- Doctor/preflight tool-list sync test.
     `workflow/cli.py`'s `_REQUIRED_TOOLS` (`./shanks doctor`) and
@@ -38,7 +40,7 @@ Priority 1 - Maintenance and developer experience
 
 5- Regression harness for post-merge/post-checkout hooks.
     `hooks/post-merge` and `hooks/post-checkout` (#44) have no regression
-    harness, unlike `hooks/test.hooks/test-guard.sh`/
+    harness, unlike `hooks/test.hooks/test-deny-dangerous.sh`/
     `hooks/test.hooks/test-secret-scan.sh` (both wired into
     `.github/workflows/tests.yml`). Fix: add a small shell test asserting
     the `post-checkout` no-op skip (same prev/new SHA -> no `graphify
@@ -71,9 +73,10 @@ Suggestions
   worktree drift from outside the run, or upstream `main` moving since the run
   started — as a preflight check inside `workflow/nodes.py`, not a generic
   hook, so it stays versioned and available to every downstream node.
-- `./shanks doctor`'s Git/gh version check only guards a stale local dev
-  machine; CI's `ubuntu-latest` always ships far newer versions, so the
-  documented floor (Git 2.30, gh 2.40) is never actually exercised. Pinning
+- The check itself is cross-platform, but `./shanks doctor`'s Git/gh version
+  check only guards a stale local dev machine (macOS here); CI's
+  `ubuntu-latest` always ships far newer versions, so the documented floor
+  (Git 2.30, gh 2.40) is never actually exercised on Linux either. Pinning
   old Git/gh versions in CI to prove the floor works is real setup effort for
   a small payoff — defer unless a real floor-version bug shows up.
 - `critic_auditor` runs *before* `validation` in the graph (build -> critic
@@ -83,36 +86,12 @@ Suggestions
   commands read-only, so the two critics have materially different
   verification power. Worth a design discussion, not just a permissions
   tweak, before changing it.
-- No network egress control on Ralph's build agent - the denylist only
-  blocks the specific `curl|sh` pattern, nothing stops `pip install
-  <package>` or other outbound calls. `scripts/sandbox_claude.sh` (the
-  filesystem sandbox) deliberately leaves `(allow network*)` in its
-  profile, since Claude itself needs network for its own API calls, so
-  this would need per-host allowlisting (Anthropic's API, not arbitrary
-  destinations), not a blanket deny. Defer until there's a concrete need
-  (e.g. running against untrusted PRD content).
 - No audit trail of what Ralph actually did inside a session - the run
   manifest records the launching command and the final `--print` output,
   not the individual tool calls (files read/written, Bash commands run)
   during the session. Would help post-incident review; capturing
   `--output-format stream-json` (or equivalent) into the run manifest is
   the likely shape.
-- `scripts/sandbox_claude.sh` only sandboxes on macOS (`sandbox-exec`); it
-  falls back to unsandboxed elsewhere. There's no separate "Windows" case
-  to build - the whole toolchain (ralph.sh, hooks/*.sh, ./shanks) is
-  bash-only, so a Windows user is already running it under WSL2, which is
-  Linux. This is really one item: Linux sandbox parity (bubblewrap or
-  Docker, scoped to $TARGET_DIR the same way). No urgency today since
-  Ralph doesn't run in CI and local dev here is macOS; revisit if Ralph
-  ever runs on a Linux/WSL dev box or in CI.
-- `scripts/sandbox_claude.sh`'s write allowlist
-  (`~/.claude`/`~/.codex`/`~/.npm`/`~/.cache`) was hand-picked by probing
-  `claude --version`/`codex --version` empirically, not from upstream
-  documentation - a future CLI version adding a new config/cache path
-  would silently reintroduce "Operation not permitted" failures that look
-  like flaky runs, not a sandbox problem. Consider a `./shanks doctor`
-  check that runs `claude --version` (and `codex --version`) through the
-  sandbox wrapper to catch that drift immediately instead of mid-run.
 - The `Write|Edit` `PreToolUse` hooks disagree on fail-open vs fail-closed
   when `jq` is missing: `guard-dependency-files.sh` fails open (allows the
   write) so a missing `jq` doesn't block all edits, while `secret-scan.sh`
@@ -181,6 +160,45 @@ Suggestions
   there's no new code to gate - the local sha for a deleted ref is all
   zeros, a cheap check to skip on. Minor cost today, worth trimming if
   branch-deletion pushes become frequent.
+
+OS-specific (macOS-only mechanisms and fixes)
+
+- `scripts/sandbox_claude.sh` only sandboxes on macOS (`sandbox-exec`); it
+  falls back to unsandboxed elsewhere. There's no separate "Windows" case to
+  build - the whole toolchain (ralph.sh, hooks/*.sh, ./shanks) is bash-only,
+  so a Windows user is already running it under WSL2, which is Linux. This
+  is really one item: Linux sandbox parity (bubblewrap or Docker, scoped to
+  $TARGET_DIR the same way). No urgency today since Ralph doesn't run in CI
+  and local dev here is macOS; revisit if Ralph ever runs on a Linux/WSL dev
+  box or in CI.
+- `scripts/sandbox_claude.sh`'s write allowlist
+  (`~/.claude`/`~/.codex`/`~/.npm`/`~/.cache`) was hand-picked by probing
+  `claude --version`/`codex --version` empirically, not from upstream
+  documentation - a future CLI version adding a new config/cache path would
+  silently reintroduce "Operation not permitted" failures that look like
+  flaky runs, not a sandbox problem. Only possible on macOS today since
+  that's the only OS with a sandbox at all. Consider a `./shanks doctor`
+  check that runs `claude --version` (and `codex --version`) through the
+  sandbox wrapper to catch that drift immediately instead of mid-run.
+- No network egress control on Ralph's build agent - the denylist only
+  blocks the specific `curl|sh` pattern, nothing stops `pip install
+  <package>` or other outbound calls. The gap itself applies on every OS,
+  but the current partial mitigation is macOS-only: `scripts/sandbox_claude.sh`
+  (the filesystem sandbox) deliberately leaves `(allow network*)` in its
+  Seatbelt profile, since Claude itself needs network for its own API
+  calls, so this would need per-host allowlisting (Anthropic's API, not
+  arbitrary destinations), not a blanket deny. On Linux there's currently no
+  sandbox at all yet, so the same gap is compounded there - filesystem
+  writes aren't contained either. Defer until there's a concrete need (e.g.
+  running against untrusted PRD content).
+- `hooks/run-impacted-tests.sh` has no timeout on the matched test run - a
+  hung test (infinite loop, blocked I/O) would stall every subsequent
+  Write/Edit indefinitely, since the hook runs synchronously by design (it
+  needs the exit code for blocking feedback). The stall risk itself is not
+  OS-specific, but the fix is harder on macOS specifically: Linux ships GNU
+  coreutils' `timeout` by default, macOS does not, so a portable version
+  needs a hand-rolled background-process-plus-kill pattern instead of one
+  command. Not urgent today - all matched modules are fast and none hang.
 
 Deferred
 

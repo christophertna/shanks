@@ -16,11 +16,11 @@ use Codex's own `--sandbox` flag instead and never see them.
 | `graphify hook-guard search` | PreToolUse | `Bash\|Grep` | Injects a reminder to run `graphify query` before raw grep/Bash search | Advisory only, never blocks |
 | `graphify hook-guard read` | PreToolUse | `Read\|Glob` | Injects a reminder to run `graphify query`/`explain` before reading raw source | Advisory only, never blocks |
 | `graphify-update.sh` | PostToolUse | `Write\|Edit` | Refreshes the graphify graph in the background (AST-only, no LLM cost) | No-op if graphify isn't installed |
-| `run-impacted-tests.sh` | PostToolUse | `Write\|Edit` | Runs the unittest module matching the touched file (`<name>.py` -> `tests/test_<name>.py`; a touched `tests/test_*.py` runs itself), blocking feedback on failure | Skips silently if `jq`, the matching test module, or `.venv/bin/python` are missing |
+| `run-impacted-tests.sh` | PostToolUse | `Write\|Edit` | Runs the check matching the touched file: `<name>.py` -> `tests/test_<name>.py` (a touched `tests/test_*.py` runs itself); `hooks/<name>.sh` -> `hooks/test.hooks/test-<name>.sh` (a touched `hooks/test.hooks/test-*.sh` runs itself). Blocking feedback on failure | Skips silently if `jq`, the matching test/harness, or `.venv/bin/python` (Python case only) are missing |
 
 Pattern files: `dangerous-patterns.txt` (for `deny-dangerous.sh`),
 `guarded-paths.txt` (for `guard-dependency-files.sh`). Regression harnesses
-live in `hooks/test.hooks/`: `test-guard.sh`, `test-secret-scan.sh`,
+live in `hooks/test.hooks/`: `test-deny-dangerous.sh`, `test-secret-scan.sh`,
 `test-pre-push.sh`, `test-run-impacted-tests.sh`.
 
 `secret-scan.sh`'s Bash coverage only catches secrets typed literally into
@@ -52,7 +52,7 @@ An interactive Claude Code session isn't tool-scoped by `--tools`, so every
 hook in the table is live: `deny-dangerous.sh`, `hook-guard search`,
 `hook-guard read`, `guard-dependency-files.sh`, `secret-scan.sh`,
 `graphify-update.sh`, and `run-impacted-tests.sh`. Test them with
-`bash hooks/test.hooks/test-guard.sh`, `bash hooks/test.hooks/test-secret-scan.sh`,
+`bash hooks/test.hooks/test-deny-dangerous.sh`, `bash hooks/test.hooks/test-secret-scan.sh`,
 and `bash hooks/test.hooks/test-run-impacted-tests.sh`.
 
 A `PreToolUse`/`PostToolUse` hook on `gh pr create` (nudging toward the

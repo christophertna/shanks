@@ -48,7 +48,7 @@ jobs:
 
       - name: Run hook guard harnesses
         run: |
-          bash hooks/test.hooks/test-guard.sh
+          bash hooks/test.hooks/test-deny-dangerous.sh
           bash hooks/test.hooks/test-secret-scan.sh
           bash hooks/test.hooks/test-pre-push.sh
           bash hooks/test.hooks/test-run-impacted-tests.sh

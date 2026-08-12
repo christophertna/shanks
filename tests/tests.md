@@ -2,7 +2,7 @@
 
 This document summarizes the behavior covered by the repository's tracked test
 files. The Python suite contains **161 unittest methods** across twelve
-modules; `hooks/test.hooks/test-guard.sh`, `hooks/test.hooks/test-secret-scan.sh`,
+modules; `hooks/test.hooks/test-deny-dangerous.sh`, `hooks/test.hooks/test-secret-scan.sh`,
 `hooks/test.hooks/test-pre-push.sh`, and `hooks/test.hooks/test-run-impacted-tests.sh`
 are separate shell regression harnesses, all run in CI alongside the Python
 suite (see [`.github/workflows/tests.yml`](../.github/workflows/tests.yml)).
@@ -41,10 +41,10 @@ Run the repository quality gates from a feature branch with:
 | [`test_git_integration.py`](test_git_integration.py) | 2 | Real temporary Git repositories, worktrees, commits, pushes, PR creation/reuse, and fake-`gh` recovery |
 | [`test_agent_integration.py`](test_agent_integration.py) | 3 | Real Codex and Claude CLI smoke tests, including the sandboxed Claude write path, against a small deterministic project (opt-in) |
 | [`test_sandbox_claude.py`](test_sandbox_claude.py) | 4 | `scripts/sandbox_claude.sh` write containment: allows writes inside the target directory, denies writes outside it (including a shared-temp-root sibling and a `..` escape), and falls back to unsandboxed execution when `sandbox-exec` is unavailable |
-| [`../hooks/test.hooks/test-guard.sh`](../hooks/test.hooks/test-guard.sh) | 8 shell checks | Dangerous-command blocking and safe-command allowlisting |
+| [`../hooks/test.hooks/test-deny-dangerous.sh`](../hooks/test.hooks/test-deny-dangerous.sh) | 8 shell checks | Dangerous-command blocking and safe-command allowlisting |
 | [`../hooks/test.hooks/test-secret-scan.sh`](../hooks/test.hooks/test-secret-scan.sh) | 7 shell checks | gitleaks-backed secret blocking on Write/Edit content, new_string, and Bash command text |
 | [`../hooks/test.hooks/test-pre-push.sh`](../hooks/test.hooks/test-pre-push.sh) | 3 shell checks | `pre-push` gates on quality-gate exit status and fails open when the venv Python is missing |
-| [`../hooks/test.hooks/test-run-impacted-tests.sh`](../hooks/test.hooks/test-run-impacted-tests.sh) | 7 shell checks | Scoped test-module resolution, pass/fail feedback, and silent skip on no match, non-Python files, and a missing interpreter |
+| [`../hooks/test.hooks/test-run-impacted-tests.sh`](../hooks/test.hooks/test-run-impacted-tests.sh) | 14 shell checks | Scoped test-module and shell-harness resolution, pass/fail feedback, and silent skip on no match, non-Python files, a missing interpreter, extensionless Git hooks, and shell files outside `hooks/` |
 
 ### CLI diagnostics
 
@@ -247,6 +247,13 @@ so it never depends on the real suite's runtime. It verifies that the hook:
   guessing a `tests.test_test_<name>` module.
 - Skips silently for non-Python files and when the configured Python
   interpreter doesn't exist (fails open).
+- For a touched `hooks/<name>.sh`, runs the matching
+  `hooks/test.hooks/test-<name>.sh` harness directly with `bash` and
+  surfaces the same pass/fail/skip behavior; a touched
+  `hooks/test.hooks/test-*.sh` file resolves to itself.
+- Skips silently for an extensionless Git hook (e.g. `hooks/post-merge`,
+  which has no `.sh` match) and for a `.sh` file outside `hooks/`, even if a
+  same-named harness coincidentally exists.
 
 ## GitHub commit and pull-request delivery
 
