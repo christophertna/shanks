@@ -23,7 +23,7 @@ and its recovery paths.
 - `skills/` contains shared skill sources; `.agents/skills/` and `.claude/skills/`
   expose project-scoped Codex and Claude entrypoints.
 - `.github/workflows/tests.yml` runs the unittest suite and the
-  `hooks/test.hooks/` guard harnesses (`test-guard.sh`, `test-secret-scan.sh`,
+  `hooks/test.hooks/` guard harnesses (`test-deny-dangerous.sh`, `test-secret-scan.sh`,
   `test-pre-push.sh`, `test-run-impacted-tests.sh`) on pushes and pull requests.
 - `tests/` covers graph routing, node contracts, viewer output, quality gates,
   run isolation, lifecycle recovery, and injected failure behavior.
@@ -117,7 +117,7 @@ gh auth refresh -h github.com -s workflow
 - `SHANKS_MODE=dry-run ./shanks --mode` — inspect the delivery-preview mode.
 - `.venv/bin/python -m pip install -r requirements-dev.txt` — install development dependencies.
 - `.venv/bin/python -m unittest discover -s tests` — run all tests.
-- `bash hooks/test.hooks/test-guard.sh` — test dangerous-command guard behavior.
+- `bash hooks/test.hooks/test-deny-dangerous.sh` — test dangerous-command guard behavior.
 - `.venv/bin/python scripts/quality_gates.py --diff-base origin/main` — run all quality gates.
 - `.venv/bin/python scripts/quality_gates.py --diff-base origin/main --staged` — check staged changes.
 - `.venv/bin/python serve_graph.py [--port PORT]` — start the workflow viewer.
@@ -301,7 +301,7 @@ CI test workflow requests only `contents: read`; write-capable GitHub operations
 use the operator's authenticated `gh` session after the separate approvals.
 The repo-local
 `hooks/deny-dangerous.sh` hook adds a denylist for catastrophic shell commands;
-run `hooks/test.hooks/test-guard.sh` to check it. `hooks/guard-dependency-files.sh` blocks
+run `hooks/test.hooks/test-deny-dangerous.sh` to check it. `hooks/guard-dependency-files.sh` blocks
 Write/Edit on lockfiles, pinned dependency manifests, and `.env` files (patterns
 in `hooks/guarded-paths.txt`; override with `SHANKS_ALLOW_DEPENDENCY_EDIT=1`).
 `hooks/secret-scan.sh` scans Write/Edit content and Bash command text with
@@ -313,11 +313,13 @@ path only catches secrets typed literally into the command text, not ones
 assembled from existing files/variables at runtime.
 `hooks/graphify-update.sh` refreshes the graphify graph in the background after
 each Write/Edit (AST-only, no LLM cost). `hooks/run-impacted-tests.sh` runs just
-the unittest module matching a touched Python file after each Write/Edit
-(naming convention: `<name>.py` -> `tests/test_<name>.py`), skipping silently
-when nothing matches; run `hooks/test.hooks/test-run-impacted-tests.sh` to check
-it. All are wired via a local `.claude/settings.json`, which is gitignored
-since it hardcodes a machine-specific `graphify` path.
+the check matching a touched file after each Write/Edit: a Python file
+(`<name>.py` -> `tests/test_<name>.py`) runs the matching unittest module, and
+a hook script (`hooks/<name>.sh` -> `hooks/test.hooks/test-<name>.sh`) runs the
+matching shell harness; it skips silently when nothing matches. Run
+`hooks/test.hooks/test-run-impacted-tests.sh` to check it. All are wired via a
+local `.claude/settings.json`, which is gitignored since it hardcodes a
+machine-specific `graphify` path.
 
 Ralph records only genuinely uncertain implementation decisions reported by the
 builder. They are parsed from the `RALPH_UNCERTAINTIES` output section and stored

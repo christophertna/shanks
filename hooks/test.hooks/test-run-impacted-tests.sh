@@ -8,8 +8,28 @@ HOOK="$SCRIPT_DIR/../run-impacted-tests.sh"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-mkdir -p "$TMP/tests"
+mkdir -p "$TMP/tests" "$TMP/hooks/test.hooks" "$TMP/scripts"
 : > "$TMP/tests/test_workspaces.py"
+
+cat > "$TMP/hooks/test.hooks/test-widget.sh" <<'EOF'
+#!/bin/bash
+exit 0
+EOF
+chmod +x "$TMP/hooks/test.hooks/test-widget.sh"
+
+cat > "$TMP/hooks/test.hooks/test-failing.sh" <<'EOF'
+#!/bin/bash
+echo "FAIL: sample harness failure" >&2
+exit 1
+EOF
+chmod +x "$TMP/hooks/test.hooks/test-failing.sh"
+
+cat > "$TMP/hooks/test.hooks/test-outside.sh" <<'EOF'
+#!/bin/bash
+echo "FAIL: should never run for a file outside hooks/" >&2
+exit 1
+EOF
+chmod +x "$TMP/hooks/test.hooks/test-outside.sh"
 
 cat > "$TMP/python-pass" <<'EOF'
 #!/bin/bash
@@ -56,6 +76,14 @@ check allow "editing the test module itself" "$TMP/tests/test_workspaces.py" "$T
 check block "editing the test module itself, failing" "$TMP/tests/test_workspaces.py" "$TMP/python-fail"
 check allow "non-python file" "$TMP/README.md" "$TMP/python-fail"
 check allow "python interpreter missing (fail open)" "$TMP/workflow/workspaces.py" "$TMP/no-such-python"
+
+check allow "matching shell harness passes" "$TMP/hooks/widget.sh" "$TMP/python-pass"
+check block "matching shell harness fails" "$TMP/hooks/failing.sh" "$TMP/python-pass"
+check allow "no matching shell harness" "$TMP/hooks/no-such-hook.sh" "$TMP/python-pass"
+check allow "editing the shell harness itself" "$TMP/hooks/test.hooks/test-widget.sh" "$TMP/python-pass"
+check block "editing the shell harness itself, failing" "$TMP/hooks/test.hooks/test-failing.sh" "$TMP/python-pass"
+check allow "extensionless git hook (no .sh match)" "$TMP/hooks/post-merge" "$TMP/python-pass"
+check allow "shell file outside hooks/ is ignored" "$TMP/scripts/outside.sh" "$TMP/python-pass"
 
 printf 'passed: %s, failed: %s\n' "$passed" "$failed"
 [ "$failed" -eq 0 ]
