@@ -2,15 +2,7 @@ Shanks feature roadmap
 
 Priority 1 - Maintenance and developer experience
 
-1- Grep/Glob for the read-only Claude adapters.
-    Give the Claude-based read-only adapters (DebuggerAdapter,
-    ClaudeAdapter(read_only=True), ClaudeOpus48CriticAdapter) `Grep,Glob`
-    alongside `Read` in their `--tools` list - still fully read-only, same
-    guarantee as today - so they can search the codebase for related
-    callers/regressions instead of only inspecting files already named in
-    their context.
-
-2- Wire real-agent smoke tests into CI.
+1- Wire real-agent smoke tests into CI.
     Wire tests/test_agent_integration.py into an opt-in, manually-triggered
     CI job (workflow_dispatch, with the CLI auth secrets scoped to it) so
     the smoke tests - including the sandboxed Claude write path added in
@@ -18,7 +10,7 @@ Priority 1 - Maintenance and developer experience
     a human step first: the CLI auth secrets have to be added in GitHub
     repo settings before this job can run green.
 
-3- Doctor/preflight tool-list sync test.
+2- Doctor/preflight tool-list sync test.
     `workflow/cli.py`'s `_REQUIRED_TOOLS` (`./shanks doctor`) and
     `GitHubAdapter.preflight()`'s `required_tools` (`workflow/adapters.py`,
     extended to include `jq`/`gitleaks` in #40) are two independently
@@ -28,7 +20,7 @@ Priority 1 - Maintenance and developer experience
     just closed. Fix: extract a shared constant, or add a test asserting the
     two lists match.
 
-4- HOOKS.md drift test.
+3- HOOKS.md drift test.
     `hooks/HOOKS.md` is a manually-maintained doc that's needed a hand-edit
     on every single hook change so far (which agents get which hook,
     matched against each adapter's `--tools` list) - nothing cross-checks
@@ -38,7 +30,7 @@ Priority 1 - Maintenance and developer experience
     test asserting the documented tool-scope table stays consistent with
     `adapters.py`.
 
-5- Regression harness for post-merge/post-checkout hooks.
+4- Regression harness for post-merge/post-checkout hooks.
     `hooks/post-merge` and `hooks/post-checkout` (#44) have no regression
     harness, unlike `hooks/test.hooks/test-deny-dangerous.sh`/
     `hooks/test.hooks/test-secret-scan.sh` (both wired into

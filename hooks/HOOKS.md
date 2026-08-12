@@ -41,8 +41,10 @@ filesystem sandbox, so every hook above can fire: `deny-dangerous.sh`,
 ## Other agents (critic, debugger)
 
 `ClaudeAdapter(read_only=True)`, `DebuggerAdapter(tool="claude")`, and
-`ClaudeOpus48CriticAdapter` run with `--tools Read` only — no `Bash`, `Grep`,
-`Write`, or `Edit` — so only `graphify hook-guard read` ever fires for them.
+`ClaudeOpus48CriticAdapter` run with `--tools Read,Grep,Glob` — no `Bash`,
+`Write`, or `Edit` — so `graphify hook-guard read` fires for them (`Read`/`Glob`)
+and `graphify hook-guard search` fires on their `Grep` calls; still fully
+read-only, same guarantee as before.
 `GPT56LunaCriticAdapter` and `DebuggerAdapter(tool="codex")` are Codex-based
 and see no Claude Code hooks at all.
 
