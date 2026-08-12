@@ -23,7 +23,7 @@ from workflow.nodes import (
     route_after_commit,
     route_after_critic,
     route_after_debugger,
-    route_after_github,
+    route_after_push,
     route_after_intake,
     route_after_item_router,
     route_after_learning,
@@ -388,10 +388,10 @@ def build_graph(
         error_handler=agent_error_handler_for("item_router"),
     )
     builder.add_node(
-        "github_node",
-        nodes["github_node"],
+        "push_node",
+        nodes["push_node"],
         retry_policy=TARGETED_RETRY_POLICY,
-        error_handler=agent_error_handler_for("github_node"),
+        error_handler=agent_error_handler_for("push_node"),
     )
     builder.add_node(
         "pull_request_node",
@@ -474,11 +474,11 @@ def build_graph(
     builder.add_conditional_edges(
         "item_router",
         route_after_item_router,
-        ["planning", "github_node", "stop_run"],
+        ["planning", "push_node", "stop_run"],
     )
     builder.add_conditional_edges(
-        "github_node",
-        route_after_github,
+        "push_node",
+        route_after_push,
         ["pull_request_node", "retry_backoff", END],
     )
     builder.add_conditional_edges(
@@ -497,7 +497,7 @@ def build_graph(
             "critic_auditor",
             "validation",
             "debugger",
-            "github_node",
+            "push_node",
             "pull_request_node",
             "failed_run",
             "stop_run",

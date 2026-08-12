@@ -13,8 +13,8 @@ from workflow.nodes import (
     NodeDependencies,
     commit_item,
     create_nodes,
-    github_node,
-    route_after_github,
+    push_node,
+    route_after_push,
     route_after_preflight,
     route_after_pull_request,
     select_next_item,
@@ -200,7 +200,7 @@ class GraphRoutingTests(unittest.TestCase):
     def test_pr_url_is_a_resume_guard(self) -> None:
         repository = RecordingRepository()
 
-        result = github_node(
+        result = push_node(
             {"pr_url": "https://github.com/example/shanks/pull/1"},
             _stub_dependencies(repository),
         )
@@ -293,7 +293,7 @@ class GraphRoutingTests(unittest.TestCase):
             event for event in result["run_manifest"] if event["node"] == "planning"
         )
         github_event = next(
-            event for event in result["run_manifest"] if event["node"] == "github_node"
+            event for event in result["run_manifest"] if event["node"] == "push_node"
         )
         pull_request_event = next(
             event
@@ -1114,14 +1114,14 @@ class GraphRoutingTests(unittest.TestCase):
         self.assertEqual(selected[1]["id"], "built")
 
     def test_github_failure_stops_without_routing_to_debugger(self) -> None:
-        self.assertEqual(route_after_github({"status": "failed"}), "__end__")
-        self.assertEqual(route_after_github({"status": "complete"}), "__end__")
+        self.assertEqual(route_after_push({"status": "failed"}), "__end__")
+        self.assertEqual(route_after_push({"status": "complete"}), "__end__")
         self.assertEqual(
-            route_after_github({"status": "branch_pushed"}),
+            route_after_push({"status": "branch_pushed"}),
             "pull_request_node",
         )
         self.assertEqual(
-            route_after_github({"status": "retry_scheduled"}), "retry_backoff"
+            route_after_push({"status": "retry_scheduled"}), "retry_backoff"
         )
 
     def test_pull_request_failure_routes_to_end_or_retry(self) -> None:
@@ -1132,7 +1132,7 @@ class GraphRoutingTests(unittest.TestCase):
             "retry_backoff",
         )
 
-    def test_transient_push_failure_retries_github_node_with_backoff(self) -> None:
+    def test_transient_push_failure_retries_push_node_with_backoff(self) -> None:
         repository = RecordingRepository(transient_push_failures=1)
 
         with patch("workflow.nodes.time.sleep") as sleep:
@@ -1145,7 +1145,7 @@ class GraphRoutingTests(unittest.TestCase):
         self.assertEqual(result["status"], "pr_created")
         self.assertEqual(len(repository.pushes), 2)
         self.assertEqual(len(repository.pull_requests), 1)
-        self.assertEqual(result["retry_counts"]["github_node"], 1)
+        self.assertEqual(result["retry_counts"]["push_node"], 1)
         sleep.assert_called_once_with(0.5)
 
     def test_transient_pr_failure_retries_pull_request_node_with_backoff(
