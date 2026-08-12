@@ -126,7 +126,11 @@ VIEW_EDGE = re.compile(
 
 _execution_graph = None
 _execution_graph_revision = None
-_execution_graph_lock = threading.Lock()
+# RLock: load_execution_graph() holds this while calling load_graph_module(),
+# which re-acquires it itself so every caller (including _send_mermaid())
+# is protected against the sys.modules["graph_live"] race, not just callers
+# that go through load_execution_graph().
+_graph_module_lock = threading.RLock()
 
 
 def graph_source_files() -> tuple[Path, ...]:
@@ -177,25 +181,26 @@ def restart_on_server_change(initial_revision: tuple[int, int]) -> None:
 def load_graph_module() -> types.ModuleType:
     """Load graph.py and workflow modules fresh from source."""
 
-    # The viewer process stays alive, so normal imports would keep old node
-    # functions cached after workflow/*.py changes.
-    for module_name in list(sys.modules):
-        if module_name == "workflow" or module_name.startswith("workflow."):
-            del sys.modules[module_name]
+    with _graph_module_lock:
+        # The viewer process stays alive, so normal imports would keep old node
+        # functions cached after workflow/*.py changes.
+        for module_name in list(sys.modules):
+            if module_name == "workflow" or module_name.startswith("workflow."):
+                del sys.modules[module_name]
 
-    source = GRAPH_FILE.read_text(encoding="utf-8")
-    module = types.ModuleType("graph_live")
-    module.__file__ = str(GRAPH_FILE)
-    # dataclasses' string-annotation resolution (from graph.py's `from
-    # __future__ import annotations`) looks the module up by name via
-    # sys.modules, so an unregistered module breaks @dataclass processing.
-    sys.modules[module.__name__] = module
-    try:
-        exec(compile(source, str(GRAPH_FILE), "exec"), module.__dict__)
-    except BaseException:
-        del sys.modules[module.__name__]
-        raise
-    return module
+        source = GRAPH_FILE.read_text(encoding="utf-8")
+        module = types.ModuleType("graph_live")
+        module.__file__ = str(GRAPH_FILE)
+        # dataclasses' string-annotation resolution (from graph.py's `from
+        # __future__ import annotations`) looks the module up by name via
+        # sys.modules, so an unregistered module breaks @dataclass processing.
+        sys.modules[module.__name__] = module
+        try:
+            exec(compile(source, str(GRAPH_FILE), "exec"), module.__dict__)
+        except BaseException:
+            del sys.modules[module.__name__]
+            raise
+        return module
 
 
 def load_execution_graph():
@@ -204,7 +209,7 @@ def load_execution_graph():
     global _execution_graph, _execution_graph_revision
 
     revision = graph_revision()
-    with _execution_graph_lock:
+    with _graph_module_lock:
         if _execution_graph is None or _execution_graph_revision != revision:
             _execution_graph = load_graph_module().build_graph()
             _execution_graph_revision = revision
