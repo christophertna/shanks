@@ -7,7 +7,7 @@
 set -u
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-GUARD="$SCRIPT_DIR/secret-scan.sh"
+GUARD="$SCRIPT_DIR/../secret-scan.sh"
 FAKE_TOKEN="ghp_$(printf 'wF9k2Lm8Qx3Vn7Rt4Yc6Zb1Ad5Ef0Gh2Ij9K')"
 passed=0
 failed=0

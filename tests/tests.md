@@ -2,10 +2,10 @@
 
 This document summarizes the behavior covered by the repository's tracked test
 files. The Python suite contains **160 unittest methods** across twelve
-modules; `hooks/test-guard.sh` and `hooks/test-secret-scan.sh` are separate
-shell regression harnesses with eight and seven checks respectively, both run
-in CI alongside the Python suite (see
-[`.github/workflows/tests.yml`](../.github/workflows/tests.yml)).
+modules; `hooks/test.hooks/test-guard.sh`, `hooks/test.hooks/test-secret-scan.sh`,
+`hooks/test.hooks/test-pre-push.sh`, and `hooks/test.hooks/test-run-impacted-tests.sh`
+are separate shell regression harnesses, all run in CI alongside the Python
+suite (see [`.github/workflows/tests.yml`](../.github/workflows/tests.yml)).
 
 The tests use in-memory graphs, temporary SQLite databases and temporary
 projects, real temporary Git repositories, a fake `gh` executable, stub
@@ -41,8 +41,10 @@ Run the repository quality gates from a feature branch with:
 | [`test_git_integration.py`](test_git_integration.py) | 2 | Real temporary Git repositories, worktrees, commits, pushes, PR creation/reuse, and fake-`gh` recovery |
 | [`test_agent_integration.py`](test_agent_integration.py) | 3 | Real Codex and Claude CLI smoke tests, including the sandboxed Claude write path, against a small deterministic project (opt-in) |
 | [`test_sandbox_claude.py`](test_sandbox_claude.py) | 4 | `scripts/sandbox_claude.sh` write containment: allows writes inside the target directory, denies writes outside it (including a shared-temp-root sibling and a `..` escape), and falls back to unsandboxed execution when `sandbox-exec` is unavailable |
-| [`../hooks/test-guard.sh`](../hooks/test-guard.sh) | 8 shell checks | Dangerous-command blocking and safe-command allowlisting |
-| [`../hooks/test-secret-scan.sh`](../hooks/test-secret-scan.sh) | 7 shell checks | gitleaks-backed secret blocking on Write/Edit content, new_string, and Bash command text |
+| [`../hooks/test.hooks/test-guard.sh`](../hooks/test.hooks/test-guard.sh) | 8 shell checks | Dangerous-command blocking and safe-command allowlisting |
+| [`../hooks/test.hooks/test-secret-scan.sh`](../hooks/test.hooks/test-secret-scan.sh) | 7 shell checks | gitleaks-backed secret blocking on Write/Edit content, new_string, and Bash command text |
+| [`../hooks/test.hooks/test-pre-push.sh`](../hooks/test.hooks/test-pre-push.sh) | 3 shell checks | `pre-push` gates on quality-gate exit status and fails open when the venv Python is missing |
+| [`../hooks/test.hooks/test-run-impacted-tests.sh`](../hooks/test.hooks/test-run-impacted-tests.sh) | 7 shell checks | Scoped test-module resolution, pass/fail feedback, and silent skip on no match, non-Python files, and a missing interpreter |
 
 ### CLI diagnostics
 
@@ -184,7 +186,7 @@ Source: [`test_fault_injection.py`](test_fault_injection.py).
 ## Guardrails, hooks, and command safety
 
 Sources: [`test_node_contracts.py`](test_node_contracts.py) and
-[`../hooks/test-guard.sh`](../hooks/test-guard.sh).
+[`../hooks/test.hooks/`](../hooks/test.hooks/).
 
 ### Process and workspace boundaries
 
@@ -229,6 +231,22 @@ tool call's `content`/`new_string`, or a Bash tool call's `command`, with
 - Allows a tool call with no content field at all (e.g. an Edit that only
   removes text).
 - Allows an ordinary Bash command with no credential-shaped content.
+
+### Scoped test-impact regression checks
+
+The shell harness invokes `hooks/run-impacted-tests.sh` with a synthetic
+PostToolUse payload and a stubbed `python` interpreter (`SHANKS_TEST_IMPACT_PYTHON`)
+so it never depends on the real suite's runtime. It verifies that the hook:
+
+- Runs quietly (exit 0) when the matched test module's stub interpreter
+  succeeds.
+- Surfaces a failure (exit 2, with the module's output on stderr) when the
+  matched test module's stub interpreter fails.
+- Skips silently when the touched file has no `tests/test_<name>.py` match.
+- Resolves a touched `tests/test_<name>.py` file to itself rather than
+  guessing a `tests.test_test_<name>` module.
+- Skips silently for non-Python files and when the configured Python
+  interpreter doesn't exist (fails open).
 
 ## GitHub commit and pull-request delivery
 

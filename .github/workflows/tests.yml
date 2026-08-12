@@ -48,9 +48,10 @@ jobs:
 
       - name: Run hook guard harnesses
         run: |
-          bash hooks/test-guard.sh
-          bash hooks/test-secret-scan.sh
-          bash hooks/test-pre-push.sh
+          bash hooks/test.hooks/test-guard.sh
+          bash hooks/test.hooks/test-secret-scan.sh
+          bash hooks/test.hooks/test-pre-push.sh
+          bash hooks/test.hooks/test-run-impacted-tests.sh
 
       - name: Run quality gates
         run: python scripts/quality_gates.py --diff-base origin/main

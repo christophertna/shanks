@@ -16,10 +16,12 @@ use Codex's own `--sandbox` flag instead and never see them.
 | `graphify hook-guard search` | PreToolUse | `Bash\|Grep` | Injects a reminder to run `graphify query` before raw grep/Bash search | Advisory only, never blocks |
 | `graphify hook-guard read` | PreToolUse | `Read\|Glob` | Injects a reminder to run `graphify query`/`explain` before reading raw source | Advisory only, never blocks |
 | `graphify-update.sh` | PostToolUse | `Write\|Edit` | Refreshes the graphify graph in the background (AST-only, no LLM cost) | No-op if graphify isn't installed |
+| `run-impacted-tests.sh` | PostToolUse | `Write\|Edit` | Runs the unittest module matching the touched file (`<name>.py` -> `tests/test_<name>.py`; a touched `tests/test_*.py` runs itself), blocking feedback on failure | Skips silently if `jq`, the matching test module, or `.venv/bin/python` are missing |
 
 Pattern files: `dangerous-patterns.txt` (for `deny-dangerous.sh`),
-`guarded-paths.txt` (for `guard-dependency-files.sh`). Regression harnesses:
-`test-guard.sh`, `test-secret-scan.sh`.
+`guarded-paths.txt` (for `guard-dependency-files.sh`). Regression harnesses
+live in `hooks/test.hooks/`: `test-guard.sh`, `test-secret-scan.sh`,
+`test-pre-push.sh`, `test-run-impacted-tests.sh`.
 
 `secret-scan.sh`'s Bash coverage only catches secrets typed literally into
 the command text (e.g. `echo "sk-..." >> config.py`, a heredoc, `sed -i`) —
@@ -33,8 +35,8 @@ gap is real but strictly smaller than having no Bash coverage at all.
 `--tools Read,Write,Edit,Bash,Grep,Glob` inside `scripts/sandbox_claude.sh`'s
 filesystem sandbox, so every hook above can fire: `deny-dangerous.sh`,
 `secret-scan.sh`, and `hook-guard search` on `Bash`; `guard-dependency-files.sh`,
-`secret-scan.sh`, and `graphify-update.sh` on `Write`/`Edit`; `hook-guard read`
-on `Read`.
+`secret-scan.sh`, `graphify-update.sh`, and `run-impacted-tests.sh` on
+`Write`/`Edit`; `hook-guard read` on `Read`.
 
 ## Other agents (critic, debugger)
 
@@ -48,9 +50,10 @@ and see no Claude Code hooks at all.
 
 An interactive Claude Code session isn't tool-scoped by `--tools`, so every
 hook in the table is live: `deny-dangerous.sh`, `hook-guard search`,
-`hook-guard read`, `guard-dependency-files.sh`, `secret-scan.sh`, and
-`graphify-update.sh`. Test them with `bash hooks/test-guard.sh` and
-`bash hooks/test-secret-scan.sh`.
+`hook-guard read`, `guard-dependency-files.sh`, `secret-scan.sh`,
+`graphify-update.sh`, and `run-impacted-tests.sh`. Test them with
+`bash hooks/test.hooks/test-guard.sh`, `bash hooks/test.hooks/test-secret-scan.sh`,
+and `bash hooks/test.hooks/test-run-impacted-tests.sh`.
 
 A `PreToolUse`/`PostToolUse` hook on `gh pr create` (nudging toward the
 `github-commit-pr` skill's `AskUserQuestion` checkpoints) was tried and
@@ -75,4 +78,4 @@ current. `pre-push` runs `scripts/quality_gates.py --diff-base origin/main`
 push on failure, so a gate failure surfaces locally instead of only after
 opening a PR — fails open with a stderr warning if `.venv/bin/python` isn't
 present, rather than blocking every push on a missing dev environment.
-Regression harness: `test-pre-push.sh`.
+Regression harness: `test.hooks/test-pre-push.sh`.

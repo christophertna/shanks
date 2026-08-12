@@ -2,27 +2,48 @@ Shanks feature roadmap
 
 Priority 1 - Maintenance and developer experience
 
-1- Scoped test-impact hook.
-    Add a `PostToolUse` hook on `Write|Edit` that runs just the test
-    module matching the touched file by naming convention (e.g.
-    `workflow/workspaces.py` -> `tests.test_workspaces`), and skip the run
-    when there's no direct match rather than guessing broadly at what to
-    test, so regressions surface on every edit without paying for a full
-    suite run each time.
-
-2- Wire real-agent smoke tests into CI.
+1- Wire real-agent smoke tests into CI.
     Wire tests/test_agent_integration.py into an opt-in, manually-triggered
     CI job (workflow_dispatch, with the CLI auth secrets scoped to it) so
     the smoke tests - including the sandboxed Claude write path added in
     #36 - get run on a schedule instead of only ad hoc by a developer.
 
-3- Grep/Glob for the read-only Claude adapters.
+2- Grep/Glob for the read-only Claude adapters.
     Give the Claude-based read-only adapters (DebuggerAdapter,
     ClaudeAdapter(read_only=True), ClaudeOpus48CriticAdapter) `Grep,Glob`
     alongside `Read` in their `--tools` list - still fully read-only, same
     guarantee as today - so they can search the codebase for related
     callers/regressions instead of only inspecting files already named in
     their context.
+
+3- Doctor/preflight tool-list sync test.
+    `workflow/cli.py`'s `_REQUIRED_TOOLS` (`./shanks doctor`) and
+    `GitHubAdapter.preflight()`'s `required_tools` (`workflow/adapters.py`,
+    extended to include `jq`/`gitleaks` in #40) are two independently
+    hardcoded tuples checking the same tool set, with no test asserting they
+    stay in sync. A future tool addition to one and not the other would
+    silently reopen the same "doctor says fine, run stalls anyway" gap #40
+    just closed. Fix: extract a shared constant, or add a test asserting the
+    two lists match.
+
+4- HOOKS.md drift test.
+    `hooks/HOOKS.md` is a manually-maintained doc that's needed a hand-edit
+    on every single hook change so far (which agents get which hook,
+    matched against each adapter's `--tools` list) - nothing cross-checks
+    its claims against the actual `--tools` strings in
+    `workflow/adapters.py`, so it can silently drift the next time someone
+    changes a tool list without remembering to update the doc. Fix: add a
+    test asserting the documented tool-scope table stays consistent with
+    `adapters.py`.
+
+5- Regression harness for post-merge/post-checkout hooks.
+    `hooks/post-merge` and `hooks/post-checkout` (#44) have no regression
+    harness, unlike `hooks/test.hooks/test-guard.sh`/
+    `hooks/test.hooks/test-secret-scan.sh` (both wired into
+    `.github/workflows/tests.yml`). Fix: add a small shell test asserting
+    the `post-checkout` no-op skip (same prev/new SHA -> no `graphify
+    update` call) and the "no `graphify` on PATH -> no-op" fallback,
+    closing the parity gap.
 
 Suggestions
 
@@ -95,13 +116,6 @@ Suggestions
   `hooks/HOOKS.md` (or a repo convention) on when a new hook should pick
   which, so it's a decision and not just whatever the author of the next
   hook happens to do.
-- `hooks/HOOKS.md` is a manually-maintained doc that's needed a hand-edit on
-  every single hook change so far (which agents get which hook, matched
-  against each adapter's `--tools` list) - nothing cross-checks its claims
-  against the actual `--tools` strings in `workflow/adapters.py`, so it can
-  silently drift the next time someone changes a tool list without
-  remembering to update the doc. A small test asserting the documented
-  tool-scope table stays consistent with `adapters.py` would catch that.
 - `./shanks doctor`'s `tools` check only verifies `gitleaks`/`jq` are
   present, not their version (unlike `git`/`gh`, which have
   `_MIN_TOOL_VERSIONS`) - a `gitleaks` upgrade could silently change
@@ -115,14 +129,6 @@ Suggestions
   chose prose over calling a tool at all - only tool calls that do happen.
   That hook's whole premise didn't hold up; worth checking this before
   building the next one.
-- `workflow/cli.py`'s `_REQUIRED_TOOLS` (`./shanks doctor`) and
-  `GitHubAdapter.preflight()`'s `required_tools` (`workflow/adapters.py`,
-  extended to include `jq`/`gitleaks` in #40) are now two independently
-  hardcoded tuples checking the same tool set, with no test asserting they
-  stay in sync. A future tool addition to one and not the other would
-  silently reopen the same "doctor says fine, run stalls anyway" gap #40
-  just closed. Extract a shared constant or add a test asserting the two
-  lists match.
 - `dev/new features.txt` is tracked in git (`git ls-files dev/` confirms it)
   even though `.gitignore` has a blanket `dev/` pattern and `dev/context.md`
   says "because dev/ is ignored, it is not tracked or included in future
@@ -148,12 +154,6 @@ Suggestions
   `workspaces.py`, `cli.py`, and `graph.py` (the largest and most stateful
   modules) are unchecked. Extend the list once those modules are clean under
   mypy, or budget time to fix what surfaces.
-- `hooks/post-merge` and `hooks/post-checkout` (#44) have no regression
-  harness, unlike `hooks/test-guard.sh`/`hooks/test-secret-scan.sh` (both
-  wired into `.github/workflows/tests.yml`). A small shell test asserting
-  the `post-checkout` no-op skip (same prev/new SHA -> no `graphify update`
-  call) and the "no `graphify` on PATH -> no-op" fallback would close the
-  parity gap.
 - `hooks/post-merge`/`hooks/post-checkout` (#44) run `graphify update .`
   synchronously, unlike `hooks/graphify-update.sh` (the Claude Code hook),
   which backgrounds the call with a lockdir debounce. Fine today since it's
