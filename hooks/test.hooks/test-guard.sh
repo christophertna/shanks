@@ -4,7 +4,7 @@
 set -u
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-GUARD="$SCRIPT_DIR/deny-dangerous.sh"
+GUARD="$SCRIPT_DIR/../deny-dangerous.sh"
 passed=0
 failed=0
 

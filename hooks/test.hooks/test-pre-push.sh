@@ -4,7 +4,7 @@
 set -u
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-HOOK="$SCRIPT_DIR/pre-push"
+HOOK="$SCRIPT_DIR/../pre-push"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
