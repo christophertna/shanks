@@ -1,0 +1,4 @@
+interface:
+  display_name: "Roadmap Review"
+  short_description: "Review and reprioritize the project roadmap"
+  default_prompt: "Use $roadmap-review to review dev/new features.txt, present worthwhile suggestions, and ask before editing it."

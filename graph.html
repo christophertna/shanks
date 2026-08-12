@@ -125,9 +125,9 @@
         margin-bottom: 1rem;
         padding: 1.25rem;
         border: 1px solid #e2e8f0;
-        border-radius: 1rem;
+        border-radius: 0.85rem;
         background: #ffffff;
-        box-shadow: 0 12px 32px rgb(15 23 42 / 6%);
+        box-shadow: 0 1px 2px rgb(15 23 42 / 4%);
       }
 
       .execution-header {
@@ -135,7 +135,24 @@
         align-items: flex-start;
         justify-content: space-between;
         gap: 1rem;
-        margin-bottom: 1rem;
+        margin: -0.25rem -0.25rem 1rem;
+        padding: 0.25rem;
+        border-radius: 0.6rem;
+        cursor: pointer;
+        list-style: none;
+        transition: background-color 120ms ease;
+      }
+
+      .execution-header::-webkit-details-marker {
+        display: none;
+      }
+
+      .execution-header:hover {
+        background: #f8fafc;
+      }
+
+      .execution-shell:not([open]) .execution-header {
+        margin-bottom: -0.25rem;
       }
 
       .execution-header h2,
@@ -151,11 +168,48 @@
         font-size: 0.82rem;
       }
 
+      .execution-header-right {
+        display: flex;
+        flex: 0 0 auto;
+        align-items: center;
+        gap: 0.65rem;
+      }
+
       #execution-status {
         margin: 0;
         color: #64748b;
         font-size: 0.78rem;
         text-align: right;
+        white-space: nowrap;
+      }
+
+      .execution-toggle-icon {
+        display: inline-flex;
+        flex: 0 0 auto;
+        align-items: center;
+        justify-content: center;
+        width: 2.25rem;
+        height: 2.25rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 999px;
+        color: #475569;
+        transition: background-color 120ms ease, border-color 120ms ease;
+      }
+
+      .execution-header:hover .execution-toggle-icon,
+      .execution-header:focus-visible .execution-toggle-icon {
+        border-color: #cbd5e1;
+        background: #eef2f7;
+      }
+
+      .execution-toggle-icon svg {
+        width: 1.2rem;
+        height: 1.2rem;
+        transition: transform 160ms ease;
+      }
+
+      .execution-shell:not([open]) .execution-toggle-icon svg {
+        transform: rotate(-90deg);
       }
 
       .execution-controls {
@@ -195,38 +249,44 @@
       }
 
       .execution-grid {
-        display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
-        gap: 0.65rem;
-        margin-bottom: 1.25rem;
+        display: flex;
+        flex-wrap: wrap;
+        row-gap: 0.9rem;
+        column-gap: 1.5rem;
+        margin-bottom: 1.4rem;
       }
 
       .metric {
-        min-width: 0;
-        padding: 0.75rem;
-        border: 1px solid #e2e8f0;
-        border-radius: 0.65rem;
-        background: #f8fafc;
+        min-width: 6rem;
+        padding-left: 1.5rem;
+        border-left: 1px solid #e6e9ef;
+      }
+
+      .metric:first-child {
+        padding-left: 0;
+        border-left: 0;
       }
 
       .metric-label {
         display: block;
-        margin-bottom: 0.35rem;
-        color: #64748b;
-        font-size: 0.7rem;
-        font-weight: 700;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
+        margin-bottom: 0.3rem;
+        color: #94a3b8;
+        font-size: 0.72rem;
+        font-weight: 600;
       }
 
       .metric-value {
         display: block;
         overflow: hidden;
         color: #0f172a;
-        font-size: 0.9rem;
-        font-weight: 700;
+        font-size: 0.95rem;
+        font-weight: 650;
         text-overflow: ellipsis;
         white-space: nowrap;
+      }
+
+      .metric-alert {
+        border-left-color: #fecaca;
       }
 
       #execution-error {
@@ -386,8 +446,13 @@
           width: 100%;
         }
 
-        .execution-grid {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
+        .execution-header-right {
+          align-self: flex-end;
+        }
+
+        .metric {
+          padding-left: 0;
+          border-left: 0;
         }
 
         .checkpoint {
@@ -423,14 +488,21 @@
         </div>
       </section>
 
-      <section class="execution-shell" aria-labelledby="execution-heading">
-        <div class="execution-header">
+      <details class="execution-shell" open>
+        <summary class="execution-header">
           <div>
             <h2 id="execution-heading">Live execution</h2>
             <p>Inspect the latest state and checkpoints for a workflow thread.</p>
           </div>
-          <p id="execution-status" role="status">Loading execution…</p>
-        </div>
+          <div class="execution-header-right">
+            <p id="execution-status" role="status">Loading execution…</p>
+            <span class="execution-toggle-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </span>
+          </div>
+        </summary>
 
         <form id="execution-form" class="execution-controls">
           <label for="thread-id">Thread ID</label>
@@ -455,7 +527,7 @@
             <span class="metric-label">Budget</span>
             <strong id="execution-budget" class="metric-value">—</strong>
           </div>
-          <div class="metric">
+          <div class="metric metric-alert">
             <span class="metric-label">Last error</span>
             <strong id="execution-error" class="metric-value">—</strong>
           </div>
@@ -474,7 +546,7 @@
           <h3>Run manifest</h3>
           <ol id="run-manifest" aria-live="polite"></ol>
         </div>
-      </section>
+      </details>
 
       <section class="graph-shell">
         <div id="diagram" aria-live="polite"></div>
