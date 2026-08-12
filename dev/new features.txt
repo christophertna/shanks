@@ -41,12 +41,6 @@ Priority 1 - Maintenance and developer experience
 
 Suggestions
 
-- Make the served LangGraph viewer flow vertically. `serve_graph.py` currently
-  rewrites `graph TD` to `graph LR` and emits `flowchart LR`, so the long
-  workflow is laid out horizontally and compressed to fit the viewport. Emit a
-  top-to-bottom layout instead, with `__start__` at the top and `__end__` at
-  the bottom, then update the viewer tests and tune Mermaid spacing as needed
-  so the overview and detailed recovery paths remain readable.
 - Real-agent smoke tests (tests/test_agent_integration.py) only cover the
   Codex and Claude planner/builder adapters; the GPT-5.6 Luna and Claude
   Opus 4.8 critic adapters still have no real-CLI coverage. Extend once
