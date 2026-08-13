@@ -2,24 +2,14 @@ Shanks feature roadmap
 
 Priority 1 - Maintenance and developer experience
 
-1- Regression harness for post-merge/post-checkout hooks.
-    `hooks/post-merge` and `hooks/post-checkout` (#44) have no regression
-    harness, unlike `hooks/test.hooks/test-deny-dangerous.sh`/
-    `hooks/test.hooks/test-secret-scan.sh` (both wired into
-    `.github/workflows/tests.yml`). Fix: add a small shell test asserting
-    the `post-checkout` no-op skip (same prev/new SHA -> no `graphify
-    update` call) and the "no `graphify` on PATH -> no-op" fallback,
-    closing the parity gap.
-
-2- tests/tests.md test-count drift.
+1- tests/tests.md test-count drift.
     `tests/tests.md`'s per-file "Tests" column documents test counts by
     hand and has already drifted for 4 of 12 files - `test_graph.py`
     (documented 40, actually 43), `test_lifecycle.py` (5 vs 6),
     `test_viewer.py` (6 vs 7), and `test_workspaces.py` (11 vs 12) - with
     nothing catching it when a test is added without a matching doc edit.
     Fix: add a test asserting each documented count in `tests/tests.md`
-    matches the actual `def test_` count for its corresponding file,
-    mirroring the sync-test pattern of item 1 above.
+    matches the actual `def test_` count for its corresponding file.
 
 Suggestions
 

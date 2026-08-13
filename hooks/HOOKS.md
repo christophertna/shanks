@@ -21,7 +21,7 @@ use Codex's own `--sandbox` flag instead and never see them.
 Pattern files: `dangerous-patterns.txt` (for `deny-dangerous.sh`),
 `guarded-paths.txt` (for `guard-dependency-files.sh`). Regression harnesses
 live in `hooks/test.hooks/`: `test-deny-dangerous.sh`, `test-secret-scan.sh`,
-`test-pre-push.sh`, `test-run-impacted-tests.sh`.
+`test-pre-push.sh`, `test-run-impacted-tests.sh`, `test-post-merge-checkout.sh`.
 
 `secret-scan.sh`'s Bash coverage only catches secrets typed literally into
 the command text (e.g. `echo "sk-..." >> config.py`, a heredoc, `sed -i`) —
@@ -75,9 +75,13 @@ git config core.hooksPath hooks
 
 `post-merge`/`post-checkout` run `graphify update .` after a pull/checkout so
 the untracked, generated `graphify-out/graph.json` (and friends) stay
-current. `pre-push` runs `scripts/quality_gates.py --diff-base origin/main`
-(formatting, linting, typing, dependency audit, diff size) and blocks the
-push on failure, so a gate failure surfaces locally instead of only after
-opening a PR — fails open with a stderr warning if `.venv/bin/python` isn't
-present, rather than blocking every push on a missing dev environment.
-Regression harness: `test.hooks/test-pre-push.sh`.
+current — `post-checkout` skips the no-op case where the tree didn't
+actually change (e.g. `checkout -b` off the current commit), and both fail
+open (no-op) if `graphify` isn't on PATH. Regression harness:
+`test.hooks/test-post-merge-checkout.sh`. `pre-push` runs
+`scripts/quality_gates.py --diff-base origin/main` (formatting, linting,
+typing, dependency audit, diff size) and blocks the push on failure, so a
+gate failure surfaces locally instead of only after opening a PR — fails
+open with a stderr warning if `.venv/bin/python` isn't present, rather than
+blocking every push on a missing dev environment. Regression harness:
+`test.hooks/test-pre-push.sh`.

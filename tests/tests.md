@@ -1,11 +1,12 @@
 # Test coverage
 
 This document summarizes the behavior covered by the repository's tracked test
-files. The Python suite contains **161 unittest methods** across twelve
+files. The Python suite contains **169 unittest methods** across twelve
 modules; `hooks/test.hooks/test-deny-dangerous.sh`, `hooks/test.hooks/test-secret-scan.sh`,
-`hooks/test.hooks/test-pre-push.sh`, and `hooks/test.hooks/test-run-impacted-tests.sh`
-are separate shell regression harnesses, all run in CI alongside the Python
-suite (see [`.github/workflows/tests.yml`](../.github/workflows/tests.yml)).
+`hooks/test.hooks/test-pre-push.sh`, `hooks/test.hooks/test-run-impacted-tests.sh`, and
+`hooks/test.hooks/test-post-merge-checkout.sh` are separate shell regression
+harnesses, all run in CI alongside the Python suite (see
+[`.github/workflows/tests.yml`](../.github/workflows/tests.yml)).
 
 The tests use in-memory graphs, temporary SQLite databases and temporary
 projects, real temporary Git repositories, a fake `gh` executable, stub
@@ -45,6 +46,7 @@ Run the repository quality gates from a feature branch with:
 | [`../hooks/test.hooks/test-secret-scan.sh`](../hooks/test.hooks/test-secret-scan.sh) | 7 shell checks | gitleaks-backed secret blocking on Write/Edit content, new_string, and Bash command text |
 | [`../hooks/test.hooks/test-pre-push.sh`](../hooks/test.hooks/test-pre-push.sh) | 3 shell checks | `pre-push` gates on quality-gate exit status and fails open when the venv Python is missing |
 | [`../hooks/test.hooks/test-run-impacted-tests.sh`](../hooks/test.hooks/test-run-impacted-tests.sh) | 14 shell checks | Scoped test-module and shell-harness resolution, pass/fail feedback, and silent skip on no match, non-Python files, a missing interpreter, extensionless Git hooks, and shell files outside `hooks/` |
+| [`../hooks/test.hooks/test-post-merge-checkout.sh`](../hooks/test.hooks/test-post-merge-checkout.sh) | 3 shell checks | `post-checkout`'s same-SHA no-op skip and different-SHA `graphify update` trigger, and `post-merge`'s no-op fallback when `graphify` isn't on PATH |
 
 ### CLI diagnostics
 
