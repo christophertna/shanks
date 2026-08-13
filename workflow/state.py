@@ -72,6 +72,7 @@ class WorkflowState(TypedDict, total=False):
     critic_feedback: str
     validation_passed: bool
     validation_errors: list[str]
+    policy_gate_passed: bool
     debugger_model: str
     root_cause: str
     item_built: bool
@@ -289,4 +290,5 @@ def migrate_state(state: Mapping[str, Any]) -> WorkflowState:
     migrated.setdefault("run_lease_expires_at", 0.0)
     migrated.setdefault("run_last_heartbeat_at", 0.0)
     migrated.setdefault("run_recovery_count", 0)
+    migrated.setdefault("policy_gate_passed", False)
     return cast(WorkflowState, migrated)

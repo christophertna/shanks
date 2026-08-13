@@ -229,23 +229,20 @@ Deferred
 
 Graph Suggestions (ordered by implementation priority)
 
-1. pre_commit_policy_gate (ASAP)
-   Read-only gate after validation and before `commit_item`. Inspect the staged diff against the PRD, reject unexpected paths or high-risk changes, run static security analysis when configured, and apply license policy only when dependency files changed. Reuse the existing quality-gate and secret-scanning commands instead of duplicating them in a second node.
-
-2. recovery_reconciler (ASAP)
+1. recovery_reconciler (ASAP)
    On a resumed or recovered run, compare checkpoint state with the actual worktree, branch, commit, remote branch, and pull-request state before any side effect. Surface stale or ambiguous state for operator review instead of relying on individual `commit_sha`/`pr_url` guards.
 
-3. Human-in-the-Loop State Injection (Next)
+2. Human-in-the-Loop State Injection (Next)
    Instead of simply approving or rejecting operations, allow humans to inject validated guidance during interrupts so the agent can resume with corrected instructions without restarting the chain. Do not allow arbitrary patches to safety-critical state.
 
-4. Context Pruning/Compaction Node (Later)
+3. Context Pruning/Compaction Node (Later)
    After measuring prompt growth, periodically distill past command outputs, test logs, and history into a compressed summary to control context size and token cost during long iteration cycles.
 
-5. Namespaced State Management (Later)
+4. Namespaced State Management (Later)
    Move from the flat dictionary to structured, nested TypedDicts. Add runtime validation or update boundaries if nodes must be prevented from writing outside their namespaces.
 
-6. documentation_sync (Later)
+5. documentation_sync (Later)
    Automate updates for READMEs, OpenAPI specs, and architecture diagrams based on the final code state, subject to an explicit source-of-truth policy.
 
-7. regression_canary (Later)
+6. regression_canary (Later)
     Add deterministic performance benchmarks and thresholds to detect latency or resource regressions after code changes.

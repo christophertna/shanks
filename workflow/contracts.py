@@ -94,6 +94,16 @@ class RepositoryAdapter(Protocol):
 
         ...
 
+    def policy_gate(
+        self,
+        item_id: str,
+        item_title: str,
+        files_touched: list[str],
+    ) -> AgentResult:
+        """Read-only check for high-risk paths and secrets before commit."""
+
+        ...
+
     def commit_item(
         self,
         item_id: str,

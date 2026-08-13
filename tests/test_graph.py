@@ -50,8 +50,29 @@ class RecordingRepository:
     pull_requests: list[str] = field(default_factory=list)
     fail_commit: bool = False
     fail_publish: bool = False
+    fail_policy_gate: bool = False
     transient_push_failures: int = 0
     transient_pr_failures: int = 0
+    policy_gate_calls: int = 0
+
+    def policy_gate(
+        self,
+        item_id: str,
+        item_title: str,
+        files_touched: list[str],
+    ) -> AgentResult:
+        self.policy_gate_calls += 1
+        if self.fail_policy_gate:
+            return AgentResult(
+                status="policy_gate_failed",
+                assigned_model="test-github",
+                error="Refusing to commit: policy violation.",
+            )
+        return AgentResult(
+            status="policy_gate_passed",
+            assigned_model="test-github",
+            files_touched=files_touched,
+        )
 
     def commit_item(
         self,
@@ -957,6 +978,20 @@ class GraphRoutingTests(unittest.TestCase):
         self.assertEqual(repository.commits, ["item-1"])
         self.assertEqual(repository.pull_requests, ["Build the workflow"])
         self.assertIn("/grill-with-docs", planner.requests[0].instructions)
+
+    def test_policy_gate_failure_stops_before_commit(self) -> None:
+        repository = RecordingRepository(fail_policy_gate=True)
+
+        result = invoke_with_approvals(
+            build_graph(_stub_dependencies(repository)),
+            _initial_state(),
+            {"configurable": {"thread_id": "policy-gate-failure"}},
+        )
+
+        self.assertEqual(result["status"], "failed")
+        self.assertEqual(result["failure_class"], "guardrail")
+        self.assertEqual(repository.policy_gate_calls, 1)
+        self.assertEqual(repository.commits, [])
 
     def test_failed_item_commit_stops_before_the_pull_request(self) -> None:
         repository = RecordingRepository(fail_commit=True)

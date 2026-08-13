@@ -10,6 +10,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -28,6 +29,14 @@ SANDBOX_CLAUDE_SCRIPT_PATH = (
     Path(__file__).resolve().parent.parent / "scripts" / "sandbox_claude.sh"
 )
 CLAUDE_READ_ONLY_TOOLS = "Read,Grep,Glob"
+GUARDED_PATHS_FILE = (
+    Path(__file__).resolve().parent.parent / "hooks" / "guarded-paths.txt"
+)
+# Matches hooks/guard-dependency-files.sh's template exception, since these
+# files are meant to be edited and are not the real secret.
+_GUARDED_PATH_TEMPLATE_EXCEPTIONS = frozenset(
+    {".env.example", ".env.sample", ".env.template", ".env.dist"}
+)
 ITEM_BUILT_MARKER = "<promise>ITEM_BUILT</promise>"
 UNCERTAINTIES_MARKER = "RALPH_UNCERTAINTIES:"
 ALLOWED_AGENT_EXECUTABLES = frozenset({"bash", "claude", "codex", "python", "python3"})
@@ -664,6 +673,67 @@ class GitHubAdapter:
             ),
             commands=commands,
             test_output=tests.feedback,
+        )
+
+    def policy_gate(
+        self,
+        item_id: str,
+        item_title: str,
+        files_touched: list[str],
+    ) -> AgentResult:
+        """Reject high-risk paths or leaked secrets before anything is staged."""
+
+        # ponytail: no dependency-license allowlist exists in this repo, so
+        # license policy is not enforced here. Add pip-licenses plus an
+        # allowed-license list if that need ever shows up.
+        commands: list[list[str]] = []
+        files = self._candidate_files(files_touched, commands=commands)
+        if not files:
+            return AgentResult(
+                status="policy_gate_passed",
+                assigned_model=self.model_name,
+                commands=commands,
+            )
+
+        if os.environ.get("SHANKS_ALLOW_DEPENDENCY_EDIT") != "1":
+            guarded = _matching_guarded_files(files)
+            if guarded:
+                return AgentResult(
+                    status="policy_gate_failed",
+                    assigned_model=self.model_name,
+                    error=(
+                        "Refusing to commit high-risk file(s): "
+                        + ", ".join(guarded)
+                        + ". Set SHANKS_ALLOW_DEPENDENCY_EDIT=1 to override."
+                    ),
+                    files_touched=files,
+                    commands=commands,
+                )
+
+        secret_summary = _scan_for_secrets(self._project_directory(), files)
+        if secret_summary is None:
+            return AgentResult(
+                status="policy_gate_failed",
+                assigned_model=self.model_name,
+                error="Refusing to commit: could not run the gitleaks secret scan "
+                "(missing gitleaks or a subprocess error; see ./shanks doctor).",
+                files_touched=files,
+                commands=commands,
+            )
+        if secret_summary:
+            return AgentResult(
+                status="policy_gate_failed",
+                assigned_model=self.model_name,
+                error=f"Refusing to commit a likely secret: {secret_summary}.",
+                files_touched=files,
+                commands=commands,
+            )
+
+        return AgentResult(
+            status="policy_gate_passed",
+            assigned_model=self.model_name,
+            files_touched=files,
+            commands=commands,
         )
 
     def commit_item(
@@ -1769,6 +1839,100 @@ def _audit_command(command: tuple[str, ...]) -> list[str]:
     """Return a redacted command suitable for the persisted run manifest."""
 
     return [redact_secrets(part) for part in command]
+
+
+def _guarded_path_patterns(patterns_file: Path) -> list[re.Pattern[str]]:
+    """Parse hooks/guard-dependency-files.sh's basename pattern file."""
+
+    if not patterns_file.is_file():
+        return []
+    patterns = []
+    for line in patterns_file.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        try:
+            patterns.append(re.compile(line))
+        except re.error:
+            continue
+    return patterns
+
+
+def _matching_guarded_files(files: list[str]) -> list[str]:
+    """Return files whose basename matches a guarded dependency/secret pattern."""
+
+    patterns_file = Path(
+        os.environ.get("SHANKS_GUARDED_PATTERNS") or GUARDED_PATHS_FILE
+    )
+    patterns = _guarded_path_patterns(patterns_file)
+    if not patterns:
+        return []
+    matched = []
+    for file in files:
+        basename = Path(file).name
+        if basename in _GUARDED_PATH_TEMPLATE_EXCEPTIONS:
+            continue
+        if any(pattern.search(basename) for pattern in patterns):
+            matched.append(file)
+    return matched
+
+
+def _scan_for_secrets(project_directory: Path, files: list[str]) -> str | None:
+    """Run hooks/secret-scan.sh's gitleaks invocation over dirty files at once.
+
+    Returns "" when clean, a finding summary when secrets are flagged, and
+    None when the scan itself could not run - a missing tool or subprocess
+    error is not the same as a clean scan, so the caller fails closed on
+    None, matching hooks/secret-scan.sh's fail-closed stance on missing jq/
+    gitleaks."""
+
+    if shutil.which("gitleaks") is None:
+        return None
+    with tempfile.TemporaryDirectory(prefix="shanks-policy-gate-") as scan_dir:
+        scan_root = Path(scan_dir)
+        found_any = False
+        for relative in files:
+            source = project_directory / relative
+            if not source.is_file():
+                continue
+            destination = scan_root / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(source.read_bytes())
+            found_any = True
+        if not found_any:
+            return ""
+        try:
+            completed = _run_subprocess(
+                (
+                    "gitleaks",
+                    "detect",
+                    "--source",
+                    str(scan_root),
+                    "--no-git",
+                    "--no-banner",
+                    "-f",
+                    "json",
+                    "-r",
+                    "-",
+                ),
+                cwd=project_directory,
+                env=_agent_environment(),
+                timeout=60,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return None
+        if completed.returncode == 0:
+            return ""
+        try:
+            findings = json.loads(completed.stdout or "[]")
+        except json.JSONDecodeError:
+            return "gitleaks flagged a potential secret"
+        summary = ", ".join(
+            f"{item.get('RuleID', 'secret')} in {Path(item.get('File', '')).name}"
+            for item in findings
+            if isinstance(item, dict)
+        )
+        return summary or "gitleaks flagged a potential secret"
 
 
 def _attach_commands(

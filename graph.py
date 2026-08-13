@@ -28,6 +28,7 @@ from workflow.nodes import (
     route_after_item_router,
     route_after_learning,
     route_after_planning,
+    route_after_policy_gate,
     route_after_preflight,
     route_after_pull_request,
     route_after_retry_backoff,
@@ -370,6 +371,12 @@ def build_graph(
         error_handler=agent_error_handler_for("validation"),
     )
     builder.add_node(
+        "pre_commit_policy_gate",
+        nodes["pre_commit_policy_gate"],
+        retry_policy=TARGETED_RETRY_POLICY,
+        error_handler=agent_error_handler_for("pre_commit_policy_gate"),
+    )
+    builder.add_node(
         "commit_item",
         nodes["commit_item"],
         retry_policy=TARGETED_RETRY_POLICY,
@@ -459,7 +466,18 @@ def build_graph(
     builder.add_conditional_edges(
         "validation",
         route_after_validation,
-        ["debugger", "commit_item", "retry_backoff", "failed_run", "stop_run"],
+        [
+            "debugger",
+            "pre_commit_policy_gate",
+            "retry_backoff",
+            "failed_run",
+            "stop_run",
+        ],
+    )
+    builder.add_conditional_edges(
+        "pre_commit_policy_gate",
+        route_after_policy_gate,
+        ["commit_item", "failed_run", "stop_run"],
     )
     builder.add_conditional_edges(
         "commit_item",

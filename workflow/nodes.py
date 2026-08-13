@@ -589,6 +589,7 @@ def create_nodes(
         "building": lambda state: building(state, deps),
         "critic_auditor": lambda state: critic_auditor(state, deps),
         "validation": lambda state: validation(state, deps),
+        "pre_commit_policy_gate": lambda state: pre_commit_policy_gate(state, deps),
         "commit_item": lambda state: commit_item(state, deps),
         "debugger": lambda state: debugger(state, deps),
         "item_router": item_router,
@@ -979,6 +980,28 @@ def _preview_repository_action(
     return preview(*arguments) if callable(preview) else fallback
 
 
+def pre_commit_policy_gate(
+    state: WorkflowState,
+    dependencies: NodeDependencies,
+) -> WorkflowState:
+    """Read-only check for high-risk paths or leaked secrets before commit."""
+
+    repository = dependencies.repository
+    if state.get("commit_sha"):
+        return {"status": "policy_gate_passed", "policy_gate_passed": True}
+    if repository is None:
+        return {"status": "policy_gate_skipped", "policy_gate_passed": True}
+
+    item_id = state.get("current_item_id", "")
+    item_title = state.get("current_item_title", "")
+    files_touched = list(state.get("files_touched_by_item", {}).get(item_id, []))
+    result = repository.policy_gate(item_id, item_title, files_touched)
+    update = state_update_from_result(result)
+    update.update(_audit_result(state, "pre_commit_policy_gate", result))
+    update["policy_gate_passed"] = result.status == "policy_gate_passed"
+    return _apply_failure_policy(state, "pre_commit_policy_gate", result, update)
+
+
 def commit_item(
     state: WorkflowState,
     dependencies: NodeDependencies,
@@ -1358,8 +1381,10 @@ def route_after_critic(
 
 def route_after_validation(
     state: WorkflowState,
-) -> Literal["debugger", "commit_item", "retry_backoff", "failed_run", "stop_run"]:
-    """Send failures to debugging and successes to the commit checkpoint."""
+) -> Literal[
+    "debugger", "pre_commit_policy_gate", "retry_backoff", "failed_run", "stop_run"
+]:
+    """Send failures to debugging and successes to the pre-commit policy gate."""
 
     if _run_stopped(state):
         return "stop_run"
@@ -1372,7 +1397,17 @@ def route_after_validation(
         ):
             return "failed_run"
         return "debugger"
-    return "commit_item"
+    return "pre_commit_policy_gate"
+
+
+def route_after_policy_gate(
+    state: WorkflowState,
+) -> Literal["commit_item", "failed_run", "stop_run"]:
+    """Only let a commit proceed once the policy gate reports a clean pass."""
+
+    if _run_stopped(state):
+        return "stop_run"
+    return "commit_item" if state.get("policy_gate_passed") else "failed_run"
 
 
 def route_after_debugger(
