@@ -32,9 +32,9 @@ Run the repository quality gates from a feature branch with:
 | --- | ---: | --- |
 | [`test_cli.py`](test_cli.py) | 17 | Execution-mode reporting, doctor diagnostics (including Git/gh version checks and `core.hooksPath`), and run listing, status, resume, cancellation, recovery, cleanup, pruning, and safety checks |
 | [`test_graph.py`](test_graph.py) | 44 | Workflow orchestration, item metadata, targeted retries, budgets, approvals, dry-run previews, and GitHub handoff |
-| [`test_node_contracts.py`](test_node_contracts.py) | 56 | Agent, failure-classification, subprocess, Ralph, local-test, critic, quality-gate, pre-commit policy gate, and GitHub adapter contracts |
+| [`test_node_contracts.py`](test_node_contracts.py) | 59 | Agent, failure-classification, subprocess, Ralph, local-test, critic, quality-gate, pre-commit policy gate, recovery reconciliation, and GitHub adapter contracts |
 | [`test_state_schema.py`](test_state_schema.py) | 9 | State migration, retry metadata, versioned checkpoints, and legacy resume behavior |
-| [`test_lifecycle.py`](test_lifecycle.py) | 6 | Run leases, stale recovery, interruption/resume, terminal release, and checkpoint cleanup |
+| [`test_lifecycle.py`](test_lifecycle.py) | 8 | Run leases, stale recovery, recovery-state reconciliation, interruption/resume, terminal release, and checkpoint cleanup |
 | [`test_workspaces.py`](test_workspaces.py) | 12 | Run identity, Git worktree creation/reuse, syncing the gitignored Claude Code hook guard into new worktrees, local/remote branch listing and deletion, workspace context, and workspace state migration |
 | [`test_viewer.py`](test_viewer.py) | 7 | Viewer HTML, execution-state data, checkpoint sharing, the live-reload module path, and Mermaid output |
 | [`test_quality_gates.py`](test_quality_gates.py) | 9 | Quality command definitions, safe diff refs, numstat parsing, generated-output handling, diff limits, and gate failure reporting |
