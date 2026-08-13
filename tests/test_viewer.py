@@ -44,6 +44,8 @@ class GraphViewerTests(unittest.TestCase):
         self.assertIn('lastDefinition = "";', content)
         self.assertIn('id="thread-id"', content)
         self.assertIn('id="execution-budget"', content)
+        self.assertIn('id="execution-interrupt"', content)
+        self.assertIn('id="execution-drift"', content)
         self.assertIn("fetch(`/graph-state?", content)
         self.assertIn("Checkpoint history", content)
         self.assertIn("Run manifest", content)
@@ -115,6 +117,34 @@ class GraphViewerTests(unittest.TestCase):
             result["checkpoint_history"][0]["checkpoint_id"], "checkpoint-1"
         )
         self.assertEqual(result["run_manifest"][0]["node"], "planning")
+
+    def test_execution_state_surfaces_pending_interrupts_and_drift(self) -> None:
+        prompt = {
+            "type": "intake",
+            "question": "What would you like to do?",
+            "options": [{"value": "learn", "label": "Learn the codebase"}],
+        }
+        current = SimpleNamespace(
+            values={"status": "interrupted", "repo_drift": "1 commit(s) behind"},
+            next=("intake",),
+            config={"configurable": {"checkpoint_id": "checkpoint-1"}},
+            metadata={"step": 1},
+            created_at="2026-08-05T00:00:00+00:00",
+            interrupts=(SimpleNamespace(id="interrupt-1", value=prompt),),
+        )
+
+        class FakeGraph:
+            def get_state(self, config):
+                return current
+
+            def get_state_history(self, config, *, limit):
+                return iter(())
+
+        result = execution_state(FakeGraph(), "thread-1", limit=5)
+
+        self.assertEqual(result["repo_drift"], "1 commit(s) behind")
+        self.assertEqual(result["interrupts"][0]["id"], "interrupt-1")
+        self.assertEqual(result["interrupts"][0]["value"], prompt)
 
     def test_default_graphs_share_sqlite_checkpoints(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

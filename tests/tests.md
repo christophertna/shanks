@@ -30,13 +30,13 @@ Run the repository quality gates from a feature branch with:
 
 | File | Tests | Main areas |
 | --- | ---: | --- |
-| [`test_cli.py`](test_cli.py) | 18 | Execution-mode reporting, doctor diagnostics (including Git/gh version checks and `core.hooksPath`), documentation-count guards for the Python and shell test suites, and run listing, status, resume, cancellation, recovery, cleanup, pruning, and safety checks |
+| [`test_cli.py`](test_cli.py) | 19 | Execution-mode reporting, doctor diagnostics (including Git/gh version checks and `core.hooksPath`), documentation-count guards for the Python and shell test suites, and run listing, status (including pending interrupts, drift, and recent events), resume, cancellation, recovery, cleanup, pruning, and safety checks |
 | [`test_graph.py`](test_graph.py) | 45 | Workflow orchestration, item metadata, repository drift injection, targeted retries, budgets, approvals, dry-run previews, and GitHub handoff |
 | [`test_node_contracts.py`](test_node_contracts.py) | 59 | Agent, failure-classification, subprocess, Ralph, local-test, critic, quality-gate, pre-commit policy gate, recovery reconciliation, and GitHub adapter contracts |
 | [`test_state_schema.py`](test_state_schema.py) | 9 | State migration, retry metadata, versioned checkpoints, and legacy resume behavior |
 | [`test_lifecycle.py`](test_lifecycle.py) | 8 | Run leases, stale recovery, recovery-state reconciliation, interruption/resume, terminal release, and checkpoint cleanup |
 | [`test_workspaces.py`](test_workspaces.py) | 12 | Run identity, Git worktree creation/reuse, syncing the gitignored Claude Code hook guard into new worktrees, local/remote branch listing and deletion, workspace context, and workspace state migration |
-| [`test_viewer.py`](test_viewer.py) | 7 | Viewer HTML, execution-state data, checkpoint sharing, the live-reload module path, and Mermaid output |
+| [`test_viewer.py`](test_viewer.py) | 8 | Viewer HTML, execution-state data including pending interrupts and repository drift, checkpoint sharing, the live-reload module path, and Mermaid output |
 | [`test_quality_gates.py`](test_quality_gates.py) | 9 | Quality command definitions, safe diff refs, numstat parsing, generated-output handling, diff limits, and gate failure reporting |
 | [`test_fault_injection.py`](test_fault_injection.py) | 7 | Injected Git, GitHub, validation, checkpoint, and agent process failures |
 | [`test_git_integration.py`](test_git_integration.py) | 3 | Real temporary Git repositories, worktrees, commits, pushes, PR creation/reuse, fake-`gh` recovery, and upstream/worktree drift reporting |
@@ -68,6 +68,9 @@ Run the repository quality gates from a feature branch with:
 - `test_workspaces.py` verifies local and remote run-branch listing and the
   development-mode, protected-branch, and run-scope guards on remote branch
   deletion.
+- `test_cli.py` verifies that `runs status` surfaces a paused run's pending
+  interrupt prompt (question and options), the persisted `repo_drift` note, and
+  the newest run-manifest events, in both JSON and human-readable output.
 
 ## Workflow orchestration
 

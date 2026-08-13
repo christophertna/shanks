@@ -551,6 +551,14 @@
             <span class="metric-label">Model</span>
             <strong id="execution-model" class="metric-value">—</strong>
           </div>
+          <div class="metric metric-wide">
+            <span class="metric-label">Waiting for</span>
+            <strong id="execution-interrupt" class="metric-value">—</strong>
+          </div>
+          <div class="metric metric-wide">
+            <span class="metric-label">Repository drift</span>
+            <strong id="execution-drift" class="metric-value">—</strong>
+          </div>
         </div>
 
         <div class="history-grid">
@@ -586,6 +594,8 @@
       const executionBudget = document.getElementById("execution-budget");
       const executionError = document.getElementById("execution-error");
       const executionModel = document.getElementById("execution-model");
+      const executionInterrupt = document.getElementById("execution-interrupt");
+      const executionDrift = document.getElementById("execution-drift");
       const checkpointHistory = document.getElementById("checkpoint-history");
       const runManifest = document.getElementById("run-manifest");
       let lastDefinition = "";
@@ -617,6 +627,21 @@
         return value === null || value === undefined || value === ""
           ? fallback
           : String(value);
+      }
+
+      function describeInterrupt(value) {
+        if (value === null || typeof value !== "object") {
+          return displayValue(value);
+        }
+        const prompt = value.message || value.question || value.type || "response";
+        const options = Array.isArray(value.options)
+          ? value.options
+              .map((option) =>
+                option && typeof option === "object" ? option.value : option,
+              )
+              .filter(Boolean)
+          : [];
+        return options.length ? `${prompt} (${options.join(", ")})` : String(prompt);
       }
 
       function renderCheckpointHistory(history) {
@@ -744,6 +769,12 @@
         executionError.classList.toggle("has-error", hasError);
         executionError.closest(".metric").classList.toggle("metric-alert", hasError);
         executionModel.textContent = displayValue(data.model);
+        const interrupts = data.interrupts || [];
+        executionInterrupt.textContent = interrupts.length
+          ? interrupts.map((entry) => describeInterrupt(entry.value)).join(" · ")
+          : "Nothing";
+        executionInterrupt.classList.toggle("has-error", interrupts.length > 0);
+        executionDrift.textContent = displayValue(data.repo_drift, "None");
         renderCheckpointHistory(data.checkpoint_history || []);
         renderRunManifest(data.run_manifest || []);
         executionStatus.textContent = data.available

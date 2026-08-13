@@ -2,23 +2,49 @@ Shanks feature roadmap
 
 Priority 1 - Maintenance and developer experience
 
-1- Interrupt prompts aren't surfaced by the CLI or the viewer.
-    `./shanks runs status` (`_status_payload`, `workflow/cli.py`) reports a
-    fixed set of checkpoint fields but never the pending `__interrupt__`
-    payload or `run_manifest` events; `./shanks runs resume` reports only
-    `{"interrupted": bool}`, not the `message`/`question`/`options` that
-    prompted it. `serve_graph.py` has no references to `interrupt` at all.
-    An operator facing a paused run - a commit/push/PR approval, the intake
-    question, or the new `recovery_reconciliation` interrupt
-    (`_reconcile_recovered_state`, Graph Suggestions, done) - has no CLI or
-    viewer path to see why it paused without inspecting raw checkpoint state
-    or code.
-    Fix: surface the interrupt's `value` (and recent `run_manifest` entries)
-    in `./shanks runs status` output and, if practical, in the viewer's
-    execution panel.
+(Empty - see Suggestions and Big tasks below.)
 
 Suggestions
 
+- `run_manifest` is a plain overwrite field, not an additive reducer
+  (`workflow/state.py` has no `Annotated`/`operator.add` channel), and
+  `append_run_manifest` rebuilds the whole list from the `state` it is handed.
+  Two `_audit_result` calls built from the *same* `state` therefore silently
+  drop the first event. `planning` is the only node that audits twice today
+  (drift check plus planning) and it only works because `_with_drift` returns
+  a merged state for the second call to build on. The next node that audits
+  twice will re-discover this the hard way. Fix: make `run_manifest` an
+  additive reducer, or have `_audit_result` accumulate explicitly.
+- Nothing proves the real `GitHubAdapter` satisfies the `RepositoryAdapter`
+  protocol. Nodes annotate `repository: RepositoryAdapter | None` but reach
+  capabilities through `getattr(repository, "<method>", None)` (`preflight`,
+  `drift_report`), so a renamed or typo'd adapter method silently disables the
+  feature with no failing test - and test doubles that omit methods are still
+  accepted, since tests are not type-checked. Cheap fix: a contract test in
+  `tests/test_node_contracts.py` asserting every `RepositoryAdapter` member
+  exists on `GitHubAdapter`.
+- `GitHubAdapter._run` applies one `timeout_seconds` (3600 by default) to
+  every command. That budget exists for the preflight unittest suite and
+  quality gates, but the quick read-only probes share it - `git fetch`,
+  `rev-list --count`, `status --short`, `branch --show-current`.
+  `GIT_TERMINAL_PROMPT=0` rules out a credential-prompt hang, but a stalled
+  HTTPS fetch during the per-item drift check blocks a planning node for an
+  hour with no output. Worth a short per-command timeout for the read-only
+  probes.
+- The Python test suite now depends on `gitleaks` and `jq` being on `PATH`:
+  `test_tests_md_shell_check_counts_match_harness_output` (`tests/test_cli.py`)
+  shells out to `hooks/test.hooks/test-secret-scan.sh`, which fails closed
+  when either binary is missing. Without them the failure reads as
+  `expected=allow got=block` secret-scan regressions rather than "install
+  gitleaks" (verified by running it with a stripped `PATH`). Worth detecting
+  the missing tool in that test and failing with a message pointing at
+  `./shanks doctor`.
+- The repository drift note refreshes once per PRD item, in `planning` only.
+  `learning` never receives it, and a long build -> critic -> validation ->
+  debugger loop inside a single item works from the drift snapshot taken
+  before the first build. Carries a `ponytail:` comment naming the ceiling;
+  moving the refresh into `_versioned_node` would fix it at the cost of one
+  `git fetch` per node call.
 - `scripts/quality_gates.py`'s mypy target list only checks `adapters.py`,
   `contracts.py`, `retries.py`, and `state.py` - `nodes.py`, `lifecycle.py`,
   `workspaces.py`, `cli.py`, and `graph.py` (the largest and most stateful

@@ -285,6 +285,14 @@ def _snapshot_summary(snapshot: object, *, include_manifest: bool = True) -> dic
         "run_lease_expires_at": values.get("run_lease_expires_at", 0.0),
         "run_last_heartbeat_at": values.get("run_last_heartbeat_at", 0.0),
         "run_recovery_count": values.get("run_recovery_count", 0),
+        "repo_drift": _json_safe(values.get("repo_drift", "")),
+        "interrupts": [
+            {
+                "id": _json_safe(getattr(item, "id", "")),
+                "value": _json_safe(getattr(item, "value", item)),
+            }
+            for item in (getattr(snapshot, "interrupts", None) or ())
+        ],
     }
     if include_manifest:
         summary["run_manifest"] = _json_safe(values.get("run_manifest", []))
