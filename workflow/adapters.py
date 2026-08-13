@@ -27,6 +27,7 @@ DEBUGGER_OUTPUT_SCHEMA_PATH = Path(__file__).with_name("debugger_output.schema.j
 SANDBOX_CLAUDE_SCRIPT_PATH = (
     Path(__file__).resolve().parent.parent / "scripts" / "sandbox_claude.sh"
 )
+CLAUDE_READ_ONLY_TOOLS = "Read,Grep,Glob"
 ITEM_BUILT_MARKER = "<promise>ITEM_BUILT</promise>"
 UNCERTAINTIES_MARKER = "RALPH_UNCERTAINTIES:"
 ALLOWED_AGENT_EXECUTABLES = frozenset({"bash", "claude", "codex", "python", "python3"})
@@ -75,6 +76,10 @@ _SECRET_PATTERNS = (
     ),
     re.compile(r"(?i)(\bbearer\s+)[^\s,;]+"),
 )
+
+
+def _load_json_schema(path: Path) -> str:
+    return json.dumps(json.loads(path.read_text(encoding="utf-8")))
 
 
 @dataclass(slots=True)
@@ -478,16 +483,14 @@ class DebuggerAdapter(SubprocessAgentAdapter):
         if tool not in {"claude", "codex"}:
             raise ValueError("tool must be 'claude' or 'codex'")
         if tool == "claude":
-            schema = json.dumps(
-                json.loads(DEBUGGER_OUTPUT_SCHEMA_PATH.read_text(encoding="utf-8"))
-            )
+            schema = _load_json_schema(DEBUGGER_OUTPUT_SCHEMA_PATH)
             command: tuple[str, ...] = (
                 "claude",
                 "--print",
                 "--permission-mode",
                 "plan",
                 "--tools",
-                "Read,Grep,Glob",
+                CLAUDE_READ_ONLY_TOOLS,
                 "--json-schema",
                 schema,
                 "--no-session-persistence",
@@ -1817,7 +1820,7 @@ class ClaudeAdapter(SubprocessAgentAdapter):
             "--permission-mode",
             "plan" if read_only else "acceptEdits",
             "--tools",
-            "Read,Grep,Glob" if read_only else "Read,Write,Edit,Bash,Grep,Glob",
+            CLAUDE_READ_ONLY_TOOLS if read_only else "Read,Write,Edit,Bash,Grep,Glob",
             "--no-session-persistence",
         )
         command = (
@@ -1899,9 +1902,7 @@ class ClaudeOpus48CriticAdapter(StructuredCriticAdapter):
         effort: str = CLAUDE_OPUS_48_EFFORT,
         timeout_seconds: int = 3600,
     ) -> None:
-        schema = json.dumps(
-            json.loads(CRITIC_OUTPUT_SCHEMA_PATH.read_text(encoding="utf-8"))
-        )
+        schema = _load_json_schema(CRITIC_OUTPUT_SCHEMA_PATH)
         super().__init__(
             command=(
                 "claude",
@@ -1913,7 +1914,7 @@ class ClaudeOpus48CriticAdapter(StructuredCriticAdapter):
                 "--permission-mode",
                 "plan",
                 "--tools",
-                "Read,Grep,Glob",
+                CLAUDE_READ_ONLY_TOOLS,
                 "--json-schema",
                 schema,
                 "--no-session-persistence",
