@@ -32,7 +32,7 @@ Run the repository quality gates from a feature branch with:
 | --- | ---: | --- |
 | [`test_cli.py`](test_cli.py) | 19 | Execution-mode reporting, doctor diagnostics (including Git/gh version checks and `core.hooksPath`), documentation-count guards for the Python and shell test suites, and run listing, status (including pending interrupts, drift, and recent events), resume, cancellation, recovery, cleanup, pruning, and safety checks |
 | [`test_graph.py`](test_graph.py) | 46 | Workflow orchestration, item metadata, repository drift injection, append-only run-manifest behavior, targeted retries, budgets, approvals, dry-run previews, and GitHub handoff |
-| [`test_node_contracts.py`](test_node_contracts.py) | 60 | Agent, failure-classification, subprocess, Ralph, local-test, critic, quality-gate, pre-commit policy gate, recovery reconciliation, repository-protocol conformance, and GitHub adapter contracts |
+| [`test_node_contracts.py`](test_node_contracts.py) | 62 | Agent, failure-classification, subprocess, Ralph, local-test, critic, quality-gate, pre-commit policy gate, recovery reconciliation, repository-protocol conformance, subprocess timeout budgets, and GitHub adapter contracts |
 | [`test_state_schema.py`](test_state_schema.py) | 9 | State migration, retry metadata, versioned checkpoints, and legacy resume behavior |
 | [`test_lifecycle.py`](test_lifecycle.py) | 8 | Run leases, stale recovery, recovery-state reconciliation, interruption/resume, terminal release, and checkpoint cleanup |
 | [`test_workspaces.py`](test_workspaces.py) | 12 | Run identity, Git worktree creation/reuse, syncing the gitignored Claude Code hook guard into new worktrees, local/remote branch listing and deletion, workspace context, and workspace state migration |
@@ -215,6 +215,10 @@ Sources: [`test_node_contracts.py`](test_node_contracts.py) and
   `_preview_repository_action` passes them. Nodes reach both sets through
   `getattr(repository, "<name>", None)`, and the graph test doubles omit the
   preview methods, so only this check proves the real adapter still matches.
+- The quick read-only Git lookups reach `subprocess` with the short
+  `probe_timeout_seconds` budget while commits, pushes, and the quality-gate
+  command keep the hour-long `timeout_seconds`; a non-positive
+  `probe_timeout_seconds` is rejected at construction.
 - Unapproved subprocess executables are rejected before execution.
 - Working directories outside the configured allowlist are rejected before
   execution.

@@ -70,6 +70,17 @@ PR_JSON_FIELDS = (
 )
 PR_LOOKUP_LIMIT = "20"
 DEFAULT_STALE_AFTER_DAYS = 30
+# Quick read-only Git lookups. They share GitHubAdapter._run with the preflight
+# test suite and quality gates, whose hour-long budget would let one stalled
+# call (an unreachable remote during the per-item drift fetch) hold a node for
+# the whole hour.
+GIT_PROBE_COMMANDS = (
+    ("git", "branch", "--show-current"),
+    ("git", "status", "--short", "--untracked-files=all"),
+    ("git", "rev-parse", "HEAD"),
+    ("git", "rev-list", "--count"),
+    ("git", "fetch"),
+)
 _SECRET_PATTERNS = (
     re.compile(
         r"-----BEGIN [^-]+ PRIVATE KEY-----.*?-----END [^-]+ PRIVATE KEY-----",
@@ -539,6 +550,7 @@ class GitHubAdapter:
     base_branch: str = "main"
     test_command: str = ".venv/bin/python -m unittest discover -s tests"
     timeout_seconds: int = 3600
+    probe_timeout_seconds: int = 60
     initial_dirty_files: tuple[str, ...] | None = None
     reviewers: tuple[str, ...] = ()
     labels: tuple[str, ...] = ()
@@ -561,6 +573,12 @@ class GitHubAdapter:
             or self.stale_after_days < 0
         ):
             raise ValueError("stale_after_days must be a non-negative integer or None")
+        if (
+            isinstance(self.probe_timeout_seconds, bool)
+            or not isinstance(self.probe_timeout_seconds, int)
+            or self.probe_timeout_seconds < 1
+        ):
+            raise ValueError("probe_timeout_seconds must be a positive integer")
         if not self._safe_ref(self.remote):
             raise ValueError("remote contains unsupported characters")
         if not self._safe_ref(self.base_branch):
@@ -1483,7 +1501,7 @@ class GitHubAdapter:
             completed = _run_subprocess(
                 command,
                 cwd=self._project_directory(),
-                timeout=self.timeout_seconds,
+                timeout=self._timeout_for(command),
                 env=self._github_environment(command),
             )
         except (OSError, subprocess.TimeoutExpired) as error:
@@ -1524,6 +1542,13 @@ class GitHubAdapter:
             feedback=output,
             commands=[_audit_command(command)],
         )
+
+    def _timeout_for(self, command: tuple[str, ...]) -> int:
+        """Cap quick Git lookups so a stalled one cannot hold a node for an hour."""
+
+        if any(command[: len(probe)] == probe for probe in GIT_PROBE_COMMANDS):
+            return min(self.probe_timeout_seconds, self.timeout_seconds)
+        return self.timeout_seconds
 
     def _quality_gate_command(self, *, staged: bool = False) -> tuple[str, ...]:
         command = (
