@@ -311,6 +311,46 @@ class GraphRoutingTests(unittest.TestCase):
                 ".venv/bin/python -m unittest tests.test_graph",
             )
 
+    def test_run_manifest_appends_every_event_exactly_once(self) -> None:
+        repository = RecordingRepository(drift_feedback="2 commit(s) behind")
+
+        # Two items so planning runs twice: a node that rebuilds the whole list
+        # instead of returning only its new events duplicates the first item's
+        # history on the second pass.
+        state = {
+            **_initial_state(),
+            "prd_items": [
+                {
+                    "id": "item-1",
+                    "title": "First",
+                    "passes": False,
+                    "validation": False,
+                },
+                {
+                    "id": "item-2",
+                    "title": "Second",
+                    "passes": False,
+                    "validation": False,
+                },
+            ],
+        }
+        result = invoke_with_approvals(
+            build_graph(_stub_dependencies(repository)),
+            state,
+            {"configurable": {"thread_id": "manifest-append"}},
+        )
+
+        events = result["run_manifest"]
+        nodes = [event.get("node") for event in events]
+        # planning records two events per item (the drift check, then the plan);
+        # an overwriting manifest channel drops the first of them.
+        self.assertEqual(nodes.count("drift_check"), 2)
+        self.assertEqual(nodes.count("planning"), 2)
+        # Every event is timestamped when it is created, so a node that returns
+        # the whole accumulated list instead of only its new events re-emits
+        # earlier timestamps verbatim.
+        self.assertEqual(len({event["timestamp"] for event in events}), len(events))
+
     def test_run_manifest_records_prompts_models_and_pull_request_id(self) -> None:
         repository = RecordingRepository()
 
