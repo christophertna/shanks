@@ -6,6 +6,23 @@ worktree). They only fire for Claude-CLI-driven agents — Codex-based agents
 (`CodexAdapter`, `GPT56LunaCriticAdapter`, `DebuggerAdapter(tool="codex")`)
 use Codex's own `--sandbox` flag instead and never see them.
 
+## Fail-open vs fail-closed on a missing `jq` (or other required tool)
+
+The "On missing tool" column below isn't accidental — it's a per-hook call
+that needs to stay a decision, not whatever the next hook's author happens to
+pick. Default to fail closed (block the action): use it whenever skipping the
+check would let something irreversible or safety-critical through, which is
+the case for every hook whose entire job is to `deny()` something —
+`deny-dangerous.sh` (catastrophic shell commands) and `secret-scan.sh`
+(secrets). Fail open only when the hook is advisory/convenience rather than a
+safety backstop, and a missed check costs less than blocking every write on a
+dev machine that's missing `jq` — `guard-dependency-files.sh` is the one
+example today: it's a nudge around lockfiles/`.env` files that's already
+bypassable via `SHANKS_ALLOW_DEPENDENCY_EDIT=1`, so failing open on a missing
+`jq` doesn't remove a real guarantee. When adding a new hook, pick fail-closed
+unless you can name why this hook is more like `guard-dependency-files.sh`
+than `deny-dangerous.sh`.
+
 ## Reference
 
 | Hook | Trigger | Matcher | Does | On missing tool |
