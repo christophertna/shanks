@@ -13,6 +13,19 @@ Priority 1 - Maintenance and developer experience
 
 Suggestions
 
+- `tests/tests.md`'s shell-harness rows (`test-deny-dangerous.sh`,
+  `test-secret-scan.sh`, `test-pre-push.sh`, `test-run-impacted-tests.sh`,
+  `test-post-merge-checkout.sh`) document a "N shell checks" count with the
+  same undetected-drift risk the Python per-file "Tests" column had before
+  `test_tests_md_counts_match_actual_test_methods` (`tests/test_cli.py`)
+  started guarding it - nothing verifies the shell counts stay in sync
+  either. Not a trivial extension of that fix: the Python check counts
+  `def test_` occurrences uniformly, but each shell harness uses its own
+  counting convention - `test-deny-dangerous.sh` calls a single `check`
+  helper 8 times, while `test-secret-scan.sh` splits its 7 across two
+  differently-named helpers (`check` and `check_bash`). Needs either a
+  shared counting convention across the harnesses or per-script parsing
+  logic before it can be auto-verified the same way.
 - Split oversized workflow modules for maintainability and iteration speed.
   `workflow/adapters.py` combines agent, critic, test, GitHub, parsing, and
   security boundaries, while `workflow/nodes.py` combines orchestration,
