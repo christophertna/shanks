@@ -134,6 +134,37 @@ class GitHubIntegrationTests(unittest.TestCase):
                 [["pr", "list"], ["pr", "create"]] * 2,
             )
 
+    def test_drift_report_sees_upstream_and_worktree_drift(self) -> None:
+        with TemporaryDirectory() as directory:
+            root, _ = self._repository(Path(directory))
+            manager = RunWorkspaceManager(root)
+            workspace = manager.ensure("drift run")
+            adapter = GitHubAdapter(
+                root,
+                initial_dirty_files=(),
+                stale_after_days=None,
+            )
+
+            with workspace_scope(workspace.directory):
+                clean = adapter.drift_report()
+
+            (root / "README.md").write_text("upstream moved\n", encoding="utf-8")
+            self._git(root, "add", ".")
+            self._git(root, "commit", "-m", "upstream moves on")
+            self._git(root, "push", "origin", "main")
+            (workspace.directory / "stray.txt").write_text(
+                "edited outside the run\n",
+                encoding="utf-8",
+            )
+
+            with workspace_scope(workspace.directory):
+                drifted = adapter.drift_report()
+
+        self.assertEqual(clean.status, "drift_checked")
+        self.assertEqual(clean.feedback, "")
+        self.assertIn("1 commit(s) behind origin/main", drifted.feedback)
+        self.assertIn("stray.txt", drifted.feedback)
+
     @classmethod
     def _repository(cls, directory: Path) -> tuple[Path, Path]:
         root = directory / "project"

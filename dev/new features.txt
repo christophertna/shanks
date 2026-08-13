@@ -2,15 +2,7 @@ Shanks feature roadmap
 
 Priority 1 - Maintenance and developer experience
 
-1- No preflight check for worktree/upstream drift on Ralph/graph runs.
-    For Ralph/graph runs (not Claude Code sessions), the graph doesn't
-    track worktree drift from outside the run, or upstream `main` moving
-    since the run started, so a run can proceed on stale state.
-    Fix: inject that state into the next agent prompt via a preflight check
-    inside `workflow/nodes.py`, not a generic hook, so it stays versioned
-    and available to every downstream node.
-
-2- Interrupt prompts aren't surfaced by the CLI or the viewer.
+1- Interrupt prompts aren't surfaced by the CLI or the viewer.
     `./shanks runs status` (`_status_payload`, `workflow/cli.py`) reports a
     fixed set of checkpoint fields but never the pending `__interrupt__`
     payload or `run_manifest` events; `./shanks runs resume` reports only
