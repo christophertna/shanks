@@ -2,29 +2,28 @@ Shanks feature roadmap
 
 Priority 1 - Maintenance and developer experience
 
-1- `tests/tests.md` shell-harness check-count drift.
-    `tests/tests.md`'s shell-harness rows (`test-deny-dangerous.sh`,
-    `test-secret-scan.sh`, `test-pre-push.sh`, `test-run-impacted-tests.sh`,
-    `test-post-merge-checkout.sh`) document a "N shell checks" count with
-    the same undetected-drift risk the Python per-file "Tests" column had
-    before `test_tests_md_counts_match_actual_test_methods`
-    (`tests/test_cli.py`) started guarding it - nothing verifies the shell
-    counts stay in sync either. Not a trivial extension of that fix: each
-    shell harness uses its own counting convention - `test-deny-dangerous.sh`
-    calls a single `check` helper 8 times, while `test-secret-scan.sh`
-    splits its 7 across two differently-named helpers (`check` and
-    `check_bash`).
-    Fix: pick a shared counting convention across the harnesses (or write
-    per-script parsing logic), then add a regression test like the Python
-    one.
-
-2- No preflight check for worktree/upstream drift on Ralph/graph runs.
+1- No preflight check for worktree/upstream drift on Ralph/graph runs.
     For Ralph/graph runs (not Claude Code sessions), the graph doesn't
     track worktree drift from outside the run, or upstream `main` moving
     since the run started, so a run can proceed on stale state.
     Fix: inject that state into the next agent prompt via a preflight check
     inside `workflow/nodes.py`, not a generic hook, so it stays versioned
     and available to every downstream node.
+
+2- Interrupt prompts aren't surfaced by the CLI or the viewer.
+    `./shanks runs status` (`_status_payload`, `workflow/cli.py`) reports a
+    fixed set of checkpoint fields but never the pending `__interrupt__`
+    payload or `run_manifest` events; `./shanks runs resume` reports only
+    `{"interrupted": bool}`, not the `message`/`question`/`options` that
+    prompted it. `serve_graph.py` has no references to `interrupt` at all.
+    An operator facing a paused run - a commit/push/PR approval, the intake
+    question, or the new `recovery_reconciliation` interrupt
+    (`_reconcile_recovered_state`, Graph Suggestions, done) - has no CLI or
+    viewer path to see why it paused without inspecting raw checkpoint state
+    or code.
+    Fix: surface the interrupt's `value` (and recent `run_manifest` entries)
+    in `./shanks runs status` output and, if practical, in the viewer's
+    execution panel.
 
 Suggestions
 
@@ -125,6 +124,15 @@ Suggestions
   reverted in favor of a flat `LR` flow, but worth knowing before attempting
   another mirrored/serpentine mermaid layout so the rank-inversion isn't
   re-discovered by trial and error.
+- `serve_graph.py` never registers `failed_run` in any curated viewer
+  constant (`GRAPH_NODE_ORDER`, `VIEW_NODE_LABELS`, `VIEW_MAIN_NODES`,
+  `VIEW_RECOVERY_NODES`), even though it's a real, frequently-reached
+  terminal node (routed to from `critic_auditor`, `debugger`, `learning`,
+  `planning`, `pre_commit_policy_gate`, `push_node`, and `validation` -
+  confirmed via the raw `draw_mermaid()` output while wiring
+  `pre_commit_policy_gate`). It only appears in the raw/unstyled mermaid
+  mode, never the structured view most people look at. Small, low-risk fix:
+  add it alongside `attempt_limit`/`failed_build` in the recovery-node set.
 
 OS-specific (macOS-only mechanisms and fixes)
 

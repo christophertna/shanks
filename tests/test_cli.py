@@ -267,6 +267,36 @@ class ShanksCliTests(unittest.TestCase):
                 f"but it has {actual}",
             )
 
+    def test_tests_md_shell_check_counts_match_harness_output(self) -> None:
+        repo_root = Path(__file__).parents[1]
+        tests_md = (repo_root / "tests" / "tests.md").read_text(encoding="utf-8")
+
+        documented = re.findall(
+            r"\[`(\.\./hooks/test\.hooks/[\w.-]+\.sh)`\]\(\1\) \| (\d+) shell checks \|",
+            tests_md,
+        )
+        self.assertTrue(documented)
+
+        for relative_path, count in documented:
+            harness = (repo_root / "tests" / relative_path).resolve()
+            result = subprocess.run(
+                ["bash", str(harness)],
+                capture_output=True,
+                text=True,
+                cwd=repo_root,
+            )
+            self.assertEqual(
+                result.returncode,
+                0,
+                f"{harness.name} failed:\n{result.stdout}{result.stderr}",
+            )
+            self.assertEqual(
+                result.stdout.strip().splitlines()[-1],
+                f"passed: {count}, failed: 0",
+                f"tests/tests.md documents {count} shell checks for "
+                f"{harness.name}, but it reported {result.stdout.strip()}",
+            )
+
     def test_runs_list_and_status_support_json_output(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             database = Path(directory) / "checkpoints.sqlite"
