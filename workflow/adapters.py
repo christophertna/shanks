@@ -526,6 +526,7 @@ class GitHubAdapter:
     label_allowlist: tuple[str, ...] | None = None
 
     model_name = "github"
+    REQUIRED_TOOLS = ("git", "gh", "bash", "jq", "gitleaks")
 
     def __post_init__(self) -> None:
         self.project_directory = self.project_directory.resolve()
@@ -579,8 +580,7 @@ class GitHubAdapter:
         """Check tools, branch state, GitHub auth, and the test environment."""
 
         commands: list[list[str]] = []
-        required_tools = ("git", "gh", "bash", "jq", "gitleaks")
-        missing = [tool for tool in required_tools if shutil.which(tool) is None]
+        missing = [tool for tool in self.REQUIRED_TOOLS if shutil.which(tool) is None]
         if not Path(sys.executable).exists():
             missing.append(sys.executable)
         if missing:

@@ -151,10 +151,11 @@ class GraphViewerTests(unittest.TestCase):
         self.assertIn("preflight", content)
 
     def test_load_graph_module_serializes_on_shared_lock(self) -> None:
-        # _send_mermaid() and load_execution_graph() both call
-        # load_graph_module() from separate request threads (e.g. on every
-        # page load, graph.html fires refreshGraph() and refreshExecution()
-        # back-to-back). Without a lock shared by every caller, one thread's
+        # _send_mermaid() and /graph-state both go through
+        # load_execution_graph(), which calls load_graph_module(), from
+        # separate request threads (e.g. on every page load, graph.html
+        # fires refreshGraph() and refreshExecution() back-to-back). Without
+        # a lock shared by every caller, one thread's
         # sys.modules["graph_live"] cleanup can race another thread's
         # in-flight exec() and raise KeyError. Prove mutual exclusion
         # directly instead of relying on timing to reproduce the race.

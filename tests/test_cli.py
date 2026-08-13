@@ -9,7 +9,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from graph import VersionedSqliteSaver
-from workflow.cli import main
+from workflow.adapters import GitHubAdapter
+from workflow.cli import _REQUIRED_TOOLS, main
 from workflow.lifecycle import RunLifecycleManager
 from workflow.workspaces import RunWorkspaceManager
 
@@ -244,6 +245,9 @@ class ShanksCliTests(unittest.TestCase):
 
         self.assertIn("[FAIL] hooks", output.getvalue())
         self.assertIn("git config core.hooksPath hooks", output.getvalue())
+
+    def test_doctor_and_github_preflight_tool_lists_match(self) -> None:
+        self.assertEqual(set(_REQUIRED_TOOLS), set(GitHubAdapter.REQUIRED_TOOLS))
 
     def test_runs_list_and_status_support_json_output(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

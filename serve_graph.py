@@ -14,8 +14,6 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from langgraph.checkpoint.memory import InMemorySaver
-
 PROJECT_DIR = Path(__file__).parent
 GRAPH_FILE = PROJECT_DIR / "graph.py"
 SERVER_FILE = Path(__file__).resolve()
@@ -127,9 +125,9 @@ VIEW_EDGE = re.compile(
 _execution_graph = None
 _execution_graph_revision = None
 # RLock: load_execution_graph() holds this while calling load_graph_module(),
-# which re-acquires it itself so every caller (including _send_mermaid())
-# is protected against the sys.modules["graph_live"] race, not just callers
-# that go through load_execution_graph().
+# which re-acquires it itself, so every caller of either function - including
+# _send_mermaid(), which goes through load_execution_graph() - is protected
+# against the sys.modules["graph_live"] race.
 _graph_module_lock = threading.RLock()
 
 
@@ -570,10 +568,7 @@ class GraphRequestHandler(BaseHTTPRequestHandler):
 
     def _send_mermaid(self) -> None:
         try:
-            current_graph = load_graph_module().build_graph(
-                checkpointer=InMemorySaver()
-            )
-            drawable_graph = current_graph.get_graph()
+            drawable_graph = load_execution_graph().get_graph()
             decision_node_ids = {
                 node.id
                 for node in drawable_graph.nodes.values()
