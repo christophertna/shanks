@@ -1098,6 +1098,36 @@ class NodeContractTests(unittest.TestCase):
         self.assertTrue(result.approved)
         self.assertEqual(result.feedback, "Looks good.")
 
+    def test_hooks_md_matches_adapter_tool_scopes(self) -> None:
+        repo_root = Path(__file__).parents[1]
+        hooks_md = (repo_root / "hooks" / "HOOKS.md").read_text(encoding="utf-8")
+        ralph_sh = (repo_root / "scripts" / "ralph" / "ralph.sh").read_text(
+            encoding="utf-8"
+        )
+
+        def tools_value(command: tuple[str, ...]) -> str:
+            return command[command.index("--tools") + 1]
+
+        project = Path("/tmp/shanks")
+        build_agent_tools = tools_value(ClaudeAdapter(project, read_only=False).command)
+        read_only_claude_tools = tools_value(
+            ClaudeAdapter(project, read_only=True).command
+        )
+        debugger_claude_tools = tools_value(
+            DebuggerAdapter(project, tool="claude").command
+        )
+        critic_tools = tools_value(ClaudeOpus48CriticAdapter(project).command)
+
+        self.assertEqual(read_only_claude_tools, debugger_claude_tools)
+        self.assertEqual(read_only_claude_tools, critic_tools)
+
+        self.assertIn(f"--tools {build_agent_tools}", ralph_sh)
+        self.assertIn(f"--tools {build_agent_tools}", hooks_md)
+        self.assertIn(f"--tools {read_only_claude_tools}", hooks_md)
+
+        self.assertNotIn("--tools", GPT56LunaCriticAdapter(project).command)
+        self.assertNotIn("--tools", DebuggerAdapter(project, tool="codex").command)
+
     def test_luna_dependency_factory_wires_the_critic_node(self) -> None:
         dependencies = gpt_5_6_luna_dependencies(Path("/tmp/shanks"))
 
