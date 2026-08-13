@@ -120,7 +120,9 @@ class NodeContractTests(unittest.TestCase):
 
         self.assertEqual(run.call_args.kwargs["timeout"], 2.5)
 
-    def test_agent_subprocesses_do_not_receive_github_tokens(self) -> None:
+    def test_agent_subprocesses_only_receive_allowlisted_environment_keys(
+        self,
+    ) -> None:
         adapter = SubprocessAgentAdapter(
             command=(sys.executable, "-c", "print('adapter ok')"),
             model_name="test-cli",
@@ -138,7 +140,9 @@ class NodeContractTests(unittest.TestCase):
                 {
                     "GH_TOKEN": "ghp_agent_secret",
                     "GITHUB_TOKEN": "github_pat_agent_secret",
-                    "SAFE_SETTING": "kept",
+                    "AWS_SECRET_ACCESS_KEY": "unrelated_cloud_secret",
+                    "PATH": "/usr/bin",
+                    "ANTHROPIC_API_KEY": "sk-agent-key",
                 },
                 clear=True,
             ),
@@ -152,7 +156,9 @@ class NodeContractTests(unittest.TestCase):
         environment = run.call_args.kwargs["env"]
         self.assertNotIn("GH_TOKEN", environment)
         self.assertNotIn("GITHUB_TOKEN", environment)
-        self.assertEqual(environment["SAFE_SETTING"], "kept")
+        self.assertNotIn("AWS_SECRET_ACCESS_KEY", environment)
+        self.assertEqual(environment["PATH"], "/usr/bin")
+        self.assertEqual(environment["ANTHROPIC_API_KEY"], "sk-agent-key")
 
     def test_subprocess_adapter_rejects_unapproved_executables(self) -> None:
         adapter = SubprocessAgentAdapter(
