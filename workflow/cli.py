@@ -17,7 +17,7 @@ from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterator, Sequence
+from typing import Any, Iterable, Iterator, Sequence
 
 from .lifecycle import (
     RunBusyError,
@@ -37,6 +37,7 @@ _REQUIREMENT_FILES = ("requirements.txt", "requirements-dev.txt")
 _REQUIRED_TOOLS = ("git", "gh", "bash", "jq", "gitleaks")
 _AGENT_TOOLS = ("codex", "claude")
 _MIN_TOOL_VERSIONS = {"git": (2, 30), "gh": (2, 40)}
+RECENT_EVENT_LIMIT = 5
 _VERSION_PATTERN = re.compile(r"(\d+)\.(\d+)")
 _VALID_MODES = {"runtime", DEVELOPMENT_MODE, DRY_RUN_MODE, "dry_run"}
 _ENVIRONMENT_KEYS = (
@@ -621,7 +622,22 @@ def _latest_checkpoint(checkpointer: Any, run_id: str) -> dict[str, Any] | None:
         "checkpoint_id": configurable.get("checkpoint_id"),
         "timestamp": checkpoint.get("ts"),
         "values": dict(values) if isinstance(values, dict) else {},
+        "interrupts": _interrupt_payloads(
+            pending
+            for _, channel, pending in (checkpoint_tuple.pending_writes or ())
+            if channel == "__interrupt__"
+        ),
     }
+
+
+def _interrupt_payloads(pending: Iterable[Any]) -> list[dict[str, Any]]:
+    """Flatten pending LangGraph interrupts into printable prompt payloads."""
+
+    return [
+        {"id": getattr(item, "id", ""), "value": getattr(item, "value", item)}
+        for group in pending
+        for item in (group if isinstance(group, (list, tuple)) else (group,))
+    ]
 
 
 def _status_payload(
@@ -646,12 +662,31 @@ def _status_payload(
             "state_schema_version": values.get("state_schema_version", 0),
             "run_lease_expires_at": values.get("run_lease_expires_at", 0.0),
             "run_recovery_count": values.get("run_recovery_count", 0),
+            "repo_drift": values.get("repo_drift", ""),
         }
     return {
         "run_id": run_id,
         "lifecycle": asdict(record) if record is not None else None,
         "checkpoint": checkpoint,
+        "interrupts": latest["interrupts"] if latest else [],
+        "recent_events": _recent_events(values.get("run_manifest", [])),
     }
+
+
+def _recent_events(manifest: Any) -> list[dict[str, Any]]:
+    """Summarize the newest run-manifest events without their bulky payloads."""
+
+    if not isinstance(manifest, list):
+        return []
+    return [
+        {
+            key: event.get(key)
+            for key in ("timestamp", "type", "node", "status", "error")
+            if event.get(key)
+        }
+        for event in manifest[-RECENT_EVENT_LIMIT:]
+        if isinstance(event, dict)
+    ]
 
 
 def _list_runs(args: argparse.Namespace, json_output: bool) -> int:
@@ -731,6 +766,11 @@ def _resume(args: argparse.Namespace, json_output: bool) -> int:
                 result.get("last_error", "") if isinstance(result, dict) else ""
             ),
             "interrupted": isinstance(result, dict) and "__interrupt__" in result,
+            "interrupts": _interrupt_payloads(
+                [result["__interrupt__"]]
+                if isinstance(result, dict) and "__interrupt__" in result
+                else ()
+            ),
         }
 
     if json_output:
@@ -739,6 +779,10 @@ def _resume(args: argparse.Namespace, json_output: bool) -> int:
         print(f"Run {args.run_id}: {payload['status'] or 'resumed'}")
         if payload["last_error"]:
             print(payload["last_error"])
+        for interrupt in payload["interrupts"]:
+            print("Waiting for a response:")
+            for line in _interrupt_lines(interrupt["value"]):
+                print(f"  {line}")
     return 0
 
 
@@ -1049,6 +1093,50 @@ def _print_human_status(payload: dict[str, Any]) -> None:
             print(f"Worktree: {checkpoint['workspace_directory']}")
         if checkpoint["last_error"]:
             print(f"Error: {checkpoint['last_error']}")
+        if checkpoint["repo_drift"]:
+            print(f"Repository drift: {checkpoint['repo_drift']}")
+    for interrupt in payload.get("interrupts", []):
+        print("Waiting for a response:")
+        for line in _interrupt_lines(interrupt["value"]):
+            print(f"  {line}")
+    events = payload.get("recent_events", [])
+    if events:
+        print("Recent events:")
+        for event in events:
+            summary = " ".join(
+                str(event[key]) for key in ("node", "type", "status") if event.get(key)
+            )
+            print(f"  {_format_time(event.get('timestamp', ''))} {summary}")
+
+
+def _interrupt_lines(value: Any) -> list[str]:
+    """Render one interrupt prompt as operator-readable lines."""
+
+    if not isinstance(value, Mapping):
+        return [str(value)]
+    lines = [
+        str(value[key])
+        for key in ("message", "question", "error")
+        if value.get(key) is not None
+    ]
+    options = value.get("options")
+    if isinstance(options, list):
+        lines.extend(
+            (
+                f"- {option.get('value', '')}: {option.get('label', '')}"
+                if isinstance(option, Mapping)
+                else f"- {option}"
+            )
+            for option in options
+        )
+    details = {
+        key: item
+        for key, item in value.items()
+        if key not in {"message", "question", "error", "options", "type"}
+    }
+    if details:
+        lines.append(json.dumps(details, default=str, sort_keys=True))
+    return lines or [json.dumps(value, default=str, sort_keys=True)]
 
 
 def _print_json(value: Any) -> None:

@@ -156,7 +156,7 @@ gh auth refresh -h github.com -s workflow
 | `./shanks mode` | Show the current mode. |
 | `./shanks doctor` | Check tools and versions, pinned dependencies, GitHub authentication, environment variables, SQLite setup, and `core.hooksPath`. |
 | `./shanks runs list` | List checkpointed runs. |
-| `./shanks runs status RUN_ID` | Show a run's persisted lifecycle and checkpoint status. |
+| `./shanks runs status RUN_ID` | Show a run's persisted lifecycle and checkpoint status, the prompt it is paused on, its repository drift note, and its newest run-manifest events. |
 | `./shanks runs resume RUN_ID RESPONSE` | Resume a run with a response such as `implement`, `learn`, `approve`, or `reject`. |
 | `./shanks runs cancel RUN_ID` | Request cancellation at the next safe boundary. |
 | `./shanks runs recover` | Mark expired leases as abandoned. |
@@ -261,7 +261,8 @@ starting another backend or side-effecting node.
 
 The viewer's Live execution panel accepts the workflow's `thread_id` and polls
 the current node, PRD item, attempt count, budget usage, last error, model,
-checkpoint history, and run manifest. Expand an audit event to inspect its
+the prompt a paused run is waiting on, the repository drift note, checkpoint
+history, and run manifest. Expand an audit event to inspect its
 recorded prompt, commands, output, diff, commit, or pull-request details. Use
 the same thread ID when starting the workflow and inspecting it.
 

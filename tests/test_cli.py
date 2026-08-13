@@ -9,6 +9,8 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
+from langgraph.types import Interrupt
+
 from graph import VersionedSqliteSaver
 from workflow.adapters import GitHubAdapter
 from workflow.cli import _REQUIRED_TOOLS, main
@@ -339,6 +341,63 @@ class ShanksCliTests(unittest.TestCase):
             self.assertEqual(status["lifecycle"]["status"], "complete")
             self.assertEqual(status["checkpoint"]["status"], "complete")
 
+    def test_runs_status_surfaces_interrupt_drift_and_recent_events(self) -> None:
+        prompt = {
+            "type": "intake",
+            "question": "What would you like to do?",
+            "options": [{"value": "learn", "label": "Learn the codebase"}],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "checkpoints.sqlite"
+            self._seed_run(
+                database,
+                "run-paused",
+                status="interrupted",
+                interrupt=prompt,
+                values={
+                    "repo_drift": "This branch is 2 commit(s) behind origin/main.",
+                    "run_manifest": [
+                        {"timestamp": "t0", "type": "agent", "node": "planning"},
+                        {
+                            "timestamp": "t1",
+                            "type": "repository",
+                            "node": "drift_check",
+                            "status": "drift_checked",
+                        },
+                    ],
+                },
+            )
+            arguments = [
+                "runs",
+                "status",
+                "run-paused",
+                "--checkpoint-db",
+                str(database),
+            ]
+
+            output = io.StringIO()
+            with redirect_stdout(output):
+                self.assertEqual(main([*arguments, "--json"]), 0)
+            payload = json.loads(output.getvalue())
+
+            human = io.StringIO()
+            with redirect_stdout(human):
+                self.assertEqual(main(arguments), 0)
+
+        self.assertEqual(payload["interrupts"][0]["value"], prompt)
+        self.assertEqual(
+            payload["checkpoint"]["repo_drift"],
+            "This branch is 2 commit(s) behind origin/main.",
+        )
+        self.assertEqual(
+            [event["node"] for event in payload["recent_events"]],
+            ["planning", "drift_check"],
+        )
+        self.assertIn("What would you like to do?", human.getvalue())
+        self.assertIn("- learn: Learn the codebase", human.getvalue())
+        self.assertIn("2 commit(s) behind origin/main", human.getvalue())
+        self.assertIn("drift_check", human.getvalue())
+
     def test_runs_cleanup_removes_old_checkpoint_history(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             database = Path(directory) / "checkpoints.sqlite"
@@ -559,12 +618,19 @@ class ShanksCliTests(unittest.TestCase):
             self.assertIn("only terminal runs", error.getvalue())
 
     @staticmethod
-    def _seed_run(database: Path, run_id: str, *, status: str) -> None:
+    def _seed_run(
+        database: Path,
+        run_id: str,
+        *,
+        status: str,
+        interrupt: dict[str, object] | None = None,
+        values: dict[str, object] | None = None,
+    ) -> None:
         connection = sqlite3.connect(str(database), check_same_thread=False)
         lifecycle = RunLifecycleManager(connection, owner_id="seed")
         lifecycle.acquire(run_id)
         saver = VersionedSqliteSaver(connection, lifecycle_manager=lifecycle)
-        saver.put(
+        config = saver.put(
             {"configurable": {"thread_id": run_id, "checkpoint_ns": ""}},
             {
                 "v": 1,
@@ -574,6 +640,7 @@ class ShanksCliTests(unittest.TestCase):
                     "status": status,
                     "run_branch": f"shanks/run/{run_id}",
                     "workspace_directory": str(database.parent / "worktree"),
+                    **(values or {}),
                 },
                 "channel_versions": {},
                 "versions_seen": {},
@@ -582,6 +649,12 @@ class ShanksCliTests(unittest.TestCase):
             {},
             {},
         )
+        if interrupt is not None:
+            saver.put_writes(
+                config,
+                [("__interrupt__", [Interrupt(value=interrupt)])],
+                "seed-task",
+            )
         if status == "interrupted":
             lifecycle.mark_interrupted(run_id)
         connection.close()
