@@ -1081,7 +1081,6 @@ class GitHubAdapter:
     def preview_open_pull_request(
         self,
         task: str,
-        *,
         branch: str = "",
     ) -> AgentResult:
         """Describe PR lookup/creation without changing GitHub."""

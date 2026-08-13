@@ -1,3 +1,4 @@
+import inspect
 import json
 import os
 import subprocess
@@ -24,7 +25,7 @@ from workflow.adapters import (
     _run_subprocess,
 )
 from workflow.adapters import SubprocessAgentAdapter
-from workflow.contracts import AgentRequest, AgentResult
+from workflow.contracts import AgentRequest, AgentResult, RepositoryAdapter
 from workflow.nodes import (
     _reconcile_recovered_state,
     claude_opus_4_8_dependencies,
@@ -141,6 +142,43 @@ class NodeContractTests(unittest.TestCase):
 
         self.assertEqual(len(problems), 1)
         self.assertIn("could not be verified", problems[0])
+
+    def test_github_adapter_satisfies_the_repository_protocol(self) -> None:
+        members = sorted(
+            name
+            for name in vars(RepositoryAdapter)
+            if not name.startswith("_") and callable(getattr(RepositoryAdapter, name))
+        )
+        self.assertIn("drift_report", members)
+
+        for name in members:
+            with self.subTest(member=name):
+                implementation = getattr(GitHubAdapter, name, None)
+                # Nodes reach these through getattr(repository, "<name>", None),
+                # so a renamed or re-signed method disables the capability
+                # silently instead of raising.
+                self.assertTrue(
+                    callable(implementation),
+                    f"GitHubAdapter is missing RepositoryAdapter.{name}",
+                )
+                self.assertEqual(
+                    inspect.signature(implementation),
+                    inspect.signature(getattr(RepositoryAdapter, name)),
+                )
+
+        # Dry-run mode calls preview_<action>(*arguments) through
+        # _preview_repository_action; the test doubles omit these methods, so
+        # only the real adapter proves the call shapes still bind.
+        previews = {
+            "preview_commit_item": ("item-1", "First item", ["example.py"]),
+            "preview_push_branch": (),
+            "preview_open_pull_request": ("Deliver the item", "shanks/run/1"),
+        }
+        for name, arguments in previews.items():
+            with self.subTest(preview=name):
+                preview = getattr(GitHubAdapter, name, None)
+                self.assertTrue(callable(preview), f"GitHubAdapter lacks {name}")
+                inspect.signature(preview).bind(GitHubAdapter, *arguments)
 
     def test_cheap_critic_is_an_adapter_with_a_model_name(self) -> None:
         result = CheapCriticAdapter().run(AgentRequest(task="review this"))
