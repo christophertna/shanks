@@ -88,9 +88,7 @@ class RealAgentSmokeTests(unittest.TestCase):
         with TemporaryDirectory() as directory:
             project = self._project(Path(directory))
             adapter = GPT56LunaCriticAdapter(project)
-            result = adapter.run(
-                AgentRequest(task=CRITIC_PROMPT, timeout_seconds=120)
-            )
+            result = adapter.run(AgentRequest(task=CRITIC_PROMPT, timeout_seconds=120))
 
         self.assertEqual(result.assigned_model, GPT56_LUNA_MODEL)
         self.assertEqual(
@@ -104,9 +102,7 @@ class RealAgentSmokeTests(unittest.TestCase):
         with TemporaryDirectory() as directory:
             project = self._project(Path(directory))
             adapter = ClaudeOpus48CriticAdapter(project)
-            result = adapter.run(
-                AgentRequest(task=CRITIC_PROMPT, timeout_seconds=120)
-            )
+            result = adapter.run(AgentRequest(task=CRITIC_PROMPT, timeout_seconds=120))
 
         self.assertEqual(result.assigned_model, CLAUDE_OPUS_48_MODEL)
         self.assertEqual(

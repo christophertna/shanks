@@ -1110,7 +1110,9 @@ class NodeContractTests(unittest.TestCase):
 
         project = Path("/tmp/shanks")
         build_agent_tools = tools_value(ClaudeAdapter(project, read_only=False).command)
-        read_only_claude_tools = tools_value(ClaudeAdapter(project, read_only=True).command)
+        read_only_claude_tools = tools_value(
+            ClaudeAdapter(project, read_only=True).command
+        )
         debugger_claude_tools = tools_value(
             DebuggerAdapter(project, tool="claude").command
         )
