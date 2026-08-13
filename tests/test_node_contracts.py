@@ -180,6 +180,51 @@ class NodeContractTests(unittest.TestCase):
                 self.assertTrue(callable(preview), f"GitHubAdapter lacks {name}")
                 inspect.signature(preview).bind(GitHubAdapter, *arguments)
 
+    def test_quick_git_lookups_use_a_short_subprocess_timeout(self) -> None:
+        with TemporaryDirectory() as directory:
+            adapter = GitHubAdapter(
+                Path(directory),
+                initial_dirty_files=(),
+                stale_after_days=None,
+            )
+            timeouts: dict[tuple[str, ...], float] = {}
+
+            def fake_run(command, *, cwd, timeout, env, **kwargs):
+                timeouts[tuple(command)] = timeout
+                return subprocess.CompletedProcess(command, 0, "", "")
+
+            probes = (
+                ("git", "branch", "--show-current"),
+                ("git", "status", "--short", "--untracked-files=all"),
+                ("git", "rev-parse", "HEAD"),
+                ("git", "rev-list", "--count", "HEAD..origin/main"),
+                ("git", "fetch", "--quiet", "origin", "main"),
+            )
+            slow = (
+                ("git", "add", "--", "example.py"),
+                adapter._quality_gate_command(),
+            )
+            with patch("workflow.adapters._run_subprocess", side_effect=fake_run):
+                for command in (*probes, *slow):
+                    adapter._run(command)
+
+        for command in probes:
+            with self.subTest(command=command):
+                self.assertEqual(timeouts[command], adapter.probe_timeout_seconds)
+        for command in slow:
+            with self.subTest(command=command):
+                self.assertEqual(timeouts[command], adapter.timeout_seconds)
+        self.assertLess(adapter.probe_timeout_seconds, adapter.timeout_seconds)
+
+    def test_probe_timeout_seconds_must_be_positive(self) -> None:
+        with TemporaryDirectory() as directory:
+            with self.assertRaises(ValueError):
+                GitHubAdapter(
+                    Path(directory),
+                    initial_dirty_files=(),
+                    probe_timeout_seconds=0,
+                )
+
     def test_cheap_critic_is_an_adapter_with_a_model_name(self) -> None:
         result = CheapCriticAdapter().run(AgentRequest(task="review this"))
 

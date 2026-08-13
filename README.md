@@ -245,7 +245,11 @@ report exact `input_tokens`, `output_tokens`, and `cost_usd` in `AgentResult`.
 Default limits are: `max_runtime_seconds=3600`, `max_attempts=3` per item,
 `max_total_attempts=20`, `max_tokens=100000`, and `max_cost_usd=0.0` (cost
 enforcement disabled until a positive limit is configured). Each CLI and GitHub
-subprocess also has a 3600-second adapter timeout.
+subprocess also has a 3600-second adapter timeout, except the quick read-only
+Git lookups (`branch --show-current`, `status --short`, `rev-parse HEAD`,
+`rev-list --count`, and `fetch`), which use a 60-second
+`probe_timeout_seconds` budget so a stalled remote cannot hold a node for the
+full hour.
 
 Stop a checkpointed run cleanly at its next safe boundary:
 
