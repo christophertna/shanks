@@ -2,17 +2,7 @@ Shanks feature roadmap
 
 Priority 1 - Maintenance and developer experience
 
-1- HOOKS.md drift test.
-    `hooks/HOOKS.md` is a manually-maintained doc that's needed a hand-edit
-    on every single hook change so far (which agents get which hook,
-    matched against each adapter's `--tools` list) - nothing cross-checks
-    its claims against the actual `--tools` strings in
-    `workflow/adapters.py`, so it can silently drift the next time someone
-    changes a tool list without remembering to update the doc. Fix: add a
-    test asserting the documented tool-scope table stays consistent with
-    `adapters.py`.
-
-2- Regression harness for post-merge/post-checkout hooks.
+1- Regression harness for post-merge/post-checkout hooks.
     `hooks/post-merge` and `hooks/post-checkout` (#44) have no regression
     harness, unlike `hooks/test.hooks/test-deny-dangerous.sh`/
     `hooks/test.hooks/test-secret-scan.sh` (both wired into
@@ -21,7 +11,7 @@ Priority 1 - Maintenance and developer experience
     update` call) and the "no `graphify` on PATH -> no-op" fallback,
     closing the parity gap.
 
-3- tests/tests.md test-count drift.
+2- tests/tests.md test-count drift.
     `tests/tests.md`'s per-file "Tests" column documents test counts by
     hand and has already drifted for 4 of 12 files - `test_graph.py`
     (documented 40, actually 43), `test_lifecycle.py` (5 vs 6),
@@ -29,7 +19,7 @@ Priority 1 - Maintenance and developer experience
     nothing catching it when a test is added without a matching doc edit.
     Fix: add a test asserting each documented count in `tests/tests.md`
     matches the actual `def test_` count for its corresponding file,
-    mirroring the sync-test pattern of items 1-2 above.
+    mirroring the sync-test pattern of item 1 above.
 
 Suggestions
 
@@ -40,10 +30,6 @@ Suggestions
   the churn, turn each into a focused package while preserving public imports
   and test coverage. This is a developer-experience optimization, not a
   runtime-performance optimization.
-- Real-agent smoke tests (tests/test_agent_integration.py) only cover the
-  Codex and Claude planner/builder adapters; the GPT-5.6 Luna and Claude
-  Opus 4.8 critic adapters still have no real-CLI coverage. Extend once
-  there's an authenticated environment to run them in.
 - Preserve fail-closed token, branch, reviewer, label, and subprocess policies
   as new lifecycle capabilities are added.
 - Add a `UserPromptSubmit` hook that injects fresh state before Claude reads

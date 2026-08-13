@@ -31,7 +31,7 @@ Run the repository quality gates from a feature branch with:
 | --- | ---: | --- |
 | [`test_cli.py`](test_cli.py) | 16 | Execution-mode reporting, doctor diagnostics (including Git/gh version checks and `core.hooksPath`), and run listing, status, resume, cancellation, recovery, cleanup, pruning, and safety checks |
 | [`test_graph.py`](test_graph.py) | 40 | Workflow orchestration, item metadata, targeted retries, budgets, approvals, dry-run previews, and GitHub handoff |
-| [`test_node_contracts.py`](test_node_contracts.py) | 48 | Agent, failure-classification, subprocess, Ralph, local-test, critic, quality-gate, and GitHub adapter contracts |
+| [`test_node_contracts.py`](test_node_contracts.py) | 49 | Agent, failure-classification, subprocess, Ralph, local-test, critic, quality-gate, and GitHub adapter contracts |
 | [`test_state_schema.py`](test_state_schema.py) | 9 | State migration, retry metadata, versioned checkpoints, and legacy resume behavior |
 | [`test_lifecycle.py`](test_lifecycle.py) | 5 | Run leases, stale recovery, interruption/resume, terminal release, and checkpoint cleanup |
 | [`test_workspaces.py`](test_workspaces.py) | 11 | Run identity, Git worktree creation/reuse, syncing the gitignored Claude Code hook guard into new worktrees, local/remote branch listing and deletion, workspace context, and workspace state migration |
@@ -39,7 +39,7 @@ Run the repository quality gates from a feature branch with:
 | [`test_quality_gates.py`](test_quality_gates.py) | 9 | Quality command definitions, safe diff refs, numstat parsing, generated-output handling, diff limits, and gate failure reporting |
 | [`test_fault_injection.py`](test_fault_injection.py) | 7 | Injected Git, GitHub, validation, checkpoint, and agent process failures |
 | [`test_git_integration.py`](test_git_integration.py) | 2 | Real temporary Git repositories, worktrees, commits, pushes, PR creation/reuse, and fake-`gh` recovery |
-| [`test_agent_integration.py`](test_agent_integration.py) | 3 | Real Codex and Claude CLI smoke tests, including the sandboxed Claude write path, against a small deterministic project (opt-in) |
+| [`test_agent_integration.py`](test_agent_integration.py) | 5 | Real Codex and Claude CLI smoke tests, including the sandboxed Claude write path and the GPT-5.6 Luna/Claude Opus 4.8 critic adapters, against a small deterministic project (opt-in) |
 | [`test_sandbox_claude.py`](test_sandbox_claude.py) | 4 | `scripts/sandbox_claude.sh` write containment: allows writes inside the target directory, denies writes outside it (including a shared-temp-root sibling and a `..` escape), and falls back to unsandboxed execution when `sandbox-exec` is unavailable |
 | [`../hooks/test.hooks/test-deny-dangerous.sh`](../hooks/test.hooks/test-deny-dangerous.sh) | 8 shell checks | Dangerous-command blocking and safe-command allowlisting |
 | [`../hooks/test.hooks/test-secret-scan.sh`](../hooks/test.hooks/test-secret-scan.sh) | 7 shell checks | gitleaks-backed secret blocking on Write/Edit content, new_string, and Bash command text |
@@ -356,6 +356,11 @@ Source: [`test_node_contracts.py`](test_node_contracts.py).
   structured result.
 - Luna and Claude dependency factories wire the corresponding critic adapter
   into the node dependencies.
+- `hooks/HOOKS.md`'s documented `--tools` scopes for the build agent
+  (Ralph/`ClaudeAdapter(read_only=False)`), the read-only Claude adapters
+  (`ClaudeAdapter(read_only=True)`, the Claude debugger, and the Claude Opus
+  4.8 critic), and the Codex-only adapters (no `--tools` flag) all match the
+  live values in `workflow/adapters.py` and `scripts/ralph/ralph.sh`.
 
 ### Ralph adapter
 
