@@ -61,7 +61,8 @@ and its recovery paths.
   expose project-scoped Codex and Claude entrypoints.
 - `.github/workflows/tests.yml` runs the unittest suite and the
   `hooks/test.hooks/` guard harnesses (`test-deny-dangerous.sh`, `test-secret-scan.sh`,
-  `test-pre-push.sh`, `test-run-impacted-tests.sh`) on pushes and pull requests.
+  `test-pre-push.sh`, `test-run-impacted-tests.sh`, `test-post-merge-checkout.sh`)
+  on pushes and pull requests.
 - `.github/workflows/agent-smoke-tests.yml` is an opt-in, manually-triggered
   (`workflow_dispatch`) job that runs `tests/test_agent_integration.py` against
   the real `claude`/`codex` CLIs. It needs the `ANTHROPIC_API_KEY` and
