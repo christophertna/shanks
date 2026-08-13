@@ -7,6 +7,7 @@ import os
 import re
 import shlex
 import shutil
+import signal
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -172,14 +173,11 @@ class SubprocessAgentAdapter:
             )
 
         try:
-            completed = subprocess.run(
+            completed = _run_subprocess(
                 command,
                 cwd=cwd,
-                input=prompt,
-                text=True,
-                capture_output=True,
+                input_text=prompt,
                 timeout=timeout,
-                check=False,
                 env=_agent_environment(),
             )
         except (OSError, subprocess.TimeoutExpired) as error:
@@ -1359,13 +1357,10 @@ class GitHubAdapter:
                 commands=[_audit_command(command)],
             )
         try:
-            completed = subprocess.run(
+            completed = _run_subprocess(
                 command,
                 cwd=self._project_directory(),
-                text=True,
-                capture_output=True,
                 timeout=self.timeout_seconds,
-                check=False,
                 env=self._github_environment(command),
             )
         except (OSError, subprocess.TimeoutExpired) as error:
@@ -1611,6 +1606,37 @@ class GitHubAdapter:
                 environment["GH_TOKEN"] = token
             environment["GH_PROMPT_DISABLED"] = "1"
         return environment
+
+
+def _run_subprocess(
+    command: tuple[str, ...],
+    *,
+    cwd: Path | None,
+    env: dict[str, str],
+    timeout: float,
+    input_text: str | None = None,
+) -> subprocess.CompletedProcess[str]:
+    """Run a command in its own process group so a timeout kills its whole
+    process tree, not just the direct child - a wrapper like sandbox-exec or
+    a shell can otherwise leave grandchildren running past the deadline."""
+
+    with subprocess.Popen(
+        command,
+        cwd=cwd,
+        text=True,
+        stdin=subprocess.PIPE if input_text is not None else None,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env=env,
+        start_new_session=True,
+    ) as process:
+        try:
+            stdout, stderr = process.communicate(input_text, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            os.killpg(process.pid, signal.SIGKILL)
+            process.wait()
+            raise
+        return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
 
 
 def _agent_environment() -> dict[str, str]:

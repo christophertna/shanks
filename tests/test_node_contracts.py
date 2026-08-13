@@ -2,6 +2,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -20,6 +21,7 @@ from workflow.adapters import (
     LocalTestAdapter,
     RalphAdapter,
     StubAgentAdapter,
+    _run_subprocess,
 )
 from workflow.adapters import SubprocessAgentAdapter
 from workflow.contracts import AgentRequest, AgentResult
@@ -113,7 +115,7 @@ class NodeContractTests(unittest.TestCase):
         )
 
         with patch(
-            "workflow.adapters.subprocess.run",
+            "workflow.adapters._run_subprocess",
             return_value=completed,
         ) as run:
             adapter.run(AgentRequest(task="test task", timeout_seconds=2.5))
@@ -147,7 +149,7 @@ class NodeContractTests(unittest.TestCase):
                 clear=True,
             ),
             patch(
-                "workflow.adapters.subprocess.run",
+                "workflow.adapters._run_subprocess",
                 return_value=completed,
             ) as run,
         ):
@@ -160,13 +162,32 @@ class NodeContractTests(unittest.TestCase):
         self.assertEqual(environment["PATH"], "/usr/bin")
         self.assertEqual(environment["ANTHROPIC_API_KEY"], "sk-agent-key")
 
+    def test_run_subprocess_kills_grandchildren_on_timeout(self) -> None:
+        with TemporaryDirectory() as directory:
+            script = "(sleep 30 & echo $! > grandchild.pid); sleep 30"
+
+            with self.assertRaises(subprocess.TimeoutExpired):
+                _run_subprocess(
+                    ("bash", "-c", script),
+                    cwd=Path(directory),
+                    env=dict(os.environ),
+                    timeout=0.5,
+                )
+
+            grandchild_pid = int(
+                (Path(directory) / "grandchild.pid").read_text().strip()
+            )
+            time.sleep(0.3)
+            with self.assertRaises(ProcessLookupError):
+                os.kill(grandchild_pid, 0)
+
     def test_subprocess_adapter_rejects_unapproved_executables(self) -> None:
         adapter = SubprocessAgentAdapter(
             command=("sh", "-c", "echo unsafe"),
             model_name="unsafe-cli",
         )
 
-        with patch("workflow.adapters.subprocess.run") as run:
+        with patch("workflow.adapters._run_subprocess") as run:
             result = adapter.run(AgentRequest(task="test task"))
 
         self.assertEqual(result.status, "failed")
@@ -181,7 +202,7 @@ class NodeContractTests(unittest.TestCase):
             allowed_directories=(Path("/tmp/shanks"),),
         )
 
-        with patch("workflow.adapters.subprocess.run") as run:
+        with patch("workflow.adapters._run_subprocess") as run:
             result = adapter.run(
                 AgentRequest(task="test task", working_directory=Path("/tmp"))
             )
@@ -202,7 +223,7 @@ class NodeContractTests(unittest.TestCase):
             stderr="",
         )
 
-        with patch("workflow.adapters.subprocess.run", return_value=completed):
+        with patch("workflow.adapters._run_subprocess", return_value=completed):
             result = adapter.run(AgentRequest(task="test task"))
 
         self.assertNotIn("ghp_test_secret_123456", result.feedback)
@@ -218,7 +239,7 @@ class NodeContractTests(unittest.TestCase):
             stderr="",
         )
 
-        with patch("workflow.adapters.subprocess.run", return_value=completed) as run:
+        with patch("workflow.adapters._run_subprocess", return_value=completed) as run:
             result = adapter.run(AgentRequest(task="validate this"))
 
         self.assertEqual(result.status, "validation_failed")
@@ -239,7 +260,7 @@ class NodeContractTests(unittest.TestCase):
             stderr="",
         )
 
-        with patch("workflow.adapters.subprocess.run", return_value=completed) as run:
+        with patch("workflow.adapters._run_subprocess", return_value=completed) as run:
             result = adapter.run(
                 AgentRequest(
                     task="validate this item",
@@ -271,7 +292,7 @@ class NodeContractTests(unittest.TestCase):
             stderr="",
         )
 
-        with patch("workflow.adapters.subprocess.run", return_value=completed) as run:
+        with patch("workflow.adapters._run_subprocess", return_value=completed) as run:
             result = adapter.run(
                 AgentRequest(
                     task="Fix the handler",
@@ -288,10 +309,11 @@ class NodeContractTests(unittest.TestCase):
             result.builder_instructions,
             "Read the request field and add a regression test.",
         )
-        self.assertIn("FAIL: expected request", run.call_args.kwargs["input"])
-        self.assertIn("read-only", run.call_args.kwargs["input"])
+        self.assertIn("FAIL: expected request", run.call_args.kwargs["input_text"])
+        self.assertIn("read-only", run.call_args.kwargs["input_text"])
         self.assertIn(
-            "The handler must use the request field.", run.call_args.kwargs["input"]
+            "The handler must use the request field.",
+            run.call_args.kwargs["input_text"],
         )
         self.assertIn("read-only", adapter.command)
         self.assertIn("--output-schema", adapter.command)
@@ -338,7 +360,7 @@ class NodeContractTests(unittest.TestCase):
             ),
         ]
 
-        with patch("workflow.adapters.subprocess.run", side_effect=responses) as run:
+        with patch("workflow.adapters._run_subprocess", side_effect=responses) as run:
             result = adapter.commit_item(
                 "item-1",
                 "First item",
@@ -416,7 +438,7 @@ class NodeContractTests(unittest.TestCase):
 
         with (
             patch.dict("os.environ", {"SHANKS_MODE": "dry-run"}),
-            patch("workflow.adapters.subprocess.run", side_effect=responses) as run,
+            patch("workflow.adapters._run_subprocess", side_effect=responses) as run,
         ):
             commit = adapter.commit_item("item-1", "First item", ["item.py"])
             push = adapter.push_branch()
@@ -454,7 +476,7 @@ class NodeContractTests(unittest.TestCase):
     def test_github_adapter_rejects_unapproved_commands(self) -> None:
         adapter = GitHubAdapter(Path("/tmp/shanks"), initial_dirty_files=())
 
-        with patch("workflow.adapters.subprocess.run") as run:
+        with patch("workflow.adapters._run_subprocess") as run:
             result = adapter._run(("gh", "auth", "token"))
 
         self.assertEqual(result.status, "failed")
@@ -471,7 +493,7 @@ class NodeContractTests(unittest.TestCase):
             label_allowlist=("needs-review",),
         )
 
-        with patch("workflow.adapters.subprocess.run") as run:
+        with patch("workflow.adapters._run_subprocess") as run:
             protected_push = adapter._run(("git", "push", "-u", "origin", "main"))
             unapproved_label = adapter._run(
                 (
@@ -508,7 +530,7 @@ class NodeContractTests(unittest.TestCase):
         adapter = GitHubAdapter(Path("/tmp/shanks"), initial_dirty_files=())
 
         with patch(
-            "workflow.adapters.subprocess.run",
+            "workflow.adapters._run_subprocess",
             return_value=subprocess.CompletedProcess(
                 args=(), returncode=0, stdout="Quality gates passed.", stderr=""
             ),
@@ -545,7 +567,7 @@ class NodeContractTests(unittest.TestCase):
             ),
         ]
 
-        with patch("workflow.adapters.subprocess.run", side_effect=responses) as run:
+        with patch("workflow.adapters._run_subprocess", side_effect=responses) as run:
             result = adapter.commit_item("item-1", "First item", ["item.py"])
 
         self.assertEqual(result.status, "failed")
@@ -667,7 +689,7 @@ class NodeContractTests(unittest.TestCase):
                 clear=True,
             ),
             patch(
-                "workflow.adapters.subprocess.run",
+                "workflow.adapters._run_subprocess",
                 side_effect=responses,
             ) as run,
         ):
@@ -711,7 +733,7 @@ class NodeContractTests(unittest.TestCase):
             ),
         ]
 
-        with patch("workflow.adapters.subprocess.run", side_effect=responses) as run:
+        with patch("workflow.adapters._run_subprocess", side_effect=responses) as run:
             result = adapter.publish_pr("Build the workflow")
 
         self.assertEqual(result.status, "pr_created")
@@ -751,7 +773,7 @@ class NodeContractTests(unittest.TestCase):
             ),
         ]
 
-        with patch("workflow.adapters.subprocess.run", side_effect=responses) as run:
+        with patch("workflow.adapters._run_subprocess", side_effect=responses) as run:
             result = adapter.publish_pr("Build the workflow")
 
         self.assertEqual(result.status, "pr_created")
@@ -816,7 +838,7 @@ class NodeContractTests(unittest.TestCase):
             ),
         ]
 
-        with patch("workflow.adapters.subprocess.run", side_effect=responses) as run:
+        with patch("workflow.adapters._run_subprocess", side_effect=responses) as run:
             result = adapter.publish_pr("Build the workflow")
 
         self.assertEqual(result.status, "pr_stale")
@@ -877,7 +899,7 @@ class NodeContractTests(unittest.TestCase):
             ),
         ]
 
-        with patch("workflow.adapters.subprocess.run", side_effect=responses) as run:
+        with patch("workflow.adapters._run_subprocess", side_effect=responses) as run:
             result = adapter.publish_pr("Build the workflow")
 
         self.assertEqual(result.status, "pr_created")
@@ -910,7 +932,7 @@ class NodeContractTests(unittest.TestCase):
             ),
         ]
         with patch(
-            "workflow.adapters.subprocess.run", side_effect=closed_responses
+            "workflow.adapters._run_subprocess", side_effect=closed_responses
         ) as run:
             closed = closed_adapter.publish_pr("Build the workflow")
 
@@ -937,7 +959,7 @@ class NodeContractTests(unittest.TestCase):
             ),
         ]
         with patch(
-            "workflow.adapters.subprocess.run", side_effect=merged_responses
+            "workflow.adapters._run_subprocess", side_effect=merged_responses
         ) as run:
             merged = merged_adapter.publish_pr("Build the workflow")
 
@@ -966,7 +988,7 @@ class NodeContractTests(unittest.TestCase):
             ),
         ]
 
-        with patch("workflow.adapters.subprocess.run", side_effect=responses) as run:
+        with patch("workflow.adapters._run_subprocess", side_effect=responses) as run:
             result = adapter.commit_item("item-1", "First item", ["item.py"])
 
         self.assertEqual(result.status, "failed")
@@ -986,7 +1008,7 @@ class NodeContractTests(unittest.TestCase):
             ),
         ]
 
-        with patch("workflow.adapters.subprocess.run", side_effect=responses) as run:
+        with patch("workflow.adapters._run_subprocess", side_effect=responses) as run:
             result = adapter.publish_pr("Build the workflow")
 
         self.assertEqual(result.status, "failed")
@@ -1009,7 +1031,7 @@ class NodeContractTests(unittest.TestCase):
             ),
         ]
 
-        with patch("workflow.adapters.subprocess.run", side_effect=responses) as run:
+        with patch("workflow.adapters._run_subprocess", side_effect=responses) as run:
             result = adapter.publish_pr("Build the workflow")
 
         self.assertEqual(result.status, "failed")
@@ -1064,7 +1086,7 @@ class NodeContractTests(unittest.TestCase):
             stderr="",
         )
 
-        with patch("workflow.adapters.subprocess.run", return_value=completed):
+        with patch("workflow.adapters._run_subprocess", return_value=completed):
             result = adapter.run(AgentRequest(task="review this"))
 
         self.assertEqual(result.status, "critic_audited")
@@ -1096,7 +1118,7 @@ class NodeContractTests(unittest.TestCase):
             stderr="",
         )
 
-        with patch("workflow.adapters.subprocess.run", return_value=completed):
+        with patch("workflow.adapters._run_subprocess", return_value=completed):
             result = adapter.run(AgentRequest(task="review this"))
 
         self.assertEqual(result.status, "critic_audited")
@@ -1202,7 +1224,7 @@ class NodeContractTests(unittest.TestCase):
             stderr="",
         )
 
-        with patch("workflow.adapters.subprocess.run", return_value=completed) as run:
+        with patch("workflow.adapters._run_subprocess", return_value=completed) as run:
             result = adapter.run(request)
 
         self.assertEqual(
@@ -1239,7 +1261,7 @@ class NodeContractTests(unittest.TestCase):
             )
 
             with patch(
-                "workflow.adapters.subprocess.run", return_value=completed
+                "workflow.adapters._run_subprocess", return_value=completed
             ) as run:
                 adapter.run(request)
 
@@ -1263,7 +1285,7 @@ class NodeContractTests(unittest.TestCase):
             stderr="",
         )
 
-        with patch("workflow.adapters.subprocess.run", return_value=completed):
+        with patch("workflow.adapters._run_subprocess", return_value=completed):
             result = adapter.run(AgentRequest(task="Build one item"))
 
         self.assertEqual(result.status, "failed")
@@ -1334,7 +1356,7 @@ class NodeContractTests(unittest.TestCase):
             )
 
             with patch(
-                "workflow.adapters.subprocess.run",
+                "workflow.adapters._run_subprocess",
                 return_value=completed,
             ):
                 result = adapter.run(request)

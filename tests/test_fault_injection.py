@@ -76,7 +76,7 @@ class FaultInjectionTests(unittest.TestCase):
         adapter = GitHubAdapter(Path("/tmp/shanks"), initial_dirty_files=())
 
         with patch(
-            "workflow.adapters.subprocess.run",
+            "workflow.adapters._run_subprocess",
             side_effect=OSError("injected git executable failure"),
         ):
             result = adapter._run(("git", "branch", "--show-current"))
@@ -101,7 +101,7 @@ class FaultInjectionTests(unittest.TestCase):
             ),
         ]
 
-        with patch("workflow.adapters.subprocess.run", side_effect=responses) as run:
+        with patch("workflow.adapters._run_subprocess", side_effect=responses) as run:
             result = adapter.publish_pr("Ship the fault tests")
 
         self.assertEqual(result.status, "failed")
@@ -116,7 +116,7 @@ class FaultInjectionTests(unittest.TestCase):
         adapter = LocalTestAdapter(Path("/tmp/shanks"))
         timeout = subprocess.TimeoutExpired(adapter.command, timeout=1)
 
-        with patch("workflow.adapters.subprocess.run", side_effect=timeout):
+        with patch("workflow.adapters._run_subprocess", side_effect=timeout):
             result = adapter.run(AgentRequest(task="Run injected validation"))
 
         self.assertEqual(result.status, "validation_failed")
@@ -133,7 +133,7 @@ class FaultInjectionTests(unittest.TestCase):
         )
         timeout = subprocess.TimeoutExpired(adapter.command, timeout=1)
 
-        with patch("workflow.adapters.subprocess.run", side_effect=timeout):
+        with patch("workflow.adapters._run_subprocess", side_effect=timeout):
             result = adapter.run(AgentRequest(task="Run injected agent"))
 
         self.assertEqual(result.status, "failed")
