@@ -2,17 +2,7 @@ Shanks feature roadmap
 
 Priority 1 - Maintenance and developer experience
 
-1- Doctor/preflight tool-list sync test.
-    `workflow/cli.py`'s `_REQUIRED_TOOLS` (`./shanks doctor`) and
-    `GitHubAdapter.preflight()`'s `required_tools` (`workflow/adapters.py`,
-    extended to include `jq`/`gitleaks` in #40) are two independently
-    hardcoded tuples checking the same tool set, with no test asserting they
-    stay in sync. A future tool addition to one and not the other would
-    silently reopen the same "doctor says fine, run stalls anyway" gap #40
-    just closed. Fix: extract a shared constant, or add a test asserting the
-    two lists match.
-
-2- HOOKS.md drift test.
+1- HOOKS.md drift test.
     `hooks/HOOKS.md` is a manually-maintained doc that's needed a hand-edit
     on every single hook change so far (which agents get which hook,
     matched against each adapter's `--tools` list) - nothing cross-checks
@@ -22,7 +12,7 @@ Priority 1 - Maintenance and developer experience
     test asserting the documented tool-scope table stays consistent with
     `adapters.py`.
 
-3- Regression harness for post-merge/post-checkout hooks.
+2- Regression harness for post-merge/post-checkout hooks.
     `hooks/post-merge` and `hooks/post-checkout` (#44) have no regression
     harness, unlike `hooks/test.hooks/test-deny-dangerous.sh`/
     `hooks/test.hooks/test-secret-scan.sh` (both wired into
@@ -31,7 +21,7 @@ Priority 1 - Maintenance and developer experience
     update` call) and the "no `graphify` on PATH -> no-op" fallback,
     closing the parity gap.
 
-4- tests/tests.md test-count drift.
+3- tests/tests.md test-count drift.
     `tests/tests.md`'s per-file "Tests" column documents test counts by
     hand and has already drifted for 4 of 12 files - `test_graph.py`
     (documented 40, actually 43), `test_lifecycle.py` (5 vs 6),
@@ -39,22 +29,10 @@ Priority 1 - Maintenance and developer experience
     nothing catching it when a test is added without a matching doc edit.
     Fix: add a test asserting each documented count in `tests/tests.md`
     matches the actual `def test_` count for its corresponding file,
-    mirroring the sync-test pattern of items 1-3 above.
+    mirroring the sync-test pattern of items 1-2 above.
 
 Suggestions
 
-- `_send_mermaid()` (`serve_graph.py`, backs `/graph.mmd`) calls
-  `load_graph_module()` unconditionally on every request, re-executing
-  `graph.py` and re-importing all of `workflow/*.py` from source every time,
-  even when nothing changed. `load_execution_graph()` (backs `/graph-state`)
-  avoids this by only reloading when `graph_revision()` actually changes,
-  caching the result in `_execution_graph`. Since #54 made
-  `load_graph_module()` hold `_graph_module_lock` for the full reload, every
-  `/graph.mmd` request now also briefly blocks `/graph-state` polling (and
-  vice versa) for work that's usually redundant. Fix: have `_send_mermaid()`
-  reuse `load_execution_graph()`'s revision-cached module instead of calling
-  `load_graph_module()` raw. Low urgency - single local dev viewer, page
-  loads aren't frequent - but a straightforward win when touched next.
 - Split oversized workflow modules for maintainability and iteration speed.
   `workflow/adapters.py` combines agent, critic, test, GitHub, parsing, and
   security boundaries, while `workflow/nodes.py` combines orchestration,
