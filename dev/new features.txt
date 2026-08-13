@@ -2,15 +2,7 @@ Shanks feature roadmap
 
 Priority 1 - Maintenance and developer experience
 
-1- Wire real-agent smoke tests into CI.
-    Wire tests/test_agent_integration.py into an opt-in, manually-triggered
-    CI job (workflow_dispatch, with the CLI auth secrets scoped to it) so
-    the smoke tests - including the sandboxed Claude write path added in
-    #36 - get run on a schedule instead of only ad hoc by a developer. Needs
-    a human step first: the CLI auth secrets have to be added in GitHub
-    repo settings before this job can run green.
-
-2- Doctor/preflight tool-list sync test.
+1- Doctor/preflight tool-list sync test.
     `workflow/cli.py`'s `_REQUIRED_TOOLS` (`./shanks doctor`) and
     `GitHubAdapter.preflight()`'s `required_tools` (`workflow/adapters.py`,
     extended to include `jq`/`gitleaks` in #40) are two independently
@@ -20,7 +12,7 @@ Priority 1 - Maintenance and developer experience
     just closed. Fix: extract a shared constant, or add a test asserting the
     two lists match.
 
-3- HOOKS.md drift test.
+2- HOOKS.md drift test.
     `hooks/HOOKS.md` is a manually-maintained doc that's needed a hand-edit
     on every single hook change so far (which agents get which hook,
     matched against each adapter's `--tools` list) - nothing cross-checks
@@ -30,7 +22,7 @@ Priority 1 - Maintenance and developer experience
     test asserting the documented tool-scope table stays consistent with
     `adapters.py`.
 
-4- Regression harness for post-merge/post-checkout hooks.
+3- Regression harness for post-merge/post-checkout hooks.
     `hooks/post-merge` and `hooks/post-checkout` (#44) have no regression
     harness, unlike `hooks/test.hooks/test-deny-dangerous.sh`/
     `hooks/test.hooks/test-secret-scan.sh` (both wired into
@@ -38,6 +30,16 @@ Priority 1 - Maintenance and developer experience
     the `post-checkout` no-op skip (same prev/new SHA -> no `graphify
     update` call) and the "no `graphify` on PATH -> no-op" fallback,
     closing the parity gap.
+
+4- tests/tests.md test-count drift.
+    `tests/tests.md`'s per-file "Tests" column documents test counts by
+    hand and has already drifted for 4 of 12 files - `test_graph.py`
+    (documented 40, actually 43), `test_lifecycle.py` (5 vs 6),
+    `test_viewer.py` (6 vs 7), and `test_workspaces.py` (11 vs 12) - with
+    nothing catching it when a test is added without a matching doc edit.
+    Fix: add a test asserting each documented count in `tests/tests.md`
+    matches the actual `def test_` count for its corresponding file,
+    mirroring the sync-test pattern of items 1-3 above.
 
 Suggestions
 
@@ -188,6 +190,17 @@ Suggestions
   reverted in favor of a flat `LR` flow, but worth knowing before attempting
   another mirrored/serpentine mermaid layout so the rank-inversion isn't
   re-discovered by trial and error.
+- `workflow/adapters.py` hardcodes the Claude read-only `--tools` string
+  `"Read,Grep,Glob"` independently in three places - `DebuggerAdapter`'s
+  claude branch, `ClaudeAdapter`'s `read_only=True` branch, and
+  `ClaudeOpus48CriticAdapter` - with no shared constant, the same drift
+  risk shape as the doctor/preflight and HOOKS.md sync items above but
+  internal to this one file. Two of the three also duplicate the identical
+  `json.dumps(json.loads(PATH.read_text(encoding="utf-8")))`
+  schema-loading line. Fix: extract a `CLAUDE_READ_ONLY_TOOLS` constant
+  (and maybe a small `_load_json_schema(path)` helper) once a fourth
+  read-only Claude adapter shows up, or sooner if the tool list itself
+  needs to change.
 
 OS-specific (macOS-only mechanisms and fixes)
 
