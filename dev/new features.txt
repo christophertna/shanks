@@ -2,57 +2,54 @@ Shanks feature roadmap
 
 Priority 1 - Maintenance and developer experience
 
-1- Build-agent environment leak.
-    `_agent_environment()` (`workflow/adapters.py`) passes the entire parent
-    shell environment through to the Bash-capable build agent except a
-    2-key blocklist (`GH_TOKEN`, `GITHUB_TOKEN`). Any other secret in the
-    operator's shell (cloud credentials, unrelated API keys) is visible to
-    the agent, and combined with the open network egress noted below,
-    exfiltratable.
-    Fix: invert to an explicit allowlist of environment keys the agent
-    actually needs.
+1- `dev/new features.txt` tracked-file doc mismatch.
+    `dev/new features.txt` is tracked in git (`git ls-files dev/` confirms
+    it) even though `.gitignore` has a blanket `dev/` pattern and
+    `dev/context.md` says "because dev/ is ignored, it is not tracked or
+    included in future PRs unless deliberately copied out" - that note is
+    now inaccurate for this file specifically.
+    Fix: either deliberately untrack it and stop hand-editing roadmap state
+    into it, or update `dev/context.md` to say this one file is a tracked
+    exception, so the two docs stop disagreeing about whether roadmap edits
+    belong in a PR.
 
-2- Subprocess timeout doesn't kill grandchild processes.
-    Both `subprocess.run(..., timeout=...)` call sites in
-    `workflow/adapters.py` rely on Python's default `TimeoutExpired`
-    handling, which only signals the direct child - a command invoked
-    through a wrapper (`sandbox-exec`, a shell) can leave grandchild
-    processes running past the deadline.
-    Fix: `start_new_session=True` plus killing the process group on
-    timeout.
+2- Duplicated Claude read-only tools string and schema-loading line.
+    `workflow/adapters.py` hardcodes the Claude read-only `--tools` string
+    `"Read,Grep,Glob"` independently in three places - `DebuggerAdapter`'s
+    claude branch, `ClaudeAdapter`'s `read_only=True` branch, and
+    `ClaudeOpus48CriticAdapter` - with no shared constant. Two of the three
+    also duplicate the identical
+    `json.dumps(json.loads(PATH.read_text(encoding="utf-8")))`
+    schema-loading line.
+    Fix: extract a `CLAUDE_READ_ONLY_TOOLS` constant and a small
+    `_load_json_schema(path)` helper.
+
+3- `tests/tests.md` shell-harness check-count drift.
+    `tests/tests.md`'s shell-harness rows (`test-deny-dangerous.sh`,
+    `test-secret-scan.sh`, `test-pre-push.sh`, `test-run-impacted-tests.sh`,
+    `test-post-merge-checkout.sh`) document a "N shell checks" count with
+    the same undetected-drift risk the Python per-file "Tests" column had
+    before `test_tests_md_counts_match_actual_test_methods`
+    (`tests/test_cli.py`) started guarding it - nothing verifies the shell
+    counts stay in sync either. Not a trivial extension of that fix: each
+    shell harness uses its own counting convention - `test-deny-dangerous.sh`
+    calls a single `check` helper 8 times, while `test-secret-scan.sh`
+    splits its 7 across two differently-named helpers (`check` and
+    `check_bash`).
+    Fix: pick a shared counting convention across the harnesses (or write
+    per-script parsing logic), then add a regression test like the Python
+    one.
+
+4- No preflight check for worktree/upstream drift on Ralph/graph runs.
+    For Ralph/graph runs (not Claude Code sessions), the graph doesn't
+    track worktree drift from outside the run, or upstream `main` moving
+    since the run started, so a run can proceed on stale state.
+    Fix: inject that state into the next agent prompt via a preflight check
+    inside `workflow/nodes.py`, not a generic hook, so it stays versioned
+    and available to every downstream node.
 
 Suggestions
 
-- The `Write|Edit` `PreToolUse` hooks disagree on fail-open vs fail-closed
-  when `jq` is missing: `guard-dependency-files.sh` fails open (allows the
-  write) so a missing `jq` doesn't block all edits, while `secret-scan.sh`
-  (and `deny-dangerous.sh` on `Bash`) fail closed. That split was a
-  deliberate call per-hook based on how safety-critical each one is, but
-  it's not written down anywhere as a policy - worth a short note in
-  `hooks/HOOKS.md` (or a repo convention) on when a new hook should pick
-  which, so it's a decision and not just whatever the author of the next
-  hook happens to do.
-- `dev/new features.txt` is tracked in git (`git ls-files dev/` confirms it)
-  even though `.gitignore` has a blanket `dev/` pattern and `dev/context.md`
-  says "because dev/ is ignored, it is not tracked or included in future
-  PRs unless deliberately copied out" - that note is now inaccurate for
-  this file specifically. Either deliberately untrack it and stop
-  hand-editing roadmap state into it, or update `dev/context.md` to say
-  this one file is a tracked exception, so the two docs stop disagreeing
-  about whether roadmap edits belong in a PR.
-- `tests/tests.md`'s shell-harness rows (`test-deny-dangerous.sh`,
-  `test-secret-scan.sh`, `test-pre-push.sh`, `test-run-impacted-tests.sh`,
-  `test-post-merge-checkout.sh`) document a "N shell checks" count with the
-  same undetected-drift risk the Python per-file "Tests" column had before
-  `test_tests_md_counts_match_actual_test_methods` (`tests/test_cli.py`)
-  started guarding it - nothing verifies the shell counts stay in sync
-  either. Not a trivial extension of that fix: the Python check counts
-  `def test_` occurrences uniformly, but each shell harness uses its own
-  counting convention - `test-deny-dangerous.sh` calls a single `check`
-  helper 8 times, while `test-secret-scan.sh` splits its 7 across two
-  differently-named helpers (`check` and `check_bash`). Needs either a
-  shared counting convention across the harnesses or per-script parsing
-  logic before it can be auto-verified the same way.
 - `scripts/quality_gates.py`'s mypy target list only checks `adapters.py`,
   `contracts.py`, `retries.py`, and `state.py` - `nodes.py`, `lifecycle.py`,
   `workspaces.py`, `cli.py`, and `graph.py` (the largest and most stateful
@@ -71,11 +68,6 @@ Suggestions
   commands read-only, so the two critics have materially different
   verification power. Worth a design discussion, not just a permissions
   tweak, before changing it.
-- For Ralph/graph runs (not Claude Code sessions), inject into the next agent
-  prompt only state the graph doesn't already track through `WorkflowState` —
-  worktree drift from outside the run, or upstream `main` moving since the run
-  started — as a preflight check inside `workflow/nodes.py`, not a generic
-  hook, so it stays versioned and available to every downstream node.
 - Add a `UserPromptSubmit` hook that injects fresh state before Claude reads
   the prompt: current branch, recent commits, open PR status, and whether
   `.venv/bin/python -m unittest discover -s tests` currently passes, so a run
@@ -83,17 +75,6 @@ Suggestions
 - Add a `PostToolUse` hook that runs Black/Ruff (and mypy) on the exact file
   Claude just touched and feeds failures back immediately, instead of only
   catching them later at `scripts/quality_gates.py --diff-base origin/main`.
-- `workflow/adapters.py` hardcodes the Claude read-only `--tools` string
-  `"Read,Grep,Glob"` independently in three places - `DebuggerAdapter`'s
-  claude branch, `ClaudeAdapter`'s `read_only=True` branch, and
-  `ClaudeOpus48CriticAdapter` - with no shared constant, the same drift
-  risk shape as the doctor/preflight and HOOKS.md sync items above but
-  internal to this one file. Two of the three also duplicate the identical
-  `json.dumps(json.loads(PATH.read_text(encoding="utf-8")))`
-  schema-loading line. Fix: extract a `CLAUDE_READ_ONLY_TOOLS` constant
-  (and maybe a small `_load_json_schema(path)` helper) once a fourth
-  read-only Claude adapter shows up, or sooner if the tool list itself
-  needs to change.
 - Split oversized workflow modules for maintainability and iteration speed.
   `workflow/adapters.py` combines agent, critic, test, GitHub, parsing, and
   security boundaries, while `workflow/nodes.py` combines orchestration,
@@ -206,9 +187,31 @@ OS-specific (macOS-only mechanisms and fixes)
   needs a hand-rolled background-process-plus-kill pattern instead of one
   command. Not urgent today - all matched modules are fast and none hang.
 
-Big tasks
+Big tasks (ordered by priority)
 
-- Linux/Docker-native version of Shanks. Today the project assumes a macOS
+1- Event-sourced execution history and deterministic replay.
+    Replace checkpoint snapshots plus node-level `run_manifest` entries with
+    an append-only execution and artifact history. Record adapter responses,
+    approvals, subprocess/tool events, and enough workspace evidence to
+    reproduce a run without repeating non-deterministic or side-effecting
+    operations. Add replay CLI support, mocked side-effect adapters, retention,
+    viewer timeline support, and local evaluation metrics.
+
+2- PR/CI feedback loop.
+    Extend the current terminal-after-pull-request flow to consume GitHub check
+    results and review feedback. Wake the run through an event-driven or
+    interrupt-based mechanism, classify actionable failures, route them back
+    through planning/debugging, then rebuild, validate, and push with approval
+    and loop limits. Do not hold a worker in a polling loop.
+
+3- Parallel PRD-item execution and merge orchestration.
+    Replace sequential item selection with bounded fan-out for independent
+    items. Add per-item worktrees, scheduling, budgets and leases,
+    deterministic merge/commit ordering, conflict handling, partial-failure
+    recovery, and aggregate pull-request behavior. Start only after recovery
+    and pull-request lifecycle behavior are reliable.
+
+4- Linux/Docker-native version of Shanks. Today the project assumes a macOS
   dev machine end-to-end: `scripts/sandbox_claude.sh`'s filesystem
   containment only works via `sandbox-exec` (Seatbelt) and falls back to
   running the build agent completely unsandboxed on Linux (see the Linux
@@ -243,5 +246,28 @@ Big tasks
 
 Deferred
 
-- Parallelism and additional agent roles. Revisit after isolation, recovery,
-  and pull-request lifecycle behavior are reliable.
+- Additional agent roles. Revisit after isolation, recovery, and pull-request
+  lifecycle behavior are reliable.
+
+Graph Suggestions (ordered by implementation priority)
+
+1. pre_commit_policy_gate (ASAP)
+   Read-only gate after validation and before `commit_item`. Inspect the staged diff against the PRD, reject unexpected paths or high-risk changes, run static security analysis when configured, and apply license policy only when dependency files changed. Reuse the existing quality-gate and secret-scanning commands instead of duplicating them in a second node.
+
+2. recovery_reconciler (ASAP)
+   On a resumed or recovered run, compare checkpoint state with the actual worktree, branch, commit, remote branch, and pull-request state before any side effect. Surface stale or ambiguous state for operator review instead of relying on individual `commit_sha`/`pr_url` guards.
+
+3. Human-in-the-Loop State Injection (Next)
+   Instead of simply approving or rejecting operations, allow humans to inject validated guidance during interrupts so the agent can resume with corrected instructions without restarting the chain. Do not allow arbitrary patches to safety-critical state.
+
+4. Context Pruning/Compaction Node (Later)
+   After measuring prompt growth, periodically distill past command outputs, test logs, and history into a compressed summary to control context size and token cost during long iteration cycles.
+
+5. Namespaced State Management (Later)
+   Move from the flat dictionary to structured, nested TypedDicts. Add runtime validation or update boundaries if nodes must be prevented from writing outside their namespaces.
+
+6. documentation_sync (Later)
+   Automate updates for READMEs, OpenAPI specs, and architecture diagrams based on the final code state, subject to an explicit source-of-truth policy.
+
+7. regression_canary (Later)
+    Add deterministic performance benchmarks and thresholds to detect latency or resource regressions after code changes.
