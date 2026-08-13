@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -53,6 +54,7 @@ from .lifecycle import (
 )
 from .mode import is_development_mode, is_dry_run
 from .workspaces import (
+    RunWorkspace,
     RunWorkspaceManager,
     WorkspaceError,
     current_workspace_directory,
@@ -190,6 +192,7 @@ def _versioned_node(
             }
         run_id = stored_run_id or thread_id
         lifecycle_update: WorkflowState = {}
+        recovered = False
         if lifecycle_manager is not None and run_id:
             try:
                 lease = lifecycle_manager.acquire(run_id)
@@ -219,6 +222,7 @@ def _versioned_node(
                 "run_last_heartbeat_at": lease.heartbeat_at,
                 "run_recovery_count": lease.recovery_count,
             }
+            recovered = lease.recovered
             if lease.recovered:
                 current = {**current, **lifecycle_update}
                 current.update(
@@ -294,6 +298,29 @@ def _versioned_node(
                         **lifecycle_update,
                         **_stop_update(current, reason),
                     }
+                if recovered and workspace is not None:
+                    problems = _reconcile_recovered_state(current, workspace)
+                    if problems:
+                        current.update(
+                            append_run_manifest(
+                                current,
+                                "recovery_reconciliation_mismatch",
+                                run_id=run_id,
+                                problems=problems,
+                            )
+                        )
+                        interrupt(
+                            {
+                                "type": "recovery_reconciliation",
+                                "message": (
+                                    "This recovered run's checkpoint state "
+                                    "disagrees with the actual repository "
+                                    "state. Review before continuing."
+                                ),
+                                "run_id": run_id,
+                                "problems": problems,
+                            }
+                        )
                 update = {
                     **workspace_update,
                     **lifecycle_update,
@@ -345,6 +372,78 @@ def _versioned_node(
         return update
 
     return run
+
+
+_RECONCILE_TIMEOUT_SECONDS = 15
+
+
+def _reconcile_recovered_state(
+    current: WorkflowState,
+    workspace: RunWorkspace,
+) -> list[str]:
+    """Verify commit_sha/run_branch/pr_url still hold in a recovered run.
+
+    Runs once, only on the first node call after a new process takes over an
+    existing run (see lease.recovered in _versioned_node) - a stale checkpoint
+    could otherwise let commit_item/push_node trust a commit_sha or pr_url
+    that no longer reflects reality instead of surfacing it for review."""
+
+    problems: list[str] = []
+    directory = workspace.directory
+
+    commit_sha = current.get("commit_sha", "")
+    if commit_sha:
+        check = _reconcile_run(
+            ("git", "cat-file", "-e", f"{commit_sha}^{{commit}}"),
+            cwd=directory,
+        )
+        if check.returncode != 0:
+            problems.append(
+                f"commit_sha {commit_sha!r} is no longer reachable in the "
+                "workspace worktree."
+            )
+
+    pr_url = current.get("pr_url", "")
+    run_branch = current.get("run_branch", "")
+    if pr_url:
+        if run_branch:
+            remote = _reconcile_run(
+                ("git", "ls-remote", "--heads", "origin", run_branch),
+                cwd=directory,
+            )
+            if remote.returncode != 0 or not remote.stdout.strip():
+                problems.append(
+                    f"branch {run_branch!r} has a recorded pull request but no "
+                    "matching ref on origin."
+                )
+        pr_check = _reconcile_run(
+            ("gh", "pr", "view", pr_url, "--json", "state,url"),
+            cwd=directory,
+        )
+        if pr_check.returncode != 0:
+            detail = (pr_check.stderr or "").strip() or "gh query failed"
+            problems.append(f"pull request {pr_url!r} could not be verified: {detail}.")
+
+    return problems
+
+
+def _reconcile_run(
+    command: tuple[str, ...],
+    *,
+    cwd: Path,
+) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(
+            command,
+            cwd=cwd,
+            text=True,
+            capture_output=True,
+            timeout=_RECONCILE_TIMEOUT_SECONDS,
+            check=False,
+            env=GitHubAdapter._github_environment(command),
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        return subprocess.CompletedProcess(command, 1, "", str(error))
 
 
 def _thread_id(config: RunnableConfig | None) -> str:

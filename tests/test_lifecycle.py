@@ -1,7 +1,9 @@
 import sqlite3
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from graph import VersionedSqliteSaver, build_graph
 from langgraph.types import Command
@@ -9,9 +11,14 @@ from workflow.adapters import StubAgentAdapter
 from workflow.lifecycle import RunBusyError, RunLifecycleManager
 from workflow.nodes import NodeDependencies, create_nodes
 from workflow.retries import classify_failure, retry_on_exception
+from workflow.workspaces import RunWorkspaceManager
 
 
-def dependencies(lifecycle: RunLifecycleManager) -> NodeDependencies:
+def dependencies(
+    lifecycle: RunLifecycleManager,
+    *,
+    workspace_manager: RunWorkspaceManager | None = None,
+) -> NodeDependencies:
     return NodeDependencies(
         planner=StubAgentAdapter("planner", "planner"),
         builder=StubAgentAdapter("builder", "builder"),
@@ -19,7 +26,25 @@ def dependencies(lifecycle: RunLifecycleManager) -> NodeDependencies:
         validator=StubAgentAdapter("validator", "validator"),
         debugger=StubAgentAdapter("debugger", "debugger"),
         lifecycle_manager=lifecycle,
+        workspace_manager=workspace_manager,
     )
+
+
+def _repository(directory: Path) -> Path:
+    root = directory / "project"
+    root.mkdir()
+    for command in (
+        ("git", "init", "-b", "main"),
+        ("git", "config", "user.email", "tests@example.com"),
+        ("git", "config", "user.name", "Lifecycle Tests"),
+    ):
+        subprocess.run(command, cwd=root, check=True, capture_output=True)
+    (root / "README.md").write_text("initial\n", encoding="utf-8")
+    subprocess.run(("git", "add", "."), cwd=root, check=True, capture_output=True)
+    subprocess.run(
+        ("git", "commit", "-m", "initial"), cwd=root, check=True, capture_output=True
+    )
+    return root
 
 
 class LifecycleTests(unittest.TestCase):
@@ -76,6 +101,72 @@ class LifecycleTests(unittest.TestCase):
         self.assertEqual(blocked["run_lifecycle_status"], "blocked")
         self.assertEqual(blocked["failure_node"], "lease")
         first_lifecycle.release("run-1", status="failed")
+        connection.close()
+
+    def test_recovered_run_interrupts_on_a_stale_commit_sha(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = _repository(Path(directory))
+            workspace_manager = RunWorkspaceManager(root)
+            connection = sqlite3.connect(":memory:", check_same_thread=False)
+            first = RunLifecycleManager(
+                connection, lease_ttl_seconds=10, owner_id="first"
+            )
+            first.acquire("run-1", now=100)
+            second = RunLifecycleManager(
+                connection, lease_ttl_seconds=10, owner_id="second"
+            )
+            preflight = create_nodes(
+                dependencies(second, workspace_manager=workspace_manager)
+            )["preflight"]
+            state = {
+                "task": "recovered",
+                "state_schema_version": 6,
+                "run_id": "run-1",
+                "commit_sha": "0" * 40,
+            }
+            config = {"configurable": {"thread_id": "run-1"}}
+
+            with patch("workflow.nodes.interrupt") as interrupt:
+                preflight(state, config)
+
+            interrupt.assert_called_once()
+            payload = interrupt.call_args.args[0]
+            self.assertEqual(payload["type"], "recovery_reconciliation")
+            self.assertTrue(
+                any("commit_sha" in problem for problem in payload["problems"])
+            )
+            connection.close()
+
+    def test_recovered_run_proceeds_when_checkpoint_state_matches_reality(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = _repository(Path(directory))
+            workspace_manager = RunWorkspaceManager(root)
+            connection = sqlite3.connect(":memory:", check_same_thread=False)
+            first = RunLifecycleManager(
+                connection, lease_ttl_seconds=10, owner_id="first"
+            )
+            first.acquire("run-1", now=100)
+            second = RunLifecycleManager(
+                connection, lease_ttl_seconds=10, owner_id="second"
+            )
+            preflight = create_nodes(
+                dependencies(second, workspace_manager=workspace_manager)
+            )["preflight"]
+            state = {
+                "task": "recovered",
+                "state_schema_version": 6,
+                "run_id": "run-1",
+            }
+            config = {"configurable": {"thread_id": "run-1"}}
+
+            with patch("workflow.nodes.interrupt") as interrupt:
+                result = preflight(state, config)
+
+            interrupt.assert_not_called()
+            self.assertEqual(result["status"], "preflight_skipped")
+            connection.close()
         connection.close()
 
     def test_checkpoint_cleanup_keeps_recent_terminal_history(self) -> None:

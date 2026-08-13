@@ -26,11 +26,13 @@ from workflow.adapters import (
 from workflow.adapters import SubprocessAgentAdapter
 from workflow.contracts import AgentRequest, AgentResult
 from workflow.nodes import (
+    _reconcile_recovered_state,
     claude_opus_4_8_dependencies,
     default_dependencies,
     gpt_5_6_luna_dependencies,
 )
 from workflow.retries import classify_failure, retry_delay, retry_on_exception
+from workflow.workspaces import RunWorkspace
 
 
 class NodeContractTests(unittest.TestCase):
@@ -79,6 +81,66 @@ class NodeContractTests(unittest.TestCase):
             [0.5, 1.0, 2.0, 4.0],
         )
         self.assertEqual(classify_failure("status 503 from GitHub"), "transient")
+
+    def test_reconcile_recovered_state_finds_nothing_with_no_prior_claims(
+        self,
+    ) -> None:
+        workspace = RunWorkspace(
+            "run-1", "shanks/run/run-1", Path("/tmp/shanks"), "main"
+        )
+
+        problems = _reconcile_recovered_state({}, workspace)
+
+        self.assertEqual(problems, [])
+
+    def test_reconcile_recovered_state_flags_a_pr_with_no_remote_branch(self) -> None:
+        workspace = RunWorkspace(
+            "run-1", "shanks/run/run-1", Path("/tmp/shanks"), "main"
+        )
+        current = {
+            "pr_url": "https://github.com/example/shanks/pull/1",
+            "run_branch": "shanks/run/run-1",
+        }
+        missing_ref = subprocess.CompletedProcess(
+            args=(), returncode=0, stdout="", stderr=""
+        )
+        pr_ok = subprocess.CompletedProcess(
+            args=(), returncode=0, stdout='{"state":"OPEN"}', stderr=""
+        )
+
+        with patch("workflow.nodes.subprocess.run", side_effect=[missing_ref, pr_ok]):
+            problems = _reconcile_recovered_state(current, workspace)
+
+        self.assertEqual(len(problems), 1)
+        self.assertIn("no matching ref on origin", problems[0])
+
+    def test_reconcile_recovered_state_flags_an_unverifiable_pull_request(
+        self,
+    ) -> None:
+        workspace = RunWorkspace(
+            "run-1", "shanks/run/run-1", Path("/tmp/shanks"), "main"
+        )
+        current = {
+            "pr_url": "https://github.com/example/shanks/pull/1",
+            "run_branch": "shanks/run/run-1",
+        }
+        ref_found = subprocess.CompletedProcess(
+            args=(),
+            returncode=0,
+            stdout="abc123\trefs/heads/shanks/run/run-1\n",
+            stderr="",
+        )
+        pr_missing = subprocess.CompletedProcess(
+            args=(), returncode=1, stdout="", stderr="no pull requests found"
+        )
+
+        with patch(
+            "workflow.nodes.subprocess.run", side_effect=[ref_found, pr_missing]
+        ):
+            problems = _reconcile_recovered_state(current, workspace)
+
+        self.assertEqual(len(problems), 1)
+        self.assertIn("could not be verified", problems[0])
 
     def test_cheap_critic_is_an_adapter_with_a_model_name(self) -> None:
         result = CheapCriticAdapter().run(AgentRequest(task="review this"))
