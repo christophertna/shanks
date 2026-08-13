@@ -1,5 +1,6 @@
 import json
 import io
+import re
 import subprocess
 import sqlite3
 import tempfile
@@ -248,6 +249,23 @@ class ShanksCliTests(unittest.TestCase):
 
     def test_doctor_and_github_preflight_tool_lists_match(self) -> None:
         self.assertEqual(set(_REQUIRED_TOOLS), set(GitHubAdapter.REQUIRED_TOOLS))
+
+    def test_tests_md_counts_match_actual_test_methods(self) -> None:
+        repo_root = Path(__file__).parents[1]
+        tests_md = (repo_root / "tests" / "tests.md").read_text(encoding="utf-8")
+
+        documented = re.findall(r"\[`(test_\w+\.py)`\]\(\1\) \| (\d+) \|", tests_md)
+        self.assertTrue(documented)
+
+        for filename, count in documented:
+            source = (repo_root / "tests" / filename).read_text(encoding="utf-8")
+            actual = len(re.findall(r"^\s*def test_", source, re.MULTILINE))
+            self.assertEqual(
+                actual,
+                int(count),
+                f"tests/tests.md documents {count} tests for {filename}, "
+                f"but it has {actual}",
+            )
 
     def test_runs_list_and_status_support_json_output(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

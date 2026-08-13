@@ -1,7 +1,7 @@
 # Test coverage
 
 This document summarizes the behavior covered by the repository's tracked test
-files. The Python suite contains **169 unittest methods** across twelve
+files. The Python suite contains **170 unittest methods** across twelve
 modules; `hooks/test.hooks/test-deny-dangerous.sh`, `hooks/test.hooks/test-secret-scan.sh`,
 `hooks/test.hooks/test-pre-push.sh`, `hooks/test.hooks/test-run-impacted-tests.sh`, and
 `hooks/test.hooks/test-post-merge-checkout.sh` are separate shell regression
@@ -30,13 +30,13 @@ Run the repository quality gates from a feature branch with:
 
 | File | Tests | Main areas |
 | --- | ---: | --- |
-| [`test_cli.py`](test_cli.py) | 16 | Execution-mode reporting, doctor diagnostics (including Git/gh version checks and `core.hooksPath`), and run listing, status, resume, cancellation, recovery, cleanup, pruning, and safety checks |
-| [`test_graph.py`](test_graph.py) | 40 | Workflow orchestration, item metadata, targeted retries, budgets, approvals, dry-run previews, and GitHub handoff |
+| [`test_cli.py`](test_cli.py) | 17 | Execution-mode reporting, doctor diagnostics (including Git/gh version checks and `core.hooksPath`), and run listing, status, resume, cancellation, recovery, cleanup, pruning, and safety checks |
+| [`test_graph.py`](test_graph.py) | 43 | Workflow orchestration, item metadata, targeted retries, budgets, approvals, dry-run previews, and GitHub handoff |
 | [`test_node_contracts.py`](test_node_contracts.py) | 49 | Agent, failure-classification, subprocess, Ralph, local-test, critic, quality-gate, and GitHub adapter contracts |
 | [`test_state_schema.py`](test_state_schema.py) | 9 | State migration, retry metadata, versioned checkpoints, and legacy resume behavior |
-| [`test_lifecycle.py`](test_lifecycle.py) | 5 | Run leases, stale recovery, interruption/resume, terminal release, and checkpoint cleanup |
-| [`test_workspaces.py`](test_workspaces.py) | 11 | Run identity, Git worktree creation/reuse, syncing the gitignored Claude Code hook guard into new worktrees, local/remote branch listing and deletion, workspace context, and workspace state migration |
-| [`test_viewer.py`](test_viewer.py) | 6 | Viewer HTML, execution-state data, checkpoint sharing, the live-reload module path, and Mermaid output |
+| [`test_lifecycle.py`](test_lifecycle.py) | 6 | Run leases, stale recovery, interruption/resume, terminal release, and checkpoint cleanup |
+| [`test_workspaces.py`](test_workspaces.py) | 12 | Run identity, Git worktree creation/reuse, syncing the gitignored Claude Code hook guard into new worktrees, local/remote branch listing and deletion, workspace context, and workspace state migration |
+| [`test_viewer.py`](test_viewer.py) | 7 | Viewer HTML, execution-state data, checkpoint sharing, the live-reload module path, and Mermaid output |
 | [`test_quality_gates.py`](test_quality_gates.py) | 9 | Quality command definitions, safe diff refs, numstat parsing, generated-output handling, diff limits, and gate failure reporting |
 | [`test_fault_injection.py`](test_fault_injection.py) | 7 | Injected Git, GitHub, validation, checkpoint, and agent process failures |
 | [`test_git_integration.py`](test_git_integration.py) | 2 | Real temporary Git repositories, worktrees, commits, pushes, PR creation/reuse, and fake-`gh` recovery |
