@@ -212,7 +212,8 @@ class GraphViewerTests(unittest.TestCase):
         self.assertIn("retry_backoff -.-> building;", content)
         self.assertIn("failed_build --> __end__;", content)
         self.assertIn("failed_run --> __end__;", content)
-        self.assertIn("validation --> commit_item;", content)
+        self.assertIn("validation --> pre_commit_policy_gate;", content)
+        self.assertIn("pre_commit_policy_gate --> commit_item;", content)
         self.assertIn("commit_item --> item_router;", content)
         self.assertIn("validation --> debugger;", content)
         self.assertNotIn("push_node -.-> debugger;", content)
@@ -244,6 +245,7 @@ class GraphViewerTests(unittest.TestCase):
         self.assertIn('building["Build"]:::mainNode', content)
         self.assertIn('item_router{"more items"}', content)
         self.assertIn('validation{"Validate"}:::yellowNode', content)
+        self.assertIn('pre_commit_policy_gate["Policy gate"]:::mainNode', content)
         self.assertIn('commit_item["commit item"]:::mainNode', content)
         self.assertIn('push_node["push branch"]:::yellowNode', content)
         self.assertIn(
@@ -254,7 +256,8 @@ class GraphViewerTests(unittest.TestCase):
         main_section = content.split("  end", 1)[0]
         self.assertIn("building --> critic_auditor", main_section)
         self.assertIn("critic_auditor -.-> building", main_section)
-        self.assertIn("validation --> commit_item", main_section)
+        self.assertIn("validation --> pre_commit_policy_gate", main_section)
+        self.assertIn("pre_commit_policy_gate --> commit_item", main_section)
         self.assertIn("commit_item --> item_router", main_section)
         self.assertIn("intake -.-> learning", main_section)
         self.assertIn("learning -.-> intake", main_section)

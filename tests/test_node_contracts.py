@@ -327,6 +327,88 @@ class NodeContractTests(unittest.TestCase):
         self.assertIn("Read,Grep,Glob", adapter.command)
         self.assertIn("--json-schema", adapter.command)
 
+    def test_policy_gate_passes_with_no_dirty_files(self) -> None:
+        adapter = GitHubAdapter(Path("/tmp/shanks"), initial_dirty_files=())
+        status = subprocess.CompletedProcess(
+            args=(), returncode=0, stdout="", stderr=""
+        )
+
+        with patch("workflow.adapters._run_subprocess", side_effect=[status]):
+            result = adapter.policy_gate("item-1", "First item", [])
+
+        self.assertEqual(result.status, "policy_gate_passed")
+
+    def test_policy_gate_blocks_guarded_dependency_files(self) -> None:
+        adapter = GitHubAdapter(Path("/tmp/shanks"), initial_dirty_files=())
+        status = subprocess.CompletedProcess(
+            args=(), returncode=0, stdout=" M requirements.txt\n", stderr=""
+        )
+
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("SHANKS_ALLOW_DEPENDENCY_EDIT", None)
+            with patch("workflow.adapters._run_subprocess", side_effect=[status]):
+                result = adapter.policy_gate("item-1", "First item", [])
+
+        self.assertEqual(result.status, "policy_gate_failed")
+        self.assertEqual(result.failure_class, "guardrail")
+        self.assertIn("requirements.txt", result.error or "")
+
+    def test_policy_gate_override_env_var_skips_guarded_check(self) -> None:
+        adapter = GitHubAdapter(Path("/tmp/shanks"), initial_dirty_files=())
+        status = subprocess.CompletedProcess(
+            args=(), returncode=0, stdout=" M requirements.txt\n", stderr=""
+        )
+
+        with patch.dict(os.environ, {"SHANKS_ALLOW_DEPENDENCY_EDIT": "1"}):
+            with patch("workflow.adapters._run_subprocess", side_effect=[status]):
+                with patch("workflow.adapters._scan_for_secrets", return_value=""):
+                    result = adapter.policy_gate("item-1", "First item", [])
+
+        self.assertEqual(result.status, "policy_gate_passed")
+
+    def test_policy_gate_blocks_a_flagged_secret(self) -> None:
+        adapter = GitHubAdapter(Path("/tmp/shanks"), initial_dirty_files=())
+        status = subprocess.CompletedProcess(
+            args=(), returncode=0, stdout=" M app.py\n", stderr=""
+        )
+
+        with patch("workflow.adapters._run_subprocess", side_effect=[status]):
+            with patch(
+                "workflow.adapters._scan_for_secrets",
+                return_value="generic-api-key in app.py",
+            ):
+                result = adapter.policy_gate("item-1", "First item", [])
+
+        self.assertEqual(result.status, "policy_gate_failed")
+        self.assertEqual(result.failure_class, "guardrail")
+        self.assertIn("generic-api-key", result.error or "")
+
+    def test_policy_gate_fails_closed_when_the_scan_cannot_run(self) -> None:
+        adapter = GitHubAdapter(Path("/tmp/shanks"), initial_dirty_files=())
+        status = subprocess.CompletedProcess(
+            args=(), returncode=0, stdout=" M app.py\n", stderr=""
+        )
+
+        with patch("workflow.adapters._run_subprocess", side_effect=[status]):
+            with patch("workflow.adapters._scan_for_secrets", return_value=None):
+                result = adapter.policy_gate("item-1", "First item", [])
+
+        self.assertEqual(result.status, "policy_gate_failed")
+        self.assertEqual(result.failure_class, "guardrail")
+
+    def test_policy_gate_passes_a_clean_change(self) -> None:
+        adapter = GitHubAdapter(Path("/tmp/shanks"), initial_dirty_files=())
+        status = subprocess.CompletedProcess(
+            args=(), returncode=0, stdout=" M app.py\n", stderr=""
+        )
+
+        with patch("workflow.adapters._run_subprocess", side_effect=[status]):
+            with patch("workflow.adapters._scan_for_secrets", return_value=""):
+                result = adapter.policy_gate("item-1", "First item", [])
+
+        self.assertEqual(result.status, "policy_gate_passed")
+        self.assertEqual(result.files_touched, ["app.py"])
+
     def test_github_adapter_commits_only_fresh_story_files(self) -> None:
         adapter = GitHubAdapter(
             Path("/tmp/shanks"),
