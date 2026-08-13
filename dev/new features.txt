@@ -241,6 +241,41 @@ OS-specific (macOS-only mechanisms and fixes)
   needs a hand-rolled background-process-plus-kill pattern instead of one
   command. Not urgent today - all matched modules are fast and none hang.
 
+Big tasks
+
+- Linux/Docker-native version of Shanks. Today the project assumes a macOS
+  dev machine end-to-end: `scripts/sandbox_claude.sh`'s filesystem
+  containment only works via `sandbox-exec` (Seatbelt) and falls back to
+  running the build agent completely unsandboxed on Linux (see the Linux
+  sandbox parity item in OS-specific above); `./shanks doctor`'s Git/gh
+  version floor is never actually exercised outside macOS; and there's no
+  packaged way to run Shanks itself (not just the agent it drives) in a
+  container. This is a bigger initiative than the existing sandbox-parity
+  item and needs its own design pass before starting:
+  - Filesystem/process containment on Linux: bubblewrap (`bwrap`) is the
+    closer analog to Seatbelt (no daemon, per-invocation namespace,
+    write-scoped-only semantics matching `tests/test_sandbox_claude.py`'s
+    existing containment contract) versus a Docker-based approach that runs
+    the whole build agent - not just its filesystem writes - inside a
+    container for full process/network isolation, at the cost of needing
+    Docker installed and running plus an image to build and maintain.
+  - A `Dockerfile` (and maybe `docker-compose.yml`) bundling Python 3.11,
+    Node (for the `claude`/`codex` CLI installs, see
+    `.github/workflows/agent-smoke-tests.yml`), `git`, `gh`, `gitleaks`,
+    and `jq`, with the target repo mounted as a volume, so Shanks can run
+    reproducibly without a hand-set-up host machine - useful both for CI
+    (the agent-smoke-tests job currently reinstalls everything from
+    scratch on every manual run) and for a non-macOS contributor's first
+    setup.
+  - `./shanks doctor` and its `_MIN_TOOL_VERSIONS` floor should get
+    actually exercised on Linux once either path exists, closing the gap
+    already noted in the Suggestions section above.
+  No urgency today - single macOS-based contributor, Ralph doesn't run in
+  CI - but worth a deliberate design discussion (bubblewrap vs Docker,
+  whether Shanks-the-orchestrator and the agent sandbox are containerized
+  together or separately) before starting, not just picking whichever is
+  faster to prototype.
+
 Deferred
 
 - Parallelism and additional agent roles. Revisit after isolation, recovery,
