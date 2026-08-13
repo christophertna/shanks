@@ -40,7 +40,8 @@ and its recovery paths.
 ├── tests/                     # Standard-library unittest suite
 ├── skills/                    # Shared project skill sources
 ├── .github/workflows/
-│   └── tests.yml              # CI tests and hook harnesses
+│   ├── tests.yml              # CI tests and hook harnesses
+│   └── agent-smoke-tests.yml  # Opt-in real-CLI smoke tests (workflow_dispatch)
 ├── requirements.txt           # Runtime dependencies
 ├── requirements-dev.txt       # Development dependencies
 ├── pyproject.toml             # Python tool configuration
@@ -61,6 +62,10 @@ and its recovery paths.
 - `.github/workflows/tests.yml` runs the unittest suite and the
   `hooks/test.hooks/` guard harnesses (`test-deny-dangerous.sh`, `test-secret-scan.sh`,
   `test-pre-push.sh`, `test-run-impacted-tests.sh`) on pushes and pull requests.
+- `.github/workflows/agent-smoke-tests.yml` is an opt-in, manually-triggered
+  (`workflow_dispatch`) job that runs `tests/test_agent_integration.py` against
+  the real `claude`/`codex` CLIs. It needs the `ANTHROPIC_API_KEY` and
+  `OPENAI_API_KEY` repository secrets configured first, scoped to this job only.
 - `tests/` covers graph routing, node contracts, viewer output, quality gates,
   run isolation, lifecycle recovery, and injected failure behavior.
 
