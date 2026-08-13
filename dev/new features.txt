@@ -2,15 +2,7 @@ Shanks feature roadmap
 
 Priority 1 - Maintenance and developer experience
 
-1- Nothing proves `GitHubAdapter` satisfies the `RepositoryAdapter` protocol.
-    Nodes annotate `repository: RepositoryAdapter | None` but reach
-    capabilities through `getattr(repository, "<method>", None)` (`preflight`,
-    `drift_report`), so a renamed or typo'd adapter method silently disables
-    the feature with no failing test - and test doubles that omit methods are
-    still accepted, since tests are not type-checked.
-    Fix: a contract test in `tests/test_node_contracts.py` asserting every
-    `RepositoryAdapter` member exists on `GitHubAdapter`. Roughly a dozen
-    lines against a whole class of silent feature loss.
+(Empty - promote from Priority 2 below as capacity allows.)
 
 Priority 2 - Reliability and contributor experience
 
