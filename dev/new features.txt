@@ -21,15 +21,6 @@ Priority 1 - Maintenance and developer experience
     Fix: `start_new_session=True` plus killing the process group on
     timeout.
 
-3- tests/tests.md test-count drift.
-    `tests/tests.md`'s per-file "Tests" column documents test counts by
-    hand and has already drifted for 4 of 12 files - `test_graph.py`
-    (documented 40, actually 43), `test_lifecycle.py` (5 vs 6),
-    `test_viewer.py` (6 vs 7), and `test_workspaces.py` (11 vs 12) - with
-    nothing catching it when a test is added without a matching doc edit.
-    Fix: add a test asserting each documented count in `tests/tests.md`
-    matches the actual `def test_` count for its corresponding file.
-
 Suggestions
 
 - The `Write|Edit` `PreToolUse` hooks disagree on fail-open vs fail-closed
