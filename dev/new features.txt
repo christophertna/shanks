@@ -2,7 +2,26 @@ Shanks feature roadmap
 
 Priority 1 - Maintenance and developer experience
 
-1- tests/tests.md test-count drift.
+1- Build-agent environment leak.
+    `_agent_environment()` (`workflow/adapters.py`) passes the entire parent
+    shell environment through to the Bash-capable build agent except a
+    2-key blocklist (`GH_TOKEN`, `GITHUB_TOKEN`). Any other secret in the
+    operator's shell (cloud credentials, unrelated API keys) is visible to
+    the agent, and combined with the open network egress noted below,
+    exfiltratable.
+    Fix: invert to an explicit allowlist of environment keys the agent
+    actually needs.
+
+2- Subprocess timeout doesn't kill grandchild processes.
+    Both `subprocess.run(..., timeout=...)` call sites in
+    `workflow/adapters.py` rely on Python's default `TimeoutExpired`
+    handling, which only signals the direct child - a command invoked
+    through a wrapper (`sandbox-exec`, a shell) can leave grandchild
+    processes running past the deadline.
+    Fix: `start_new_session=True` plus killing the process group on
+    timeout.
+
+3- tests/tests.md test-count drift.
     `tests/tests.md`'s per-file "Tests" column documents test counts by
     hand and has already drifted for 4 of 12 files - `test_graph.py`
     (documented 40, actually 43), `test_lifecycle.py` (5 vs 6),
@@ -13,6 +32,23 @@ Priority 1 - Maintenance and developer experience
 
 Suggestions
 
+- The `Write|Edit` `PreToolUse` hooks disagree on fail-open vs fail-closed
+  when `jq` is missing: `guard-dependency-files.sh` fails open (allows the
+  write) so a missing `jq` doesn't block all edits, while `secret-scan.sh`
+  (and `deny-dangerous.sh` on `Bash`) fail closed. That split was a
+  deliberate call per-hook based on how safety-critical each one is, but
+  it's not written down anywhere as a policy - worth a short note in
+  `hooks/HOOKS.md` (or a repo convention) on when a new hook should pick
+  which, so it's a decision and not just whatever the author of the next
+  hook happens to do.
+- `dev/new features.txt` is tracked in git (`git ls-files dev/` confirms it)
+  even though `.gitignore` has a blanket `dev/` pattern and `dev/context.md`
+  says "because dev/ is ignored, it is not tracked or included in future
+  PRs unless deliberately copied out" - that note is now inaccurate for
+  this file specifically. Either deliberately untrack it and stop
+  hand-editing roadmap state into it, or update `dev/context.md` to say
+  this one file is a tracked exception, so the two docs stop disagreeing
+  about whether roadmap edits belong in a PR.
 - `tests/tests.md`'s shell-harness rows (`test-deny-dangerous.sh`,
   `test-secret-scan.sh`, `test-pre-push.sh`, `test-run-impacted-tests.sh`,
   `test-post-merge-checkout.sh`) document a "N shell checks" count with the
@@ -26,33 +62,17 @@ Suggestions
   differently-named helpers (`check` and `check_bash`). Needs either a
   shared counting convention across the harnesses or per-script parsing
   logic before it can be auto-verified the same way.
-- Split oversized workflow modules for maintainability and iteration speed.
-  `workflow/adapters.py` combines agent, critic, test, GitHub, parsing, and
-  security boundaries, while `workflow/nodes.py` combines orchestration,
-  routing, retries, delivery, and audit helpers. When change volume justifies
-  the churn, turn each into a focused package while preserving public imports
-  and test coverage. This is a developer-experience optimization, not a
-  runtime-performance optimization.
-- Preserve fail-closed token, branch, reviewer, label, and subprocess policies
-  as new lifecycle capabilities are added.
-- Add a `UserPromptSubmit` hook that injects fresh state before Claude reads
-  the prompt: current branch, recent commits, open PR status, and whether
-  `.venv/bin/python -m unittest discover -s tests` currently passes, so a run
-  never starts blind on a broken build.
-- Add a `PostToolUse` hook that runs Black/Ruff (and mypy) on the exact file
-  Claude just touched and feeds failures back immediately, instead of only
-  catching them later at `scripts/quality_gates.py --diff-base origin/main`.
-- For Ralph/graph runs (not Claude Code sessions), inject into the next agent
-  prompt only state the graph doesn't already track through `WorkflowState` —
-  worktree drift from outside the run, or upstream `main` moving since the run
-  started — as a preflight check inside `workflow/nodes.py`, not a generic
-  hook, so it stays versioned and available to every downstream node.
-- The check itself is cross-platform, but `./shanks doctor`'s Git/gh version
-  check only guards a stale local dev machine (macOS here); CI's
-  `ubuntu-latest` always ships far newer versions, so the documented floor
-  (Git 2.30, gh 2.40) is never actually exercised on Linux either. Pinning
-  old Git/gh versions in CI to prove the floor works is real setup effort for
-  a small payoff — defer unless a real floor-version bug shows up.
+- `scripts/quality_gates.py`'s mypy target list only checks `adapters.py`,
+  `contracts.py`, `retries.py`, and `state.py` - `nodes.py`, `lifecycle.py`,
+  `workspaces.py`, `cli.py`, and `graph.py` (the largest and most stateful
+  modules) are unchecked. Extend the list once those modules are clean under
+  mypy, or budget time to fix what surfaces.
+- No audit trail of what Ralph actually did inside a session - the run
+  manifest records the launching command and the final `--print` output,
+  not the individual tool calls (files read/written, Bash commands run)
+  during the session. Would help post-incident review; capturing
+  `--output-format stream-json` (or equivalent) into the run manifest is
+  the likely shape.
 - `critic_auditor` runs *before* `validation` in the graph (build -> critic
   -> validate), and `ClaudeOpus48CriticAdapter` has no `Bash` at all, so it
   can never actually run the tests it's judging - only reason from source.
@@ -60,59 +80,48 @@ Suggestions
   commands read-only, so the two critics have materially different
   verification power. Worth a design discussion, not just a permissions
   tweak, before changing it.
-- No audit trail of what Ralph actually did inside a session - the run
-  manifest records the launching command and the final `--print` output,
-  not the individual tool calls (files read/written, Bash commands run)
-  during the session. Would help post-incident review; capturing
-  `--output-format stream-json` (or equivalent) into the run manifest is
-  the likely shape.
-- The `Write|Edit` `PreToolUse` hooks disagree on fail-open vs fail-closed
-  when `jq` is missing: `guard-dependency-files.sh` fails open (allows the
-  write) so a missing `jq` doesn't block all edits, while `secret-scan.sh`
-  (and `deny-dangerous.sh` on `Bash`) fail closed. That split was a
-  deliberate call per-hook based on how safety-critical each one is, but
-  it's not written down anywhere as a policy - worth a short note in
-  `hooks/HOOKS.md` (or a repo convention) on when a new hook should pick
-  which, so it's a decision and not just whatever the author of the next
-  hook happens to do.
+- For Ralph/graph runs (not Claude Code sessions), inject into the next agent
+  prompt only state the graph doesn't already track through `WorkflowState` —
+  worktree drift from outside the run, or upstream `main` moving since the run
+  started — as a preflight check inside `workflow/nodes.py`, not a generic
+  hook, so it stays versioned and available to every downstream node.
+- Add a `UserPromptSubmit` hook that injects fresh state before Claude reads
+  the prompt: current branch, recent commits, open PR status, and whether
+  `.venv/bin/python -m unittest discover -s tests` currently passes, so a run
+  never starts blind on a broken build.
+- Add a `PostToolUse` hook that runs Black/Ruff (and mypy) on the exact file
+  Claude just touched and feeds failures back immediately, instead of only
+  catching them later at `scripts/quality_gates.py --diff-base origin/main`.
+- `workflow/adapters.py` hardcodes the Claude read-only `--tools` string
+  `"Read,Grep,Glob"` independently in three places - `DebuggerAdapter`'s
+  claude branch, `ClaudeAdapter`'s `read_only=True` branch, and
+  `ClaudeOpus48CriticAdapter` - with no shared constant, the same drift
+  risk shape as the doctor/preflight and HOOKS.md sync items above but
+  internal to this one file. Two of the three also duplicate the identical
+  `json.dumps(json.loads(PATH.read_text(encoding="utf-8")))`
+  schema-loading line. Fix: extract a `CLAUDE_READ_ONLY_TOOLS` constant
+  (and maybe a small `_load_json_schema(path)` helper) once a fourth
+  read-only Claude adapter shows up, or sooner if the tool list itself
+  needs to change.
+- Split oversized workflow modules for maintainability and iteration speed.
+  `workflow/adapters.py` combines agent, critic, test, GitHub, parsing, and
+  security boundaries, while `workflow/nodes.py` combines orchestration,
+  routing, retries, delivery, and audit helpers. When change volume justifies
+  the churn, turn each into a focused package while preserving public imports
+  and test coverage. This is a developer-experience optimization, not a
+  runtime-performance optimization.
+- The check itself is cross-platform, but `./shanks doctor`'s Git/gh version
+  check only guards a stale local dev machine (macOS here); CI's
+  `ubuntu-latest` always ships far newer versions, so the documented floor
+  (Git 2.30, gh 2.40) is never actually exercised on Linux either. Pinning
+  old Git/gh versions in CI to prove the floor works is real setup effort for
+  a small payoff — defer unless a real floor-version bug shows up.
 - `./shanks doctor`'s `tools` check only verifies `gitleaks`/`jq` are
   present, not their version (unlike `git`/`gh`, which have
   `_MIN_TOOL_VERSIONS`) - a `gitleaks` upgrade could silently change
   detection rules/behavior with nothing to notice. Low urgency; worth a
   version floor if a real detection regression ever traces back to a
   `gitleaks` upgrade.
-- Lesson from `hooks/pr-checkpoint-reminder.sh` (built, then removed this
-  session): before adding a new advisory `PreToolUse`/`PostToolUse` hook as
-  a "safeguard" against an agent skipping a step, check that the failure
-  mode is actually a tool-call boundary. Hooks can't see whether the agent
-  chose prose over calling a tool at all - only tool calls that do happen.
-  That hook's whole premise didn't hold up; worth checking this before
-  building the next one.
-- `dev/new features.txt` is tracked in git (`git ls-files dev/` confirms it)
-  even though `.gitignore` has a blanket `dev/` pattern and `dev/context.md`
-  says "because dev/ is ignored, it is not tracked or included in future
-  PRs unless deliberately copied out" - that note is now inaccurate for
-  this file specifically. Either deliberately untrack it and stop
-  hand-editing roadmap state into it, or update `dev/context.md` to say
-  this one file is a tracked exception, so the two docs stop disagreeing
-  about whether roadmap edits belong in a PR.
-- `_agent_environment()` (`workflow/adapters.py`) passes the entire parent
-  shell environment through to the Bash-capable build agent except a 2-key
-  blocklist (`GH_TOKEN`, `GITHUB_TOKEN`). Any other secret in the operator's
-  shell (cloud credentials, unrelated API keys) is visible to the agent, and
-  combined with the open network egress noted above, exfiltratable. Consider
-  inverting this to an explicit allowlist of environment keys the agent
-  actually needs.
-- Both `subprocess.run(..., timeout=...)` call sites in `workflow/adapters.py`
-  rely on Python's default `TimeoutExpired` handling, which only signals the
-  direct child - a command invoked through a wrapper (`sandbox-exec`, a
-  shell) can leave grandchild processes running past the deadline. Needs
-  `start_new_session=True` plus killing the process group on timeout.
-- `scripts/quality_gates.py`'s mypy target list only checks `adapters.py`,
-  `contracts.py`, `retries.py`, and `state.py` - `nodes.py`, `lifecycle.py`,
-  `workspaces.py`, `cli.py`, and `graph.py` (the largest and most stateful
-  modules) are unchecked. Extend the list once those modules are clean under
-  mypy, or budget time to fix what surfaces.
 - `hooks/post-merge`/`hooks/post-checkout` (#44) run `graphify update .`
   synchronously, unlike `hooks/graphify-update.sh` (the Claude Code hook),
   which backgrounds the call with a lockdir debounce. Fine today since it's
@@ -134,6 +143,15 @@ Suggestions
   there's no new code to gate - the local sha for a deleted ref is all
   zeros, a cheap check to skip on. Minor cost today, worth trimming if
   branch-deletion pushes become frequent.
+- Preserve fail-closed token, branch, reviewer, label, and subprocess policies
+  as new lifecycle capabilities are added.
+- Lesson from `hooks/pr-checkpoint-reminder.sh` (built, then removed this
+  session): before adding a new advisory `PreToolUse`/`PostToolUse` hook as
+  a "safeguard" against an agent skipping a step, check that the failure
+  mode is actually a tool-call boundary. Hooks can't see whether the agent
+  chose prose over calling a tool at all - only tool calls that do happen.
+  That hook's whole premise didn't hold up; worth checking this before
+  building the next one.
 - `graph.html`'s mermaid-rendered text (`.node` labels, `.cluster-label`
   subgraph titles) lives inside an SVG `foreignObject` that mermaid sizes
   using its own default font metrics at render time - any page CSS that
@@ -157,17 +175,6 @@ Suggestions
   reverted in favor of a flat `LR` flow, but worth knowing before attempting
   another mirrored/serpentine mermaid layout so the rank-inversion isn't
   re-discovered by trial and error.
-- `workflow/adapters.py` hardcodes the Claude read-only `--tools` string
-  `"Read,Grep,Glob"` independently in three places - `DebuggerAdapter`'s
-  claude branch, `ClaudeAdapter`'s `read_only=True` branch, and
-  `ClaudeOpus48CriticAdapter` - with no shared constant, the same drift
-  risk shape as the doctor/preflight and HOOKS.md sync items above but
-  internal to this one file. Two of the three also duplicate the identical
-  `json.dumps(json.loads(PATH.read_text(encoding="utf-8")))`
-  schema-loading line. Fix: extract a `CLAUDE_READ_ONLY_TOOLS` constant
-  (and maybe a small `_load_json_schema(path)` helper) once a fourth
-  read-only Claude adapter shows up, or sooner if the tool list itself
-  needs to change.
 
 OS-specific (macOS-only mechanisms and fixes)
 
