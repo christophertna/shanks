@@ -675,6 +675,57 @@ class GitHubAdapter:
             test_output=tests.feedback,
         )
 
+    def drift_report(self) -> AgentResult:
+        """Describe upstream and worktree drift for the next agent prompt."""
+
+        # Advisory context, not a gate: an offline fetch or a detached upstream
+        # records a note and lets the run continue, unlike the safety-critical
+        # checks that fail closed.
+        upstream = f"{self.remote}/{self.base_branch}"
+        commands: list[list[str]] = []
+        notes: list[str] = []
+
+        fetch = self._run(("git", "fetch", "--quiet", self.remote, self.base_branch))
+        commands.extend(fetch.commands)
+        if fetch.status == "failed":
+            notes.append(
+                f"Could not refresh {upstream}: {fetch.error or fetch.feedback}"
+            )
+        else:
+            behind = self._run(("git", "rev-list", "--count", f"HEAD..{upstream}"))
+            commands.extend(behind.commands)
+            if behind.status == "failed":
+                notes.append(
+                    f"Could not compare this branch against {upstream}: "
+                    + (behind.error or behind.feedback)
+                )
+            elif behind.feedback.strip() not in {"", "0"}:
+                notes.append(
+                    f"This branch is {behind.feedback.strip()} commit(s) behind "
+                    f"{upstream}; rebase or account for that before assuming the "
+                    "working tree matches upstream."
+                )
+
+        status = self._run(("git", "status", "--short", "--untracked-files=all"))
+        commands.extend(status.commands)
+        if status.status == "failed":
+            notes.append(
+                "Could not read the working tree status: "
+                + (status.error or status.feedback)
+            )
+        elif status.feedback.strip():
+            notes.append(
+                "Uncommitted changes already in the worktree:\n"
+                + status.feedback.strip()
+            )
+
+        return AgentResult(
+            status="drift_checked",
+            assigned_model=self.model_name,
+            feedback="\n".join(notes),
+            commands=commands,
+        )
+
     def policy_gate(
         self,
         item_id: str,
@@ -1490,6 +1541,15 @@ class GitHubAdapter:
         if command == ("git", "branch", "--show-current"):
             return None
         if command == ("git", "rev-parse", "HEAD"):
+            return None
+        if command == ("git", "fetch", "--quiet", self.remote, self.base_branch):
+            return None
+        if command == (
+            "git",
+            "rev-list",
+            "--count",
+            f"HEAD..{self.remote}/{self.base_branch}",
+        ):
             return None
         if (
             len(command) >= 6

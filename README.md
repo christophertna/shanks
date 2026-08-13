@@ -295,6 +295,13 @@ requirements, and the diff-size limit. A failed check ends with
 test repositories can omit the preflight capability and are explicitly marked
 `preflight_skipped`.
 
+Planning then refreshes a repository drift note once per PRD item: it fetches
+`origin/main`, reports how many commits the run branch is behind it and which
+worktree changes are already uncommitted, stores that in the persisted
+`repo_drift` state field, and puts it in front of every downstream agent
+prompt. It is advisory context rather than a gate, so a failed fetch records
+the reason and the run continues.
+
 ## Interactive workflow
 
 ### Start a run

@@ -31,7 +31,7 @@ Run the repository quality gates from a feature branch with:
 | File | Tests | Main areas |
 | --- | ---: | --- |
 | [`test_cli.py`](test_cli.py) | 18 | Execution-mode reporting, doctor diagnostics (including Git/gh version checks and `core.hooksPath`), documentation-count guards for the Python and shell test suites, and run listing, status, resume, cancellation, recovery, cleanup, pruning, and safety checks |
-| [`test_graph.py`](test_graph.py) | 44 | Workflow orchestration, item metadata, targeted retries, budgets, approvals, dry-run previews, and GitHub handoff |
+| [`test_graph.py`](test_graph.py) | 45 | Workflow orchestration, item metadata, repository drift injection, targeted retries, budgets, approvals, dry-run previews, and GitHub handoff |
 | [`test_node_contracts.py`](test_node_contracts.py) | 59 | Agent, failure-classification, subprocess, Ralph, local-test, critic, quality-gate, pre-commit policy gate, recovery reconciliation, and GitHub adapter contracts |
 | [`test_state_schema.py`](test_state_schema.py) | 9 | State migration, retry metadata, versioned checkpoints, and legacy resume behavior |
 | [`test_lifecycle.py`](test_lifecycle.py) | 8 | Run leases, stale recovery, recovery-state reconciliation, interruption/resume, terminal release, and checkpoint cleanup |
@@ -39,7 +39,7 @@ Run the repository quality gates from a feature branch with:
 | [`test_viewer.py`](test_viewer.py) | 7 | Viewer HTML, execution-state data, checkpoint sharing, the live-reload module path, and Mermaid output |
 | [`test_quality_gates.py`](test_quality_gates.py) | 9 | Quality command definitions, safe diff refs, numstat parsing, generated-output handling, diff limits, and gate failure reporting |
 | [`test_fault_injection.py`](test_fault_injection.py) | 7 | Injected Git, GitHub, validation, checkpoint, and agent process failures |
-| [`test_git_integration.py`](test_git_integration.py) | 2 | Real temporary Git repositories, worktrees, commits, pushes, PR creation/reuse, and fake-`gh` recovery |
+| [`test_git_integration.py`](test_git_integration.py) | 3 | Real temporary Git repositories, worktrees, commits, pushes, PR creation/reuse, fake-`gh` recovery, and upstream/worktree drift reporting |
 | [`test_agent_integration.py`](test_agent_integration.py) | 5 | Real Codex and Claude CLI smoke tests, including the sandboxed Claude write path and the GPT-5.6 Luna/Claude Opus 4.8 critic adapters, against a small deterministic project (opt-in) |
 | [`test_sandbox_claude.py`](test_sandbox_claude.py) | 4 | `scripts/sandbox_claude.sh` write containment: allows writes inside the target directory, denies writes outside it (including a shared-temp-root sibling and a `..` escape), and falls back to unsandboxed execution when `sandbox-exec` is unavailable |
 | [`../hooks/test.hooks/test-deny-dangerous.sh`](../hooks/test.hooks/test-deny-dangerous.sh) | 8 shell checks | Dangerous-command blocking and safe-command allowlisting |
@@ -100,6 +100,9 @@ in [`test_viewer.py`](test_viewer.py).
 - Choosing `implement` enters the implementation workflow and creates the
   requested item.
 - Learning notes are carried into the later implementation planning request.
+- Planning refreshes the repository drift note once per item, stores it in
+  `repo_drift`, carries it into every downstream agent request's context, and
+  records a `drift_check` manifest event without dropping the planning event.
 
 ### Planning, building, and critic review
 

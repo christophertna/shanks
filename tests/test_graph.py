@@ -54,6 +54,16 @@ class RecordingRepository:
     transient_push_failures: int = 0
     transient_pr_failures: int = 0
     policy_gate_calls: int = 0
+    drift_feedback: str = ""
+    drift_calls: int = 0
+
+    def drift_report(self) -> AgentResult:
+        self.drift_calls += 1
+        return AgentResult(
+            status="drift_checked",
+            assigned_model="test-github",
+            feedback=self.drift_feedback,
+        )
 
     def policy_gate(
         self,
@@ -328,6 +338,41 @@ class GraphRoutingTests(unittest.TestCase):
         self.assertEqual(pull_request_event["pull_request_id"], "1")
         self.assertEqual(pull_request_event["pull_request_state"], "open")
         self.assertEqual(result["pr_state"], "open")
+
+    def test_repository_drift_reaches_every_agent_prompt(self) -> None:
+        repository = RecordingRepository(
+            drift_feedback="This branch is 2 commit(s) behind origin/main.",
+        )
+        builder = SequenceAdapter(
+            "builder",
+            [AgentResult(status="built", assigned_model="builder", item_built=True)],
+        )
+        dependencies = NodeDependencies(
+            planner=StubAgentAdapter("planner", "planner"),
+            builder=builder,
+            critic=StubAgentAdapter("critic", "critic"),
+            validator=StubAgentAdapter("validator", "validator"),
+            debugger=StubAgentAdapter("debugger", "debugger"),
+            repository=repository,
+        )
+
+        result = invoke_with_approvals(
+            build_graph(dependencies),
+            _initial_state(),
+            {"configurable": {"thread_id": "repo-drift"}},
+        )
+
+        self.assertEqual(repository.drift_calls, 1)
+        self.assertEqual(result["repo_drift"], repository.drift_feedback)
+        self.assertIn(repository.drift_feedback, builder.requests[0].context)
+        drift_event = next(
+            event for event in result["run_manifest"] if event["node"] == "drift_check"
+        )
+        self.assertEqual(drift_event["status"], "drift_checked")
+        self.assertTrue(
+            any(event["node"] == "planning" for event in result["run_manifest"]),
+            "the planning audit event must survive the drift audit event",
+        )
 
     def test_cancel_run_stops_before_builder(self) -> None:
         builder = SequenceAdapter(

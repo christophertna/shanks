@@ -78,6 +78,7 @@ class WorkflowState(TypedDict, total=False):
     item_built: bool
     completed_items: list[str]
     learning_notes: str
+    repo_drift: str
     status: str
     failure_class: str
     failure_node: str
@@ -291,4 +292,5 @@ def migrate_state(state: Mapping[str, Any]) -> WorkflowState:
     migrated.setdefault("run_last_heartbeat_at", 0.0)
     migrated.setdefault("run_recovery_count", 0)
     migrated.setdefault("policy_gate_passed", False)
+    migrated.setdefault("repo_drift", "")
     return cast(WorkflowState, migrated)

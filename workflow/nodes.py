@@ -801,6 +801,10 @@ def planning(state: WorkflowState, dependencies: NodeDependencies) -> WorkflowSt
     if selected is None:
         return {"status": "complete"}
 
+    # ponytail: refreshed once per item, not per node call, so a long build
+    # loop can still go stale mid-item. Move it into _versioned_node if that
+    # ever matters more than one git fetch per node.
+    state = _with_drift(state, dependencies)
     item_index, item = selected
     item_id = item.get("id", f"item-{item_index + 1}")
     previous_item_id = state.get("current_item_id")
@@ -841,6 +845,7 @@ def planning(state: WorkflowState, dependencies: NodeDependencies) -> WorkflowSt
             "current_item_index": item_index,
             "current_item_id": item_id,
             "current_item_title": item.get("title", ""),
+            "repo_drift": state.get("repo_drift", ""),
             "plan": result.plan or _default_plan(),
             "builder_instructions": result.builder_instructions
             or result.feedback
@@ -1687,6 +1692,21 @@ def _approval_denied(action: str) -> WorkflowState:
     }
 
 
+def _with_drift(
+    state: WorkflowState,
+    dependencies: NodeDependencies,
+) -> WorkflowState:
+    """Refresh the worktree/upstream drift note carried into agent prompts."""
+
+    check = getattr(dependencies.repository, "drift_report", None)
+    if check is None:
+        return state
+    result = check()
+    update: WorkflowState = {"repo_drift": result.feedback}
+    update.update(_audit_result(state, "drift_check", result))
+    return {**state, **update}
+
+
 def _request_for(
     state: WorkflowState,
     item: PRDItem,
@@ -1694,6 +1714,7 @@ def _request_for(
     *,
     instructions: str | None = None,
 ) -> AgentRequest:
+    drift = state.get("repo_drift", "")
     return AgentRequest(
         task=state.get("task", ""),
         item_id=item_id,
@@ -1707,7 +1728,14 @@ def _request_for(
             if instructions is not None
             else state.get("builder_instructions", "")
         ),
-        context=state.get("root_cause", ""),
+        context="\n\n".join(
+            part
+            for part in (
+                f"Repository drift since this run started:\n{drift}" if drift else "",
+                state.get("root_cause", ""),
+            )
+            if part
+        ),
         working_directory=_state_workspace_directory(state),
         timeout_seconds=remaining_runtime_seconds(state),
     )

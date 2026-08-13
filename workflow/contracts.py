@@ -94,6 +94,11 @@ class RepositoryAdapter(Protocol):
 
         ...
 
+    def drift_report(self) -> AgentResult:
+        """Report upstream and worktree drift for the next agent prompt."""
+
+        ...
+
     def policy_gate(
         self,
         item_id: str,
