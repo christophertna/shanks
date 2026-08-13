@@ -29,7 +29,20 @@ SANDBOX_CLAUDE_SCRIPT_PATH = (
 ITEM_BUILT_MARKER = "<promise>ITEM_BUILT</promise>"
 UNCERTAINTIES_MARKER = "RALPH_UNCERTAINTIES:"
 ALLOWED_AGENT_EXECUTABLES = frozenset({"bash", "claude", "codex", "python", "python3"})
-AGENT_BLOCKED_ENVIRONMENT_KEYS = frozenset({"GH_TOKEN", "GITHUB_TOKEN"})
+AGENT_ALLOWED_ENVIRONMENT_KEYS = frozenset(
+    {
+        "HOME",
+        "LANG",
+        "LC_ALL",
+        "PATH",
+        "SHELL",
+        "TMPDIR",
+        "TMP",
+        "TEMP",
+        "ANTHROPIC_API_KEY",
+        "OPENAI_API_KEY",
+    }
+)
 GITHUB_ENVIRONMENT_KEYS = frozenset(
     {
         "GH_HOST",
@@ -1601,12 +1614,12 @@ class GitHubAdapter:
 
 
 def _agent_environment() -> dict[str, str]:
-    """Keep GitHub credentials out of agent and test subprocesses."""
+    """Give agent subprocesses only the environment keys they need to run."""
 
     return {
         key: value
         for key, value in os.environ.items()
-        if key not in AGENT_BLOCKED_ENVIRONMENT_KEYS
+        if key in AGENT_ALLOWED_ENVIRONMENT_KEYS
     }
 
 
