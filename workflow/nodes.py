@@ -6,7 +6,7 @@ import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from langgraph.errors import GraphInterrupt, NodeError
 from langgraph.types import Command, interrupt
@@ -41,8 +41,8 @@ from .state import (
     PRDItem,
     WorkflowState,
     acceptance_criteria_for_item,
-    append_run_manifest,
     migrate_state,
+    run_manifest_event,
     validation_command_for_item,
 )
 from .retries import classify_failure, retry_delay, retryable_failure
@@ -192,6 +192,10 @@ def _versioned_node(
             }
         run_id = stored_run_id or thread_id
         lifecycle_update: WorkflowState = {}
+        # Events recorded around the wrapped node. They have to travel in the
+        # returned update, not in `current`: the reducer only sees what a node
+        # returns, and `current` is a local read-only view.
+        events: list[dict[str, Any]] = []
         recovered = False
         if lifecycle_manager is not None and run_id:
             try:
@@ -206,15 +210,15 @@ def _versioned_node(
                     "failure_node": "lease",
                     "state_schema_version": CURRENT_STATE_SCHEMA_VERSION,
                 }
-                failure.update(
-                    append_run_manifest(
-                        current,
+                failure["run_manifest"] = [
+                    *events,
+                    run_manifest_event(
                         "run_locked",
                         run_id=run_id,
                         status="blocked",
                         error=str(error),
-                    )
-                )
+                    ),
+                ]
                 return failure
             lifecycle_update = {
                 "run_lifecycle_status": "running",
@@ -225,9 +229,8 @@ def _versioned_node(
             recovered = lease.recovered
             if lease.recovered:
                 current = {**current, **lifecycle_update}
-                current.update(
-                    append_run_manifest(
-                        current,
+                events.append(
+                    run_manifest_event(
                         "run_recovered",
                         run_id=run_id,
                         previous_owner=lease.previous_owner,
@@ -254,15 +257,15 @@ def _versioned_node(
                     **lifecycle_update,
                     "state_schema_version": CURRENT_STATE_SCHEMA_VERSION,
                 }
-                failure.update(
-                    append_run_manifest(
-                        current,
+                failure["run_manifest"] = [
+                    *events,
+                    run_manifest_event(
                         "workspace",
                         run_id=run_id,
                         status="failed",
                         error=str(error),
-                    )
-                )
+                    ),
+                ]
                 return failure
         workspace_directory = (
             workspace.directory
@@ -293,17 +296,19 @@ def _versioned_node(
             with workspace_scope(workspace_directory):
                 reason = _stop_reason(current)
                 if reason:
-                    return {
+                    stopped: WorkflowState = {
                         **workspace_update,
                         **lifecycle_update,
                         **_stop_update(current, reason),
                     }
+                    if events:
+                        stopped["run_manifest"] = events
+                    return stopped
                 if recovered and workspace is not None:
                     problems = _reconcile_recovered_state(current, workspace)
                     if problems:
-                        current.update(
-                            append_run_manifest(
-                                current,
+                        events.append(
+                            run_manifest_event(
                                 "recovery_reconciliation_mismatch",
                                 run_id=run_id,
                                 problems=problems,
@@ -330,6 +335,7 @@ def _versioned_node(
             if lifecycle_manager is not None and run_id:
                 lifecycle_manager.mark_interrupted(run_id)
             raise
+        events.extend(update.pop("run_manifest", []))
         if lifecycle_manager is not None and run_id:
             try:
                 heartbeat = lifecycle_manager.heartbeat(run_id)
@@ -343,9 +349,8 @@ def _versioned_node(
                         "failure_node": "lease",
                     }
                 )
-                update.update(
-                    append_run_manifest(
-                        {**current, **update},
+                events.append(
+                    run_manifest_event(
                         "lease_lost",
                         run_id=run_id,
                         error=str(error),
@@ -369,6 +374,8 @@ def _versioned_node(
             if status in TERMINAL_RUN_STATUSES:
                 update["run_lifecycle_status"] = _run_lifecycle_status(status)
         update["state_schema_version"] = CURRENT_STATE_SCHEMA_VERSION
+        if events:
+            update["run_manifest"] = events
         return update
 
     return run
@@ -654,15 +661,15 @@ def _apply_failure_policy(
                 "retry_delay_seconds": delay,
             }
         )
-        update.update(
-            append_run_manifest(
-                {**state, **update},
+        _record_events(
+            update,
+            run_manifest_event(
                 "retry",
                 node=node,
                 failure_class=result.failure_class,
                 retry_number=retry_number,
                 delay_seconds=delay,
-            )
+            ),
         )
     return update
 
@@ -722,7 +729,7 @@ def preflight(
         return {"status": "preflight_skipped"}
     result = check()
     update = state_update_from_result(result)
-    update.update(_audit_result(state, "preflight", result))
+    _record_events(update, _audit_result("preflight", result))
     return _apply_failure_policy(state, "preflight", result, update)
 
 
@@ -783,7 +790,7 @@ def learning(state: WorkflowState, dependencies: NodeDependencies) -> WorkflowSt
     )
     result = dependencies.planner.run(request)
     update = state_update_from_result(result)
-    update.update(_audit_result(state, "learning", result, request))
+    _record_events(update, _audit_result("learning", result, request))
     update.update(
         {
             "workflow_mode": None,
@@ -804,7 +811,7 @@ def planning(state: WorkflowState, dependencies: NodeDependencies) -> WorkflowSt
     # ponytail: refreshed once per item, not per node call, so a long build
     # loop can still go stale mid-item. Move it into _versioned_node if that
     # ever matters more than one git fetch per node.
-    state = _with_drift(state, dependencies)
+    state, drift_events = _with_drift(state, dependencies)
     item_index, item = selected
     item_id = item.get("id", f"item-{item_index + 1}")
     previous_item_id = state.get("current_item_id")
@@ -839,7 +846,7 @@ def planning(state: WorkflowState, dependencies: NodeDependencies) -> WorkflowSt
     request = _request_for(state, item, item_id, instructions=instructions)
     result = dependencies.planner.run(request)
     update = state_update_from_result(result)
-    update.update(_audit_result(state, "planning", result, request))
+    _record_events(update, *drift_events, _audit_result("planning", result, request))
     update.update(
         {
             "current_item_index": item_index,
@@ -920,7 +927,7 @@ def building(state: WorkflowState, dependencies: NodeDependencies) -> WorkflowSt
     )
     result = dependencies.builder.run(request)
     update = _merge_files(state, state_update_from_result(result))
-    update.update(_audit_result(state, "building", result, request))
+    _record_events(update, _audit_result("building", result, request))
     attempts_count = state.get("attempts_count", 0) + 1
     total_attempts = state.get("total_attempts", 0) + 1
     item_id = state.get("current_item_id", "")
@@ -979,7 +986,7 @@ def critic_auditor(
     )
     result = dependencies.critic.run(request)
     update = state_update_from_result(result)
-    update.update(_audit_result(state, "critic_auditor", result, request))
+    _record_events(update, _audit_result("critic_auditor", result, request))
     update.update(
         {
             "critic_model": result.assigned_model,
@@ -1007,7 +1014,7 @@ def validation(
     result = dependencies.validator.run(request)
     passed = bool(result.validation_passed)
     update = state_update_from_result(result)
-    update.update(_audit_result(state, "validation", result, request))
+    _record_events(update, _audit_result("validation", result, request))
     update.update(
         {
             "validation_passed": passed,
@@ -1045,7 +1052,7 @@ def debugger(
     )
     result = dependencies.debugger.run(request)
     update = state_update_from_result(result)
-    update.update(_audit_result(state, "debugger", result, request))
+    _record_events(update, _audit_result("debugger", result, request))
     update.update(
         {
             "debugger_model": result.assigned_model,
@@ -1101,7 +1108,7 @@ def pre_commit_policy_gate(
     files_touched = list(state.get("files_touched_by_item", {}).get(item_id, []))
     result = repository.policy_gate(item_id, item_title, files_touched)
     update = state_update_from_result(result)
-    update.update(_audit_result(state, "pre_commit_policy_gate", result))
+    _record_events(update, _audit_result("pre_commit_policy_gate", result))
     update["policy_gate_passed"] = result.status == "policy_gate_passed"
     return _apply_failure_policy(state, "pre_commit_policy_gate", result, update)
 
@@ -1155,7 +1162,7 @@ def commit_item(
     else:
         result = repository.commit_item(item_id, item_title, files_touched)
     update = state_update_from_result(result)
-    update.update(_audit_result(state, "commit_item", result))
+    _record_events(update, _audit_result("commit_item", result))
     if result.failure_class:
         update["failure_node"] = "commit_item"
     return update
@@ -1202,7 +1209,7 @@ def push_node(
     else:
         result = repository.push_branch()
     update = state_update_from_result(result)
-    update.update(_audit_result(state, "push_node", result))
+    _record_events(update, _audit_result("push_node", result))
     return _apply_failure_policy(state, "push_node", result, update)
 
 
@@ -1265,7 +1272,7 @@ def pull_request_node(
     else:
         result = repository.open_pull_request(task, branch=branch)
     update = state_update_from_result(result)
-    update.update(_audit_result(state, "pull_request_node", result))
+    _record_events(update, _audit_result("pull_request_node", result))
     return _apply_failure_policy(state, "pull_request_node", result, update)
 
 
@@ -1336,14 +1343,14 @@ def build_error_handler(
         "failure_node": "building",
         "build_completed": False,
     }
-    update.update(
-        append_run_manifest(
-            state,
+    _record_events(
+        update,
+        run_manifest_event(
             "agent_error",
             node="building",
             failure_class=failure_class,
             error=str(error.error),
-        )
+        ),
     )
     return Command(
         update=update,
@@ -1365,14 +1372,14 @@ def agent_error_handler(
         "failure_class": failure_class,
         "failure_node": node,
     }
-    update.update(
-        append_run_manifest(
-            state,
+    _record_events(
+        update,
+        run_manifest_event(
             "agent_error",
             node=node,
             failure_class=failure_class,
             error=str(error.error),
-        )
+        ),
     )
     return Command(update=update, goto="failed_run")
 
@@ -1695,16 +1702,16 @@ def _approval_denied(action: str) -> WorkflowState:
 def _with_drift(
     state: WorkflowState,
     dependencies: NodeDependencies,
-) -> WorkflowState:
-    """Refresh the worktree/upstream drift note carried into agent prompts."""
+) -> tuple[WorkflowState, list[dict[str, Any]]]:
+    """Refresh the drift note, returning it plus its audit event to record."""
 
     check = getattr(dependencies.repository, "drift_report", None)
     if check is None:
-        return state
+        return state, []
     result = check()
-    update: WorkflowState = {"repo_drift": result.feedback}
-    update.update(_audit_result(state, "drift_check", result))
-    return {**state, **update}
+    return {**state, "repo_drift": result.feedback}, [
+        _audit_result("drift_check", result)
+    ]
 
 
 def _request_for(
@@ -1741,13 +1748,26 @@ def _request_for(
     )
 
 
+def _record_events(update: WorkflowState, *events: dict[str, Any]) -> WorkflowState:
+    """Add audit events to a node update without dropping the earlier ones.
+
+    `run_manifest` is an append-only channel, so a node returns only its own
+    new events. Always go through here rather than assigning `run_manifest`
+    directly: a plain `update["run_manifest"] = [...]` silently discards
+    whatever the same node recorded before it.
+    """
+
+    if events:
+        update["run_manifest"] = [*update.get("run_manifest", []), *events]
+    return update
+
+
 def _audit_result(
-    state: WorkflowState,
     node: str,
     result: AgentResult,
     request: AgentRequest | None = None,
-) -> WorkflowState:
-    """Capture one redacted agent or repository operation in the run manifest."""
+) -> dict[str, Any]:
+    """Capture one redacted agent or repository operation as an audit event."""
 
     details: dict[str, object] = {
         "node": node,
@@ -1806,7 +1826,7 @@ def _audit_result(
         details["pull_request_reviewers"] = list(result.pr_reviewers)
     if result.pr_labels:
         details["pull_request_labels"] = list(result.pr_labels)
-    return append_run_manifest(state, "agent" if request else "repository", **details)
+    return run_manifest_event("agent" if request else "repository", **details)
 
 
 def _pull_request_id(url: str) -> str:

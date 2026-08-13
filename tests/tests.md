@@ -31,7 +31,7 @@ Run the repository quality gates from a feature branch with:
 | File | Tests | Main areas |
 | --- | ---: | --- |
 | [`test_cli.py`](test_cli.py) | 19 | Execution-mode reporting, doctor diagnostics (including Git/gh version checks and `core.hooksPath`), documentation-count guards for the Python and shell test suites, and run listing, status (including pending interrupts, drift, and recent events), resume, cancellation, recovery, cleanup, pruning, and safety checks |
-| [`test_graph.py`](test_graph.py) | 45 | Workflow orchestration, item metadata, repository drift injection, targeted retries, budgets, approvals, dry-run previews, and GitHub handoff |
+| [`test_graph.py`](test_graph.py) | 46 | Workflow orchestration, item metadata, repository drift injection, append-only run-manifest behavior, targeted retries, budgets, approvals, dry-run previews, and GitHub handoff |
 | [`test_node_contracts.py`](test_node_contracts.py) | 59 | Agent, failure-classification, subprocess, Ralph, local-test, critic, quality-gate, pre-commit policy gate, recovery reconciliation, and GitHub adapter contracts |
 | [`test_state_schema.py`](test_state_schema.py) | 9 | State migration, retry metadata, versioned checkpoints, and legacy resume behavior |
 | [`test_lifecycle.py`](test_lifecycle.py) | 8 | Run leases, stale recovery, recovery-state reconciliation, interruption/resume, terminal release, and checkpoint cleanup |
@@ -195,6 +195,12 @@ Source: [`test_fault_injection.py`](test_fault_injection.py).
   and produces a terminal cancelled state.
 - The run manifest records agent events, assigned models, planning prompts and
   item IDs, and pull-request IDs.
+- The run manifest is append-only across a two-item run: each item records its
+  own drift-check and planning events, and every event timestamp stays unique,
+  so a node that returns the whole accumulated list instead of only its new
+  events fails the check. The drop direction is covered separately by the
+  transient-build-retry test, where one node records twice (the failing build
+  audit event, then the retry event) and both must survive.
 
 ## Guardrails, hooks, and command safety
 

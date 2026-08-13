@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import operator
 from collections.abc import Callable, Mapping
 from datetime import datetime, timezone
-from typing import Any, Literal, TypedDict, cast
+from typing import Annotated, Any, Literal, TypedDict, cast
 
 CURRENT_STATE_SCHEMA_VERSION = 6
 DEFAULT_MAX_RUNTIME_SECONDS = 3600.0
@@ -63,7 +64,9 @@ class WorkflowState(TypedDict, total=False):
     max_cost_usd: float
     cancel_requested: bool
     cancel_reason: str
-    run_manifest: list[dict[str, Any]]
+    # Append-only: nodes return just their new events and the channel reducer
+    # concatenates them, so two writes in one node can no longer drop the first.
+    run_manifest: Annotated[list[dict[str, Any]], operator.add]
     build_completed: bool
     last_error: str
     assigned_model: str
@@ -209,23 +212,13 @@ _STATE_MIGRATIONS: dict[int, StateMigration] = {
 }
 
 
-def append_run_manifest(
-    state: WorkflowState,
-    event_type: str,
-    **details: Any,
-) -> WorkflowState:
-    """Append one timestamped, persisted audit event to the current run."""
+def run_manifest_event(event_type: str, **details: Any) -> dict[str, Any]:
+    """Build one timestamped audit event for the append-only run manifest."""
 
-    event = {
+    return {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "type": event_type,
         **details,
-    }
-    return {
-        "run_manifest": [
-            *state.get("run_manifest", []),
-            event,
-        ]
     }
 
 
