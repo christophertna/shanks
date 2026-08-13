@@ -30,4 +30,5 @@ __pycache__/
 .shanks/
 
 # Local development files
-dev/
+dev/*
+!dev/new features.txt

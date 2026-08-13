@@ -2,18 +2,7 @@ Shanks feature roadmap
 
 Priority 1 - Maintenance and developer experience
 
-1- Duplicated Claude read-only tools string and schema-loading line.
-    `workflow/adapters.py` hardcodes the Claude read-only `--tools` string
-    `"Read,Grep,Glob"` independently in three places - `DebuggerAdapter`'s
-    claude branch, `ClaudeAdapter`'s `read_only=True` branch, and
-    `ClaudeOpus48CriticAdapter` - with no shared constant. Two of the three
-    also duplicate the identical
-    `json.dumps(json.loads(PATH.read_text(encoding="utf-8")))`
-    schema-loading line.
-    Fix: extract a `CLAUDE_READ_ONLY_TOOLS` constant and a small
-    `_load_json_schema(path)` helper.
-
-2- `tests/tests.md` shell-harness check-count drift.
+1- `tests/tests.md` shell-harness check-count drift.
     `tests/tests.md`'s shell-harness rows (`test-deny-dangerous.sh`,
     `test-secret-scan.sh`, `test-pre-push.sh`, `test-run-impacted-tests.sh`,
     `test-post-merge-checkout.sh`) document a "N shell checks" count with
@@ -29,7 +18,7 @@ Priority 1 - Maintenance and developer experience
     per-script parsing logic), then add a regression test like the Python
     one.
 
-3- No preflight check for worktree/upstream drift on Ralph/graph runs.
+2- No preflight check for worktree/upstream drift on Ralph/graph runs.
     For Ralph/graph runs (not Claude Code sessions), the graph doesn't
     track worktree drift from outside the run, or upstream `main` moving
     since the run started, so a run can proceed on stale state.
