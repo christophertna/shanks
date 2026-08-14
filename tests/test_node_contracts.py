@@ -180,7 +180,7 @@ class NodeContractTests(unittest.TestCase):
                 self.assertTrue(callable(preview), f"GitHubAdapter lacks {name}")
                 inspect.signature(preview).bind(GitHubAdapter, *arguments)
 
-    def test_quick_git_lookups_use_a_short_subprocess_timeout(self) -> None:
+    def test_quick_read_only_lookups_use_a_short_subprocess_timeout(self) -> None:
         with TemporaryDirectory() as directory:
             adapter = GitHubAdapter(
                 Path(directory),
@@ -199,10 +199,34 @@ class NodeContractTests(unittest.TestCase):
                 ("git", "rev-parse", "HEAD"),
                 ("git", "rev-list", "--count", "HEAD..origin/main"),
                 ("git", "fetch", "--quiet", "origin", "main"),
+                ("git", "diff", "HEAD", "--no-ext-diff", "--", "example.py"),
+                (
+                    "git",
+                    "ls-files",
+                    "--others",
+                    "--exclude-standard",
+                    "--",
+                    "example.py",
+                ),
+                ("gh", "auth", "status"),
+                adapter._pull_request_list_command("shanks/run/1"),
             )
             slow = (
                 ("git", "add", "--", "example.py"),
                 adapter._quality_gate_command(),
+                (
+                    "gh",
+                    "pr",
+                    "create",
+                    "--base",
+                    "main",
+                    "--head",
+                    "shanks/run/1",
+                    "--title",
+                    "feat: deliver",
+                    "--body",
+                    "why",
+                ),
             )
             with patch("workflow.adapters._run_subprocess", side_effect=fake_run):
                 for command in (*probes, *slow):

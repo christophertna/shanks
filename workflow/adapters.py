@@ -70,16 +70,23 @@ PR_JSON_FIELDS = (
 )
 PR_LOOKUP_LIMIT = "20"
 DEFAULT_STALE_AFTER_DAYS = 30
-# Quick read-only Git lookups. They share GitHubAdapter._run with the preflight
-# test suite and quality gates, whose hour-long budget would let one stalled
-# call (an unreachable remote during the per-item drift fetch) hold a node for
-# the whole hour.
-GIT_PROBE_COMMANDS = (
+# Quick read-only lookups. They share GitHubAdapter._run with the preflight
+# test suite, quality gates, and the side-effecting `gh pr create/edit/reopen`
+# calls, whose hour-long budget would let one stalled call (an unreachable
+# remote during the per-item drift fetch, a hung `gh auth status` in preflight)
+# hold a node for the whole hour. Keep this in sync with _validate_command's
+# allowlist: every read-only command it permits belongs here, or it silently
+# falls back to the hour-long budget. Matched by prefix.
+PROBE_COMMANDS = (
     ("git", "branch", "--show-current"),
     ("git", "status", "--short", "--untracked-files=all"),
     ("git", "rev-parse", "HEAD"),
     ("git", "rev-list", "--count"),
     ("git", "fetch"),
+    ("git", "diff"),
+    ("git", "ls-files"),
+    ("gh", "auth", "status"),
+    ("gh", "pr", "list"),
 )
 _SECRET_PATTERNS = (
     re.compile(
@@ -1544,9 +1551,9 @@ class GitHubAdapter:
         )
 
     def _timeout_for(self, command: tuple[str, ...]) -> int:
-        """Cap quick Git lookups so a stalled one cannot hold a node for an hour."""
+        """Cap quick read-only lookups so a stall cannot hold a node for an hour."""
 
-        if any(command[: len(probe)] == probe for probe in GIT_PROBE_COMMANDS):
+        if any(command[: len(probe)] == probe for probe in PROBE_COMMANDS):
             return min(self.probe_timeout_seconds, self.timeout_seconds)
         return self.timeout_seconds
 
