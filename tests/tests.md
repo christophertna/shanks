@@ -215,10 +215,11 @@ Sources: [`test_node_contracts.py`](test_node_contracts.py) and
   `_preview_repository_action` passes them. Nodes reach both sets through
   `getattr(repository, "<name>", None)`, and the graph test doubles omit the
   preview methods, so only this check proves the real adapter still matches.
-- The quick read-only Git lookups reach `subprocess` with the short
-  `probe_timeout_seconds` budget while commits, pushes, and the quality-gate
-  command keep the hour-long `timeout_seconds`; a non-positive
-  `probe_timeout_seconds` is rejected at construction.
+- The quick read-only lookups - Git probes plus `gh auth status` and the
+  `gh pr list` pull-request lookup - reach `subprocess` with the short
+  `probe_timeout_seconds` budget while commits, pushes, `gh pr create`, and
+  the quality-gate command keep the hour-long `timeout_seconds`; a
+  non-positive `probe_timeout_seconds` is rejected at construction.
 - Unapproved subprocess executables are rejected before execution.
 - Working directories outside the configured allowlist are rejected before
   execution.

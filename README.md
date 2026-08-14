@@ -246,10 +246,11 @@ Default limits are: `max_runtime_seconds=3600`, `max_attempts=3` per item,
 `max_total_attempts=20`, `max_tokens=100000`, and `max_cost_usd=0.0` (cost
 enforcement disabled until a positive limit is configured). Each CLI and GitHub
 subprocess also has a 3600-second adapter timeout, except the quick read-only
-Git lookups (`branch --show-current`, `status --short`, `rev-parse HEAD`,
-`rev-list --count`, and `fetch`), which use a 60-second
-`probe_timeout_seconds` budget so a stalled remote cannot hold a node for the
-full hour.
+lookups (`git branch --show-current`, `status --short`, `rev-parse HEAD`,
+`rev-list --count`, `fetch`, `diff`, `ls-files`, plus `gh auth status` and
+`gh pr list`), which use a 60-second `probe_timeout_seconds` budget so a
+stalled remote cannot hold a node for the full hour. The side-effecting
+`gh pr create`/`edit`/`reopen` calls keep the long budget.
 
 Stop a checkpointed run cleanly at its next safe boundary:
 

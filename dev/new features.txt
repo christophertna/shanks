@@ -1,10 +1,6 @@
 Shanks feature roadmap
 
-Priority 1 - Maintenance and developer experience
-
-(Empty - promote from Priority 2 below as capacity allows.)
-
-Priority 2 - Reliability and contributor experience
+Priority 1 - Reliability and contributor experience
 
 1- `_preview_repository_action` dispatches previews dynamically, defeating
     static checking. It resolves `getattr(repository, f"preview_{action}",
@@ -51,6 +47,12 @@ Priority 2 - Reliability and contributor experience
 
 Suggestions
 
+- `PROBE_COMMANDS` and `_validate_command`'s allowlist (`workflow/adapters.py`)
+  are two hand-maintained lists that must agree: a new read-only command added
+  to the allowlist alone silently gets the hour-long `timeout_seconds` instead
+  of the 60-second probe budget. `_validate_command` is a chain of shape checks,
+  not an enumerable table, so nothing can assert the two match today. Worth
+  revisiting only if that allowlist grows enough to make the drift likely.
 - The repository drift note refreshes once per PRD item, in `planning` only.
   `learning` never receives it, and a long build -> critic -> validation ->
   debugger loop inside a single item works from the drift snapshot taken
