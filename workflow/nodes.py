@@ -28,6 +28,7 @@ from .contracts import (
     AgentRequest,
     AgentResult,
     NodeFunction,
+    PreviewRepositoryAdapter,
     RepositoryAdapter,
     state_update_from_result,
 )
@@ -1079,18 +1080,6 @@ def item_router(state: WorkflowState) -> WorkflowState:
     }
 
 
-def _preview_repository_action(
-    repository: RepositoryAdapter,
-    action: str,
-    arguments: tuple[object, ...],
-    fallback: AgentResult,
-) -> AgentResult:
-    """Use an adapter's detailed preview or a safe generic handoff preview."""
-
-    preview = getattr(repository, f"preview_{action}", None)
-    return preview(*arguments) if callable(preview) else fallback
-
-
 def pre_commit_policy_gate(
     state: WorkflowState,
     dependencies: NodeDependencies,
@@ -1144,11 +1133,10 @@ def commit_item(
     files_touched = list(state.get("files_touched_by_item", {}).get(item_id, []))
     if is_dry_run():
         message = f"feat: {item_id} - {item_title}".strip()
-        result = _preview_repository_action(
-            repository,
-            "commit_item",
-            (item_id, item_title, files_touched),
-            AgentResult(
+        if isinstance(repository, PreviewRepositoryAdapter):
+            result = repository.preview_commit_item(item_id, item_title, files_touched)
+        else:
+            result = AgentResult(
                 status="commit_preview",
                 assigned_model=str(getattr(repository, "model_name", "repository")),
                 files_touched=files_touched,
@@ -1157,8 +1145,7 @@ def commit_item(
                     ["git", "add", "--", *files_touched],
                     ["git", "commit", "--only", "-m", message, "--", *files_touched],
                 ],
-            ),
-        )
+            )
     else:
         result = repository.commit_item(item_id, item_title, files_touched)
     update = state_update_from_result(result)
@@ -1195,17 +1182,15 @@ def push_node(
 
     if is_dry_run():
         branch = state.get("run_branch", "") or "<current branch>"
-        result = _preview_repository_action(
-            repository,
-            "push_branch",
-            (),
-            AgentResult(
+        if isinstance(repository, PreviewRepositoryAdapter):
+            result = repository.preview_push_branch()
+        else:
+            result = AgentResult(
                 status="branch_push_preview",
                 assigned_model=str(getattr(repository, "model_name", "repository")),
                 feedback=f"Dry-run: would push branch {branch}.",
                 commands=[["git", "push", "-u", "origin", branch]],
-            ),
-        )
+            )
     else:
         result = repository.push_branch()
     update = state_update_from_result(result)
@@ -1242,11 +1227,10 @@ def pull_request_node(
     branch = state.get("run_branch", "")
     if is_dry_run():
         title = f"feat: {redact_secrets(' '.join(task.split()))}".strip()
-        result = _preview_repository_action(
-            repository,
-            "open_pull_request",
-            (task, branch),
-            AgentResult(
+        if isinstance(repository, PreviewRepositoryAdapter):
+            result = repository.preview_open_pull_request(task, branch=branch)
+        else:
+            result = AgentResult(
                 status="pull_request_preview",
                 assigned_model=str(getattr(repository, "model_name", "repository")),
                 feedback=(
@@ -1267,8 +1251,7 @@ def pull_request_node(
                     ]
                 ],
                 pr_state="preview",
-            ),
-        )
+            )
     else:
         result = repository.open_pull_request(task, branch=branch)
     update = state_update_from_result(result)

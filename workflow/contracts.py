@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Protocol
+from typing import Callable, Protocol, runtime_checkable
 
 from .retries import FailureClass, classify_failure
 from .state import PRDItem, WorkflowState
@@ -136,6 +136,35 @@ class RepositoryAdapter(Protocol):
 
     def publish_pr(self, task: str) -> AgentResult:
         """Push the branch and reconcile its pull request lifecycle."""
+
+        ...
+
+
+@runtime_checkable
+class PreviewRepositoryAdapter(Protocol):
+    """Optional dry-run half of `RepositoryAdapter`, checked before use."""
+
+    def preview_commit_item(
+        self,
+        item_id: str,
+        item_title: str,
+        files_touched: list[str],
+    ) -> AgentResult:
+        """Describe the commit without staging or committing anything."""
+
+        ...
+
+    def preview_push_branch(self) -> AgentResult:
+        """Describe the branch push without contacting the remote."""
+
+        ...
+
+    def preview_open_pull_request(
+        self,
+        task: str,
+        branch: str = "",
+    ) -> AgentResult:
+        """Describe PR lookup/creation without changing GitHub."""
 
         ...
 

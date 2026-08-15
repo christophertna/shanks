@@ -2,17 +2,19 @@ Shanks feature roadmap
 
 Priority 1 - Reliability and contributor experience
 
-1- `_preview_repository_action` dispatches previews dynamically, defeating
-    static checking. It resolves `getattr(repository, f"preview_{action}",
-    None)` and calls `preview(*arguments)`, so the expression is `Any` and no
-    type checker can verify the three call shapes - not even if `nodes.py`
-    were added to `scripts/quality_gates.py`'s mypy list (it is not). That is
-    how `preview_open_pull_request` shipped with a keyword-only `branch` while
-    the node passed it positionally, turning every real-adapter dry-run
-    pull-request node into a `TypeError` (found and fixed by the conformance
-    test, #74). Fix: call the three preview methods explicitly at their call
-    sites instead of resolving them by name, so signature drift is a static
-    error rather than a mid-run exception.
+1- `workflow/nodes.py` is not type-checked, so the explicit-preview fix
+    (done, see below) is only half a fix. `scripts/quality_gates.py`'s mypy
+    target list covers `quality_gates.py`, `adapters.py`, `contracts.py`,
+    `retries.py`, and `state.py` - not `nodes.py`, which is where the preview
+    call sites live. Verified: with `--follow-imports=normal`, mypy does now
+    report a wrong preview keyword at `nodes.py`, but the configured run
+    (`follow_imports = "skip"`, and `nodes.py` not in `files`) reports
+    nothing. Fix: add `workflow/nodes.py` to the mypy list and fix what
+    surfaces - note `--follow-imports=skip` makes imported protocols `Any`, so
+    the entry alone is not enough to get the check. Roughly 20 pre-existing
+    errors surface in `nodes.py` under a following run. Scoped deliberately to
+    the one module the preview fix depends on - the remaining unchecked
+    modules stay a Suggestion, since cleaning them is open-ended work.
 
 2- Dry-run mode is never exercised against the real `GitHubAdapter`.
     `test_dry_run_previews_delivery_without_repository_side_effects`
@@ -59,11 +61,23 @@ Suggestions
   before the first build. Carries a `ponytail:` comment naming the ceiling;
   moving the refresh into `_versioned_node` would fix it at the cost of one
   `git fetch` per node call.
-- `scripts/quality_gates.py`'s mypy target list only checks `adapters.py`,
-  `contracts.py`, `retries.py`, and `state.py` - `nodes.py`, `lifecycle.py`,
-  `workspaces.py`, `cli.py`, and `graph.py` (the largest and most stateful
-  modules) are unchecked. Extend the list once those modules are clean under
-  mypy, or budget time to fix what surfaces.
+- `scripts/quality_gates.py`'s mypy target list leaves `lifecycle.py`,
+  `workspaces.py`, `cli.py`, and `graph.py` (large, stateful modules)
+  unchecked. `nodes.py` is the same gap but has a concrete trigger, so it is
+  Priority 1 item 2; these four have none. Extend the list once they are clean
+  under mypy, or budget time to fix what surfaces.
+- `GitHubAdapter` ignores the run's remaining wall-clock budget.
+  `SubprocessAgentAdapter._run` (`workflow/adapters.py`) clamps its subprocess
+  timeout to `request.timeout_seconds`, fed by `remaining_runtime_seconds()`
+  (`workflow/nodes.py`), and fails with "CLI deadline has elapsed" at zero.
+  `GitHubAdapter._run` has no equivalent clamp and no channel for one - its
+  methods take plain arguments, not an `AgentRequest` - so a run already at
+  its `max_runtime_seconds` deadline can still start a fresh 3600-second
+  quality-gate or `gh pr create` call and overrun the budget by up to an hour.
+  Small exposure in practice (those commands are normally fast, and the
+  read-only lookups are capped at `probe_timeout_seconds`), but the two
+  adapters enforce the same budget inconsistently. Fix shape: thread the
+  remaining budget into `GitHubAdapter` and clamp `_timeout_for` with it.
 - No audit trail of what Ralph actually did inside a session - the run
   manifest records the launching command and the final `--print` output,
   not the individual tool calls (files read/written, Bash commands run)

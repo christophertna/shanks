@@ -25,7 +25,12 @@ from workflow.adapters import (
     _run_subprocess,
 )
 from workflow.adapters import SubprocessAgentAdapter
-from workflow.contracts import AgentRequest, AgentResult, RepositoryAdapter
+from workflow.contracts import (
+    AgentRequest,
+    AgentResult,
+    PreviewRepositoryAdapter,
+    RepositoryAdapter,
+)
 from workflow.nodes import (
     _reconcile_recovered_state,
     claude_opus_4_8_dependencies,
@@ -166,19 +171,23 @@ class NodeContractTests(unittest.TestCase):
                     inspect.signature(getattr(RepositoryAdapter, name)),
                 )
 
-        # Dry-run mode calls preview_<action>(*arguments) through
-        # _preview_repository_action; the test doubles omit these methods, so
-        # only the real adapter proves the call shapes still bind.
-        previews = {
-            "preview_commit_item": ("item-1", "First item", ["example.py"]),
-            "preview_push_branch": (),
-            "preview_open_pull_request": ("Deliver the item", "shanks/run/1"),
-        }
-        for name, arguments in previews.items():
+        # Dry-run nodes narrow on isinstance(repository, PreviewRepositoryAdapter)
+        # before calling the previews, and that runtime check only compares
+        # member names - so signatures still need asserting here.
+        previews = sorted(
+            name
+            for name in vars(PreviewRepositoryAdapter)
+            if name.startswith("preview_")
+        )
+        self.assertEqual(len(previews), 3)
+        for name in previews:
             with self.subTest(preview=name):
-                preview = getattr(GitHubAdapter, name, None)
-                self.assertTrue(callable(preview), f"GitHubAdapter lacks {name}")
-                inspect.signature(preview).bind(GitHubAdapter, *arguments)
+                implementation = getattr(GitHubAdapter, name, None)
+                self.assertTrue(callable(implementation), f"GitHubAdapter lacks {name}")
+                self.assertEqual(
+                    inspect.signature(implementation),
+                    inspect.signature(getattr(PreviewRepositoryAdapter, name)),
+                )
 
     def test_quick_read_only_lookups_use_a_short_subprocess_timeout(self) -> None:
         with TemporaryDirectory() as directory:
