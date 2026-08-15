@@ -2,21 +2,7 @@ Shanks feature roadmap
 
 Priority 1 - Reliability and contributor experience
 
-1- `workflow/nodes.py` is not type-checked, so the explicit-preview fix
-    (done, see below) is only half a fix. `scripts/quality_gates.py`'s mypy
-    target list covers `quality_gates.py`, `adapters.py`, `contracts.py`,
-    `retries.py`, and `state.py` - not `nodes.py`, which is where the preview
-    call sites live. Verified: with `--follow-imports=normal`, mypy does now
-    report a wrong preview keyword at `nodes.py`, but the configured run
-    (`follow_imports = "skip"`, and `nodes.py` not in `files`) reports
-    nothing. Fix: add `workflow/nodes.py` to the mypy list and fix what
-    surfaces - note `--follow-imports=skip` makes imported protocols `Any`, so
-    the entry alone is not enough to get the check. Roughly 20 pre-existing
-    errors surface in `nodes.py` under a following run. Scoped deliberately to
-    the one module the preview fix depends on - the remaining unchecked
-    modules stay a Suggestion, since cleaning them is open-ended work.
-
-2- Dry-run mode is never exercised against the real `GitHubAdapter`.
+1- Dry-run mode is never exercised against the real `GitHubAdapter`.
     `test_dry_run_previews_delivery_without_repository_side_effects`
     (`tests/test_graph.py`) uses `RecordingRepository`, which omits the
     `preview_*` methods entirely, so the node falls back to its generic
@@ -28,8 +14,15 @@ Priority 1 - Reliability and contributor experience
     temporary-repository harness, and the previews only run read-only Git
     commands - asserting each preview reports its `*_preview` status, emits
     the commands it would have run, and leaves the repository unchanged.
+    Also worth pinning down there: the dry-run nodes now narrow on
+    `isinstance(repository, PreviewRepositoryAdapter)` (#77), which is
+    all-or-nothing - an adapter implementing only some previews falls back to
+    the generic preview for all three, where the old per-action `getattr`
+    dispatch fell back only for the missing one. No such adapter exists today
+    (`GitHubAdapter` has all three, the graph test doubles have none), so this
+    is a documented property to assert, not a bug to fix.
 
-3- A missing `gitleaks`/`jq` reads as a secret-scan regression, not a missing
+2- A missing `gitleaks`/`jq` reads as a secret-scan regression, not a missing
     tool. The Python suite now depends on both being on `PATH`:
     `test_tests_md_shell_check_counts_match_harness_output`
     (`tests/test_cli.py`) shells out to
@@ -38,7 +31,7 @@ Priority 1 - Reliability and contributor experience
     (verified with a stripped `PATH`). Fix: detect the missing tool in that
     test and fail with a message pointing at `./shanks doctor`.
 
-4- `serve_graph.py` never registers `failed_run` in any curated viewer
+3- `serve_graph.py` never registers `failed_run` in any curated viewer
     constant (`GRAPH_NODE_ORDER`, `VIEW_NODE_LABELS`, `VIEW_MAIN_NODES`,
     `VIEW_RECOVERY_NODES`), even though it is a real, frequently-reached
     terminal node (routed to from `critic_auditor`, `debugger`, `learning`,
@@ -63,9 +56,11 @@ Suggestions
   `git fetch` per node call.
 - `scripts/quality_gates.py`'s mypy target list leaves `lifecycle.py`,
   `workspaces.py`, `cli.py`, and `graph.py` (large, stateful modules)
-  unchecked. `nodes.py` is the same gap but has a concrete trigger, so it is
-  Priority 1 item 2; these four have none. Extend the list once they are clean
-  under mypy, or budget time to fix what surfaces.
+  unchecked. `nodes.py` was the same gap but had a concrete trigger, so it was
+  Priority 1 and is now checked (#78); these four have none. Extend the list
+  once they are clean under mypy, or budget time to fix what surfaces. For
+  scale, `nodes.py` cost 18 errors to clean, nearly all of them merged-state
+  dict literals and `dict(prd_item)` copies that lose the `TypedDict` type.
 - `GitHubAdapter` ignores the run's remaining wall-clock budget.
   `SubprocessAgentAdapter._run` (`workflow/adapters.py`) clamps its subprocess
   timeout to `request.timeout_seconds`, fed by `remaining_runtime_seconds()`

@@ -6,7 +6,7 @@ import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Callable, Literal, cast, get_args
 
 from langgraph.errors import GraphInterrupt, NodeError
 from langgraph.types import Command, interrupt
@@ -110,6 +110,8 @@ def default_dependencies(
         base_branch=base_branch,
         worktree_root=worktree_root,
     )
+    planner: AgentAdapter
+    default_critic: AgentAdapter
     if tool == "claude":
         planner = ClaudeAdapter(project_directory)
         default_critic = ClaudeOpus48CriticAdapter(project_directory)
@@ -168,11 +170,16 @@ def _item_complete(item: PRDItem) -> bool:
     return item.get("validation", True)
 
 
+# The wrapper takes a plain state-only node and returns the config-aware form
+# LangGraph actually calls, so it is not a `NodeFunction` itself.
+ConfiguredNodeFunction = Callable[[WorkflowState, RunnableConfig], WorkflowState]
+
+
 def _versioned_node(
     node: NodeFunction,
     workspace_manager: RunWorkspaceManager | None = None,
     lifecycle_manager: RunLifecycleManager | None = None,
-) -> NodeFunction:
+) -> ConfiguredNodeFunction:
     """Migrate state, enforce run budgets, and stamp every checkpoint."""
 
     def run(
@@ -249,7 +256,7 @@ def _versioned_node(
                         status="preflight_failed",
                         last_error=str(error),
                     )
-                failure: WorkflowState = {
+                failure = {
                     "run_id": run_id,
                     "status": "preflight_failed",
                     "last_error": f"Could not create isolated workspace: {error}",
@@ -327,10 +334,10 @@ def _versioned_node(
                                 "problems": problems,
                             }
                         )
-                update = {
+                update: WorkflowState = {
                     **workspace_update,
                     **lifecycle_update,
-                    **dict(node(current)),
+                    **node(current),
                 }
         except GraphInterrupt:
             if lifecycle_manager is not None and run_id:
@@ -366,7 +373,7 @@ def _versioned_node(
                 )
         update["run_started_at"] = float(started_at)
         update.update(_usage_totals(current, update))
-        merged = {**current, **update}
+        merged: WorkflowState = {**current, **update}
         reason = _stop_reason(merged)
         if reason:
             update.update(_stop_update(merged, reason))
@@ -608,19 +615,20 @@ def remaining_runtime_seconds(state: WorkflowState) -> float | None:
     return None
 
 
-_RETRYABLE_NODES = frozenset(
-    {
-        "preflight",
-        "learning",
-        "planning",
-        "building",
-        "critic_auditor",
-        "validation",
-        "debugger",
-        "push_node",
-        "pull_request_node",
-    }
-)
+RetryTarget = Literal[
+    "preflight",
+    "learning",
+    "planning",
+    "building",
+    "critic_auditor",
+    "validation",
+    "debugger",
+    "push_node",
+    "pull_request_node",
+]
+
+# Derived from the alias so the set and the router's return type cannot drift.
+_RETRYABLE_NODES: frozenset[RetryTarget] = frozenset(get_args(RetryTarget))
 
 
 def _apply_failure_policy(
@@ -634,7 +642,7 @@ def _apply_failure_policy(
     if not result.failure_class:
         return update
 
-    effective_state = {**state, **update}
+    effective_state: WorkflowState = {**state, **update}
     retry_counts = dict(effective_state.get("retry_counts", {}))
     retry_number = retry_counts.get(node, 0) + 1
     retry_counts[node] = retry_number
@@ -683,7 +691,7 @@ def _exception_failure_class(error: BaseException) -> str:
 
 def create_nodes(
     dependencies: NodeDependencies | None = None,
-) -> dict[str, NodeFunction]:
+) -> dict[str, ConfiguredNodeFunction]:
     """Create state-only node callables with injected agent backends."""
 
     deps = dependencies or default_dependencies()
@@ -816,7 +824,7 @@ def planning(state: WorkflowState, dependencies: NodeDependencies) -> WorkflowSt
     item_index, item = selected
     item_id = item.get("id", f"item-{item_index + 1}")
     previous_item_id = state.get("current_item_id")
-    item = dict(item)
+    item = item.copy()
     prd_items_update: list[PRDItem] | None = None
     debugger_details = _debugger_details(state, item_id, previous_item_id)
     if debugger_details:
@@ -826,7 +834,7 @@ def planning(state: WorkflowState, dependencies: NodeDependencies) -> WorkflowSt
                 part for part in (description, debugger_details) if part
             )
             prd_items_update = [
-                dict(existing_item) for existing_item in state.get("prd_items", [])
+                existing_item.copy() for existing_item in state.get("prd_items", [])
             ]
             prd_items_update[item_index] = item
     learned_context = state.get("learning_notes", "")
@@ -1520,26 +1528,16 @@ def route_after_debugger(
 
 def route_after_retry_backoff(
     state: WorkflowState,
-) -> Literal[
-    "preflight",
-    "learning",
-    "planning",
-    "building",
-    "critic_auditor",
-    "validation",
-    "debugger",
-    "push_node",
-    "pull_request_node",
-    "failed_run",
-    "stop_run",
-]:
+) -> RetryTarget | Literal["failed_run", "stop_run"]:
     """Return to the exact safe node that classified the transient failure."""
 
     if _run_stopped(state):
         return "stop_run"
     target = state.get("retry_target")
     if target in _RETRYABLE_NODES:
-        return target
+        # `retry_target` is a plain `str` in state, so the membership check is
+        # what proves it is a `RetryTarget`; the set is typed, not the field.
+        return cast(RetryTarget, target)
     return "failed_run"
 
 
@@ -1712,7 +1710,7 @@ def _request_for(
         item_description=item.get("description", ""),
         acceptance_criteria=acceptance_criteria_for_item(item),
         validation_command=validation_command_for_item(item),
-        prd_items=[dict(prd_item) for prd_item in state.get("prd_items", [])],
+        prd_items=[prd_item.copy() for prd_item in state.get("prd_items", [])],
         instructions=(
             instructions
             if instructions is not None
@@ -1852,7 +1850,7 @@ def _merge_files(
 
 
 def _mark_current_item_built(state: WorkflowState) -> list[PRDItem]:
-    items = [dict(item) for item in state.get("prd_items", [])]
+    items = [item.copy() for item in state.get("prd_items", [])]
     index = state.get("current_item_index", 0)
     if 0 <= index < len(items):
         items[index]["passes"] = True
@@ -1864,7 +1862,7 @@ def _mark_current_item_validated(
     state: WorkflowState,
     passed: bool,
 ) -> list[PRDItem]:
-    items = [dict(item) for item in state.get("prd_items", [])]
+    items = [item.copy() for item in state.get("prd_items", [])]
     index = state.get("current_item_index", 0)
     if 0 <= index < len(items):
         items[index]["validation"] = passed

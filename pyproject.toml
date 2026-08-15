@@ -19,6 +19,7 @@ files = [
     "scripts/quality_gates.py",
     "workflow/adapters.py",
     "workflow/contracts.py",
+    "workflow/nodes.py",
     "workflow/retries.py",
     "workflow/state.py",
 ]
