@@ -233,6 +233,14 @@ Sources: [`test_node_contracts.py`](test_node_contracts.py) and
 - The exact quality-gate command is allowed, while altered script paths, refs,
   and extra flags remain rejected.
 
+The Python test that drives these harnesses first checks `bash`, `jq`, and
+`gitleaks` are on `PATH` and fails with a message pointing at `./shanks doctor`
+when one is not. Every hook the harnesses exercise fails closed without those
+binaries, so a missing tool would otherwise report a long list of
+`expected=allow got=block` guard regressions instead of an unset-up machine.
+The list is asserted to be a subset of `./shanks doctor`'s required tools, so
+the two cannot drift.
+
 ### Shell guard regression checks
 
 The shell harness invokes `hooks/deny-dangerous.sh`, classifies each command as

@@ -2,16 +2,7 @@ Shanks feature roadmap
 
 Priority 1 - Reliability and contributor experience
 
-1- A missing `gitleaks`/`jq` reads as a secret-scan regression, not a missing
-    tool. The Python suite now depends on both being on `PATH`:
-    `test_tests_md_shell_check_counts_match_harness_output`
-    (`tests/test_cli.py`) shells out to
-    `hooks/test.hooks/test-secret-scan.sh`, which fails closed when either
-    binary is absent, so the failure prints `expected=allow got=block` lines
-    (verified with a stripped `PATH`). Fix: detect the missing tool in that
-    test and fail with a message pointing at `./shanks doctor`.
-
-2- `serve_graph.py` never registers `failed_run` in any curated viewer
+1- `serve_graph.py` never registers `failed_run` in any curated viewer
     constant (`GRAPH_NODE_ORDER`, `VIEW_NODE_LABELS`, `VIEW_MAIN_NODES`,
     `VIEW_RECOVERY_NODES`), even though it is a real, frequently-reached
     terminal node (routed to from `critic_auditor`, `debugger`, `learning`,
