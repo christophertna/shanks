@@ -209,12 +209,12 @@ Sources: [`test_node_contracts.py`](test_node_contracts.py) and
 
 ### Process and workspace boundaries
 
-- `GitHubAdapter` implements every `RepositoryAdapter` member with an identical
-  signature, and the dry-run `preview_commit_item`/`preview_push_branch`/
-  `preview_open_pull_request` methods still bind the arguments
-  `_preview_repository_action` passes them. Nodes reach both sets through
-  `getattr(repository, "<name>", None)`, and the graph test doubles omit the
-  preview methods, so only this check proves the real adapter still matches.
+- `GitHubAdapter` implements every `RepositoryAdapter` and
+  `PreviewRepositoryAdapter` member with an identical signature. The dry-run
+  nodes narrow with `isinstance(repository, PreviewRepositoryAdapter)` before
+  calling a preview, and that runtime check only compares member *names* - so
+  this check is what proves the signatures still match. The graph test doubles
+  omit the preview methods, so only the real adapter exercises that path.
 - The quick read-only lookups - Git probes plus `gh auth status` and the
   `gh pr list` pull-request lookup - reach `subprocess` with the short
   `probe_timeout_seconds` budget while commits, pushes, `gh pr create`, and
