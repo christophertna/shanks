@@ -51,6 +51,11 @@ class GraphViewerTests(unittest.TestCase):
         self.assertIn("Run manifest", content)
         self.assertIn('<details class="execution-shell" open>', content)
         self.assertIn('<summary class="execution-header">', content)
+        self.assertIn('class="legend-swatch main"', content)
+        self.assertIn('class="legend-swatch start"', content)
+        self.assertIn('class="legend-swatch safety"', content)
+        self.assertIn('class="legend-swatch failure"', content)
+        self.assertIn('class="legend-swatch stop"', content)
 
     def test_execution_state_reads_current_snapshot_and_history(self) -> None:
         current = SimpleNamespace(
@@ -269,20 +274,32 @@ class GraphViewerTests(unittest.TestCase):
         )
 
         self.assertIn('planning["planning"]', content)
-        self.assertIn('intake["Intake"]:::mainNode', content)
+        self.assertIn('intake["Intake"]:::learningNode', content)
         self.assertIn('preflight["Preflight"]:::mainNode', content)
-        self.assertIn('learning["Learn codebase"]:::mainNode', content)
+        self.assertIn('learning["Learn codebase"]:::learningNode', content)
         self.assertIn('building["Build"]:::mainNode', content)
-        self.assertIn('item_router{"more items"}', content)
-        self.assertIn('validation{"Validate"}:::yellowNode', content)
-        self.assertIn('pre_commit_policy_gate["Policy gate"]:::mainNode', content)
-        self.assertIn('commit_item["commit item"]:::mainNode', content)
-        self.assertIn('push_node["push branch"]:::yellowNode', content)
+        self.assertIn('item_router{"more items"}:::decisionNode', content)
+        self.assertIn('validation{"Validate"}:::decisionNode', content)
+        self.assertIn('pre_commit_policy_gate["Policy gate"]:::deliveryNode', content)
+        self.assertIn('commit_item["commit item"]:::deliveryNode', content)
+        self.assertIn('push_node["push branch"]:::deliveryNode', content)
         self.assertIn(
-            'pull_request_node["open pull request"]:::yellowNode',
+            'pull_request_node["open pull request"]:::deliveryNode',
             content,
         )
-        self.assertIn('critic_auditor["critic_auditor"]', content)
+        self.assertIn('critic_auditor["critic_auditor"]:::reviewNode', content)
+        for class_name in (
+            "mainNode",
+            "learningNode",
+            "reviewNode",
+            "decisionNode",
+            "deliveryNode",
+            "recoveryNode",
+            "failureNode",
+            "endNode",
+        ):
+            with self.subTest(class_name=class_name):
+                self.assertIn(f"classDef {class_name}", content)
         main_section = content.split("  end", 1)[0]
         self.assertIn("building --> critic_auditor", main_section)
         self.assertIn("critic_auditor -.-> building", main_section)

@@ -507,9 +507,9 @@ Source: [`test_viewer.py`](test_viewer.py).
   and critic-auditor paths.
 - Critic rejection loops back to building; debugger and item-router recovery
   paths loop back to planning.
-- Structured labels and visual classes are applied to main, decision, and
-  highlighted nodes, including Intake, Preflight, Learn codebase, Build,
-  Validate, commit item, GitHub, and the item router.
+- Structured labels and semantic visual classes are applied to core, learning,
+  review, decision, delivery, recovery, safety, failure, stopped, and
+  completion nodes, with a legend explaining the colors.
 - Detailed rendering exposes the main and recovery sections and their links.
 - Invalid or unintended edges are excluded, including direct GitHub-to-debugger
   routing, validation-to-debugger dashed styling, critic-to-validation or

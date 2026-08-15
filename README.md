@@ -10,7 +10,7 @@ implement branch continues through planning, building, review, validation, and
 the next unfinished item.
 
 The repository also includes a lightweight Mermaid viewer for seeing the main workflow
-and its recovery paths.
+and its recovery paths, with semantic node colors and a legend for every node type.
 
 ## Project structure
 

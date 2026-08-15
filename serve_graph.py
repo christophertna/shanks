@@ -61,6 +61,29 @@ VIEW_NODE_LABELS = {
     "stop_run": "Stop run",
     "__end__": "Complete",
 }
+
+VIEW_NODE_CLASSES = {
+    "__start__": "startNode",
+    "preflight": "mainNode",
+    "intake": "learningNode",
+    "learning": "learningNode",
+    "planning": "mainNode",
+    "building": "mainNode",
+    "critic_auditor": "reviewNode",
+    "validation": "decisionNode",
+    "pre_commit_policy_gate": "deliveryNode",
+    "commit_item": "deliveryNode",
+    "item_router": "decisionNode",
+    "push_node": "deliveryNode",
+    "pull_request_node": "deliveryNode",
+    "debugger": "recoveryNode",
+    "retry_backoff": "recoveryNode",
+    "attempt_limit": "safetyNode",
+    "failed_build": "failureNode",
+    "failed_run": "failureNode",
+    "stop_run": "stopNode",
+    "__end__": "endNode",
+}
 VIEW_MAIN_FLOW = (
     "__start__",
     "preflight",
@@ -429,13 +452,17 @@ def structured_mermaid(
 
     lines.extend(
         [
-            "  classDef mainNode fill:#ffffff,stroke:#2563eb,stroke-width:2px,color:#0f172a",
-            "  classDef decisionNode fill:#eff6ff,stroke:#2563eb,stroke-width:2px,color:#0f172a",
-            "  classDef yellowNode fill:#fef3c7,stroke:#ca8a04,stroke-width:2px,color:#713f12",
-            "  classDef startNode fill:#dbeafe,stroke:#2563eb,stroke-width:2px,color:#1e3a8a",
+            "  classDef mainNode fill:#dbeafe,stroke:#2563eb,stroke-width:2px,color:#1e3a8a",
+            "  classDef learningNode fill:#ccfbf1,stroke:#0f766e,stroke-width:2px,color:#134e4a",
+            "  classDef reviewNode fill:#e0e7ff,stroke:#4f46e5,stroke-width:2px,color:#312e81",
+            "  classDef decisionNode fill:#fef3c7,stroke:#ca8a04,stroke-width:2px,color:#713f12",
+            "  classDef deliveryNode fill:#ffedd5,stroke:#ea580c,stroke-width:2px,color:#7c2d12",
+            "  classDef startNode fill:#e2e8f0,stroke:#475569,stroke-width:2px,color:#1e293b",
             "  classDef endNode fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#14532d",
             "  classDef recoveryNode fill:#faf5ff,stroke:#9333ea,stroke-width:2px,color:#581c87",
-            "  classDef safetyNode fill:#fff7ed,stroke:#ea580c,stroke-width:2px,color:#7c2d12",
+            "  classDef safetyNode fill:#fce7f3,stroke:#db2777,stroke-width:2px,color:#831843",
+            "  classDef failureNode fill:#fee2e2,stroke:#dc2626,stroke-width:2px,color:#7f1d1d",
+            "  classDef stopNode fill:#f1f5f9,stroke:#64748b,stroke-width:2px,color:#334155",
         ]
     )
     return "\n".join(lines) + "\n"
@@ -450,15 +477,12 @@ def _view_node(node_id: str, decision_node_ids: set[str]) -> str:
     if node_id == "__end__":
         return f'    {node_id}(["{label}"]):::endNode'
     if node_id in {"item_router", *decision_node_ids}:
-        node_class = "yellowNode" if node_id == "validation" else "decisionNode"
+        node_class = VIEW_NODE_CLASSES.get(node_id, "decisionNode")
         return f'    {node_id}{{"{label}"}}:::{node_class}'
-    node_class = (
-        "safetyNode" if node_id in {"attempt_limit", "failed_build"} else "recoveryNode"
+    node_class = VIEW_NODE_CLASSES.get(
+        node_id,
+        "mainNode" if node_id in VIEW_MAIN_NODES else "recoveryNode",
     )
-    if node_id in VIEW_MAIN_NODES:
-        node_class = "mainNode"
-    if node_id in {"push_node", "pull_request_node"}:
-        node_class = "yellowNode"
     return f'    {node_id}["{label}"]:::{node_class}'
 
 

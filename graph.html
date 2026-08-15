@@ -111,6 +111,69 @@
         border-top-color: #9333ea;
       }
 
+      .legend-swatch {
+        display: inline-block;
+        width: 0.8rem;
+        height: 0.8rem;
+        border: 1px solid;
+        border-radius: 0.2rem;
+      }
+
+      .legend-swatch.main {
+        background: #dbeafe;
+        border-color: #2563eb;
+      }
+
+      .legend-swatch.start {
+        background: #e2e8f0;
+        border-color: #475569;
+      }
+
+      .legend-swatch.learning {
+        background: #ccfbf1;
+        border-color: #0f766e;
+      }
+
+      .legend-swatch.review {
+        background: #e0e7ff;
+        border-color: #4f46e5;
+      }
+
+      .legend-swatch.decision {
+        background: #fef3c7;
+        border-color: #ca8a04;
+      }
+
+      .legend-swatch.delivery {
+        background: #ffedd5;
+        border-color: #ea580c;
+      }
+
+      .legend-swatch.recovery {
+        background: #faf5ff;
+        border-color: #9333ea;
+      }
+
+      .legend-swatch.safety {
+        background: #fce7f3;
+        border-color: #db2777;
+      }
+
+      .legend-swatch.failure {
+        background: #fee2e2;
+        border-color: #dc2626;
+      }
+
+      .legend-swatch.stop {
+        background: #f1f5f9;
+        border-color: #64748b;
+      }
+
+      .legend-swatch.complete {
+        background: #dcfce7;
+        border-color: #16a34a;
+      }
+
       .graph-shell {
         min-height: 430px;
         padding: 1.25rem 1rem 1.5rem;
@@ -501,6 +564,17 @@
         <div class="legend" aria-label="Graph legend">
           <span class="legend-item"><span class="legend-line"></span>Main flow</span>
           <span class="legend-item"><span class="legend-line dashed"></span>Recovery / safety</span>
+          <span class="legend-item"><span class="legend-swatch main"></span>Core flow</span>
+          <span class="legend-item"><span class="legend-swatch start"></span>Start</span>
+          <span class="legend-item"><span class="legend-swatch learning"></span>Learning</span>
+          <span class="legend-item"><span class="legend-swatch review"></span>Review</span>
+          <span class="legend-item"><span class="legend-swatch decision"></span>Decision</span>
+          <span class="legend-item"><span class="legend-swatch delivery"></span>Delivery</span>
+          <span class="legend-item"><span class="legend-swatch recovery"></span>Recovery</span>
+          <span class="legend-item"><span class="legend-swatch safety"></span>Safety</span>
+          <span class="legend-item"><span class="legend-swatch failure"></span>Failure</span>
+          <span class="legend-item"><span class="legend-swatch stop"></span>Stopped</span>
+          <span class="legend-item"><span class="legend-swatch complete"></span>Complete</span>
         </div>
       </section>
 
