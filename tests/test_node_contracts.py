@@ -32,11 +32,14 @@ from workflow.contracts import (
     RepositoryAdapter,
 )
 from workflow.nodes import (
+    NodeDependencies,
     _reconcile_recovered_state,
     claude_opus_4_8_dependencies,
+    commit_item,
     default_dependencies,
     gpt_5_6_luna_dependencies,
 )
+from workflow.state import WorkflowState
 from workflow.retries import classify_failure, retry_delay, retry_on_exception
 from workflow.workspaces import RunWorkspace
 
@@ -188,6 +191,66 @@ class NodeContractTests(unittest.TestCase):
                     inspect.signature(implementation),
                     inspect.signature(getattr(PreviewRepositoryAdapter, name)),
                 )
+
+    def test_partial_preview_adapters_fall_back_for_every_action(self) -> None:
+        # The dry-run nodes narrow once, on the whole protocol, so an adapter
+        # with only some previews falls back to the generic preview for all
+        # three - not just the missing one, as the old per-action getattr
+        # dispatch did. Nothing implements a partial set today; this pins the
+        # behavior so a future partial adapter is a deliberate choice.
+        class PartialPreviewRepository:
+            def commit_item(
+                self,
+                item_id: str,
+                item_title: str,
+                files_touched: list[str],
+            ) -> AgentResult:
+                raise AssertionError("dry-run must not commit")
+
+            def preview_commit_item(
+                self,
+                item_id: str,
+                item_title: str,
+                files_touched: list[str],
+            ) -> AgentResult:
+                raise AssertionError("a partial preview must stay unreachable")
+
+        repository = PartialPreviewRepository()
+        self.assertNotIsInstance(repository, PreviewRepositoryAdapter)
+
+        stub = StubAgentAdapter(role="planner", model_name="stub")
+        dependencies = NodeDependencies(
+            planner=stub,
+            builder=stub,
+            critic=stub,
+            validator=stub,
+            debugger=stub,
+            repository=repository,
+        )
+        state: WorkflowState = {
+            "current_item_id": "item-1",
+            "current_item_title": "Partial preview item",
+            "files_touched_by_item": {"item-1": ["example.py"]},
+        }
+
+        with patch.dict(os.environ, {"SHANKS_MODE": "dry-run"}):
+            update = commit_item(state, dependencies)
+
+        # The generic preview, not the adapter's own: exactly two commands,
+        # where GitHubAdapter.preview_commit_item emits a longer trail.
+        self.assertEqual(update["status"], "commit_preview")
+        self.assertEqual(
+            [command[:2] for command in update["run_manifest"][0]["commands"]],
+            [["git", "add"], ["git", "commit"]],
+        )
+
+        with TemporaryDirectory() as directory:
+            adapter = GitHubAdapter(
+                Path(directory),
+                initial_dirty_files=(),
+                stale_after_days=None,
+            )
+            self.assertIsInstance(adapter, PreviewRepositoryAdapter)
 
     def test_quick_read_only_lookups_use_a_short_subprocess_timeout(self) -> None:
         with TemporaryDirectory() as directory:

@@ -2,27 +2,7 @@ Shanks feature roadmap
 
 Priority 1 - Reliability and contributor experience
 
-1- Dry-run mode is never exercised against the real `GitHubAdapter`.
-    `test_dry_run_previews_delivery_without_repository_side_effects`
-    (`tests/test_graph.py`) uses `RecordingRepository`, which omits the
-    `preview_*` methods entirely, so the node falls back to its generic
-    preview and the real adapter's preview path never runs. The only coverage
-    of those methods today is the signature-binding check added in #74, which
-    proves the call shape and nothing about the behavior. That blind spot hid
-    the dry-run `TypeError` for as long as it existed. Fix: a behavior test
-    over the real adapter - `tests/test_git_integration.py` already has the
-    temporary-repository harness, and the previews only run read-only Git
-    commands - asserting each preview reports its `*_preview` status, emits
-    the commands it would have run, and leaves the repository unchanged.
-    Also worth pinning down there: the dry-run nodes now narrow on
-    `isinstance(repository, PreviewRepositoryAdapter)` (#77), which is
-    all-or-nothing - an adapter implementing only some previews falls back to
-    the generic preview for all three, where the old per-action `getattr`
-    dispatch fell back only for the missing one. No such adapter exists today
-    (`GitHubAdapter` has all three, the graph test doubles have none), so this
-    is a documented property to assert, not a bug to fix.
-
-2- A missing `gitleaks`/`jq` reads as a secret-scan regression, not a missing
+1- A missing `gitleaks`/`jq` reads as a secret-scan regression, not a missing
     tool. The Python suite now depends on both being on `PATH`:
     `test_tests_md_shell_check_counts_match_harness_output`
     (`tests/test_cli.py`) shells out to
@@ -31,7 +11,7 @@ Priority 1 - Reliability and contributor experience
     (verified with a stripped `PATH`). Fix: detect the missing tool in that
     test and fail with a message pointing at `./shanks doctor`.
 
-3- `serve_graph.py` never registers `failed_run` in any curated viewer
+2- `serve_graph.py` never registers `failed_run` in any curated viewer
     constant (`GRAPH_NODE_ORDER`, `VIEW_NODE_LABELS`, `VIEW_MAIN_NODES`,
     `VIEW_RECOVERY_NODES`), even though it is a real, frequently-reached
     terminal node (routed to from `critic_auditor`, `debugger`, `learning`,

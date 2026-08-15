@@ -134,6 +134,121 @@ class GitHubIntegrationTests(unittest.TestCase):
                 [["pr", "list"], ["pr", "create"]] * 2,
             )
 
+    def test_dry_run_previews_report_commands_without_repository_side_effects(
+        self,
+    ) -> None:
+        with TemporaryDirectory() as directory:
+            root, remote = self._repository(Path(directory))
+            manager = RunWorkspaceManager(root)
+            workspace = manager.ensure("preview run")
+            (workspace.directory / "preview.txt").write_text(
+                "previewed, never committed\n",
+                encoding="utf-8",
+            )
+            # A real `gh` would be a side effect; this one records every call so
+            # the test can assert GitHub was never contacted at all.
+            fake_gh = self._fake_gh(Path(directory))
+            adapter = GitHubAdapter(
+                root,
+                initial_dirty_files=(),
+                stale_after_days=None,
+            )
+            head_before = self._git(workspace.directory, "rev-parse", "HEAD")
+            status_before = self._git(
+                workspace.directory,
+                "status",
+                "--short",
+                "--untracked-files=all",
+            )
+
+            with patch.dict(
+                os.environ,
+                {
+                    "PATH": f"{fake_gh.parent}{os.pathsep}{os.environ['PATH']}",
+                    "SHANKS_MODE": "dry-run",
+                },
+            ):
+                with workspace_scope(workspace.directory):
+                    committed = adapter.commit_item(
+                        "item-1",
+                        "Preview the delivery",
+                        ["preview.txt"],
+                    )
+                    pushed = adapter.push_branch()
+                    opened = adapter.open_pull_request(
+                        "Preview delivery",
+                        branch=workspace.branch,
+                    )
+
+            self.assertEqual(committed.status, "commit_preview")
+            self.assertEqual(committed.files_touched, ["preview.txt"])
+            self.assertEqual(committed.commit_sha, "")
+            self.assertIn("previewed, never committed", committed.diff)
+            self.assertIn(
+                [
+                    "git",
+                    "commit",
+                    "--only",
+                    "-m",
+                    "feat: item-1 - Preview the delivery",
+                    "--",
+                    "preview.txt",
+                ],
+                committed.commands,
+            )
+
+            self.assertEqual(pushed.status, "branch_push_preview")
+            self.assertEqual(pushed.feedback, workspace.branch)
+            self.assertIn(
+                ["git", "push", "-u", "origin", workspace.branch],
+                pushed.commands,
+            )
+
+            self.assertEqual(opened.status, "pull_request_preview")
+            self.assertEqual(opened.pr_state, "preview")
+            self.assertEqual(opened.pr_url, "")
+            self.assertEqual(
+                [command[:3] for command in opened.commands],
+                [["gh", "pr", "list"], ["gh", "pr", "create"]],
+            )
+            for command in opened.commands:
+                with self.subTest(command=command[:3]):
+                    self.assertEqual(
+                        command[command.index("--head") + 1],
+                        workspace.branch,
+                    )
+
+            # Nothing the previews described actually happened.
+            self.assertEqual(
+                self._git(workspace.directory, "rev-parse", "HEAD"),
+                head_before,
+            )
+            self.assertEqual(
+                self._git(
+                    workspace.directory,
+                    "status",
+                    "--short",
+                    "--untracked-files=all",
+                ),
+                status_before,
+            )
+            self.assertEqual(
+                self._git(workspace.directory, "diff", "--cached", "--name-only"),
+                "",
+            )
+            self.assertEqual(
+                self._git(
+                    root,
+                    "--git-dir",
+                    str(remote),
+                    "branch",
+                    "--list",
+                    workspace.branch,
+                ),
+                "",
+            )
+            self.assertEqual(self._fake_gh_state(fake_gh)["calls"], [])
+
     def test_drift_report_sees_upstream_and_worktree_drift(self) -> None:
         with TemporaryDirectory() as directory:
             root, _ = self._repository(Path(directory))

@@ -32,14 +32,14 @@ Run the repository quality gates from a feature branch with:
 | --- | ---: | --- |
 | [`test_cli.py`](test_cli.py) | 19 | Execution-mode reporting, doctor diagnostics (including Git/gh version checks and `core.hooksPath`), documentation-count guards for the Python and shell test suites, and run listing, status (including pending interrupts, drift, and recent events), resume, cancellation, recovery, cleanup, pruning, and safety checks |
 | [`test_graph.py`](test_graph.py) | 46 | Workflow orchestration, item metadata, repository drift injection, append-only run-manifest behavior, targeted retries, budgets, approvals, dry-run previews, and GitHub handoff |
-| [`test_node_contracts.py`](test_node_contracts.py) | 62 | Agent, failure-classification, subprocess, Ralph, local-test, critic, quality-gate, pre-commit policy gate, recovery reconciliation, repository-protocol conformance, subprocess timeout budgets, and GitHub adapter contracts |
+| [`test_node_contracts.py`](test_node_contracts.py) | 63 | Agent, failure-classification, subprocess, Ralph, local-test, critic, quality-gate, pre-commit policy gate, recovery reconciliation, repository-protocol conformance, preview-protocol narrowing, subprocess timeout budgets, and GitHub adapter contracts |
 | [`test_state_schema.py`](test_state_schema.py) | 9 | State migration, retry metadata, versioned checkpoints, and legacy resume behavior |
 | [`test_lifecycle.py`](test_lifecycle.py) | 8 | Run leases, stale recovery, recovery-state reconciliation, interruption/resume, terminal release, and checkpoint cleanup |
 | [`test_workspaces.py`](test_workspaces.py) | 12 | Run identity, Git worktree creation/reuse, syncing the gitignored Claude Code hook guard into new worktrees, local/remote branch listing and deletion, workspace context, and workspace state migration |
 | [`test_viewer.py`](test_viewer.py) | 8 | Viewer HTML, execution-state data including pending interrupts and repository drift, checkpoint sharing, the live-reload module path, and Mermaid output |
 | [`test_quality_gates.py`](test_quality_gates.py) | 9 | Quality command definitions, safe diff refs, numstat parsing, generated-output handling, diff limits, and gate failure reporting |
 | [`test_fault_injection.py`](test_fault_injection.py) | 7 | Injected Git, GitHub, validation, checkpoint, and agent process failures |
-| [`test_git_integration.py`](test_git_integration.py) | 3 | Real temporary Git repositories, worktrees, commits, pushes, PR creation/reuse, fake-`gh` recovery, and upstream/worktree drift reporting |
+| [`test_git_integration.py`](test_git_integration.py) | 4 | Real temporary Git repositories, worktrees, commits, pushes, PR creation/reuse, fake-`gh` recovery, dry-run preview behavior, and upstream/worktree drift reporting |
 | [`test_agent_integration.py`](test_agent_integration.py) | 5 | Real Codex and Claude CLI smoke tests, including the sandboxed Claude write path and the GPT-5.6 Luna/Claude Opus 4.8 critic adapters, against a small deterministic project (opt-in) |
 | [`test_sandbox_claude.py`](test_sandbox_claude.py) | 4 | `scripts/sandbox_claude.sh` write containment: allows writes inside the target directory, denies writes outside it (including a shared-temp-root sibling and a `..` escape), and falls back to unsandboxed execution when `sandbox-exec` is unavailable |
 | [`../hooks/test.hooks/test-deny-dangerous.sh`](../hooks/test.hooks/test-deny-dangerous.sh) | 8 shell checks | Dangerous-command blocking and safe-command allowlisting |
@@ -337,6 +337,18 @@ Sources: [`test_graph.py`](test_graph.py) and
 - `SHANKS_MODE=dry-run` skips handoff approval pauses, previews commit/push/PR
   actions, records planned commands and file diffs, and makes no repository or
   GitHub side-effect calls.
+- The same dry run against the *real* `GitHubAdapter`, over a temporary Git
+  repository and worktree, reports `commit_preview`/`branch_push_preview`/
+  `pull_request_preview` with the exact `git commit`, `git push -u`, and
+  `gh pr create` commands it would have run - while `HEAD`, the worktree
+  status, the index, and the remote branch list are all unchanged and the
+  fake `gh` records zero calls. The graph-level test above uses a double that
+  omits the previews, so this is the only check that exercises the adapter's
+  own preview path.
+- A repository implementing only *some* previews is not a
+  `PreviewRepositoryAdapter`, so the dry-run nodes fall back to the generic
+  preview for every action rather than per action. Asserted through
+  `commit_item` with a partial double whose methods raise if reached.
 - GitHub failure and completed GitHub states terminate rather than entering
   debugger recovery.
 - The multi-item workflow commits each passing item and publishes one pull
