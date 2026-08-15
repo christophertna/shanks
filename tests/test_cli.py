@@ -1,6 +1,7 @@
 import json
 import io
 import re
+import shutil
 import subprocess
 import sqlite3
 import tempfile
@@ -16,6 +17,11 @@ from workflow.adapters import GitHubAdapter
 from workflow.cli import _REQUIRED_TOOLS, main
 from workflow.lifecycle import RunLifecycleManager
 from workflow.workspaces import RunWorkspaceManager
+
+# External binaries the shell harnesses shell out to. Every hook they exercise
+# fails closed without these, so a missing one looks like a guard regression
+# (`expected=allow got=block`) rather than an unset-up machine.
+_SHELL_HARNESS_TOOLS = ("bash", "jq", "gitleaks")
 
 
 class ShanksCliTests(unittest.TestCase):
@@ -272,6 +278,18 @@ class ShanksCliTests(unittest.TestCase):
     def test_tests_md_shell_check_counts_match_harness_output(self) -> None:
         repo_root = Path(__file__).parents[1]
         tests_md = (repo_root / "tests" / "tests.md").read_text(encoding="utf-8")
+
+        # `./shanks doctor` stays the single source of truth for what has to be
+        # installed, so this list cannot quietly grow past what it diagnoses.
+        self.assertLessEqual(set(_SHELL_HARNESS_TOOLS), set(_REQUIRED_TOOLS))
+        missing = [tool for tool in _SHELL_HARNESS_TOOLS if shutil.which(tool) is None]
+        self.assertFalse(
+            missing,
+            f"{', '.join(missing)} is not on PATH, so the hook harnesses below "
+            f"fail closed on every check and report guard regressions that are "
+            f"really a missing tool. Run `./shanks doctor` to diagnose the "
+            f"local setup.",
+        )
 
         documented = re.findall(
             r"\[`(\.\./hooks/test\.hooks/[\w.-]+\.sh)`\]\(\1\) \| (\d+) shell checks \|",
