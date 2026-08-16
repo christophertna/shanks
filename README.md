@@ -350,7 +350,7 @@ CLI throughout the agent workflow.
 | Validation failure | The read-only debugger records the root cause and repair instructions in the PRD item; planning sends the enriched requirement back to the builder. |
 | `passes` | Means Ralph finished the build for the current PRD item. |
 | `validation` | Means the graph's authoritative test gate passed. |
-| `validationCommand` | Runs from the project directory when provided; otherwise the full `.venv/bin/python -m unittest discover -s tests` suite runs. Commands are tokenized and executed without a shell. |
+| `validationCommand` | Runs from the project directory when provided; otherwise the full `.venv/bin/python -m unittest discover -s tests` suite runs. Commands are tokenized and executed without a shell: only `python`/`python3` may be launched, and inline-code flags (`-c` and short-flag clusters containing it) are rejected as an invalid validation command. |
 
 ### Delivery approvals
 

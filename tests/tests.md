@@ -32,7 +32,7 @@ Run the repository quality gates from a feature branch with:
 | --- | ---: | --- |
 | [`test_cli.py`](test_cli.py) | 19 | Execution-mode reporting, doctor diagnostics (including Git/gh version checks and `core.hooksPath`), documentation-count guards for the Python and shell test suites, and run listing, status (including pending interrupts, drift, and recent events), resume, cancellation, recovery, cleanup, pruning, and safety checks |
 | [`test_graph.py`](test_graph.py) | 46 | Workflow orchestration, item metadata, repository drift injection, append-only run-manifest behavior, targeted retries, budgets, approvals, dry-run previews, and GitHub handoff |
-| [`test_node_contracts.py`](test_node_contracts.py) | 67 | Agent, failure-classification, subprocess, Ralph, local-test, critic, quality-gate, pre-commit policy gate, recovery reconciliation, repository-protocol conformance, preview-protocol narrowing, subprocess timeout budgets, and GitHub adapter contracts |
+| [`test_node_contracts.py`](test_node_contracts.py) | 68 | Agent, failure-classification, subprocess, Ralph, local-test, critic, quality-gate, pre-commit policy gate, recovery reconciliation, repository-protocol conformance, preview-protocol narrowing, subprocess timeout budgets, and GitHub adapter contracts |
 | [`test_state_schema.py`](test_state_schema.py) | 10 | State migration, one-step migration chains, retry metadata, versioned checkpoints, and legacy resume behavior |
 | [`test_lifecycle.py`](test_lifecycle.py) | 8 | Run leases, stale recovery, recovery-state reconciliation, interruption/resume, terminal release, and checkpoint cleanup |
 | [`test_workspaces.py`](test_workspaces.py) | 12 | Run identity, Git worktree creation/reuse, syncing the gitignored Claude Code hook guard into new worktrees, local/remote branch listing and deletion, workspace context, and workspace state migration |
@@ -390,6 +390,10 @@ Source: [`test_node_contracts.py`](test_node_contracts.py).
 - The local validator runs a current item's validation command when provided,
   tokenizes it without a shell, and falls back to full unittest discovery when
   the item has no command.
+- The local validator's command policy is narrower than the shared agent
+  executable allowlist: shell interpreters (`bash`, `/bin/sh`) and inline-code
+  flags (`-c`, `-Ic`) are rejected as `validation_failed` before any subprocess
+  is launched.
 - Structured debugger JSON is mapped to status, root cause, builder
   instructions, and feedback.
 - Debugger requests include the validation failure and item description.

@@ -639,6 +639,28 @@ class NodeContractTests(unittest.TestCase):
             (sys.executable, "-m", "unittest", "tests.test_graph"),
         )
 
+    def test_local_test_adapter_rejects_shell_and_inline_code_commands(self) -> None:
+        adapter = LocalTestAdapter(Path("/tmp/shanks"))
+        rejected = (
+            'bash -c "rm -rf /"',
+            "bash tests/run.sh",
+            "/bin/sh -c true",
+            f"{sys.executable} -c \"import os; os.system('id')\"",
+            f"{sys.executable} -Ic print(1)",
+        )
+
+        for command in rejected:
+            with self.subTest(command=command):
+                with patch("workflow.adapters._run_subprocess") as run:
+                    result = adapter.run(
+                        AgentRequest(task="validate", validation_command=command)
+                    )
+
+                run.assert_not_called()
+                self.assertEqual(result.status, "validation_failed")
+                self.assertFalse(result.validation_passed)
+                self.assertIn("Invalid validation command", result.error or "")
+
     def test_debugger_adapter_maps_structured_failure_analysis(self) -> None:
         adapter = DebuggerAdapter(Path("/tmp/shanks"))
         completed = subprocess.CompletedProcess(
