@@ -177,7 +177,7 @@ def _migrate_v3_to_v4(state: dict[str, Any]) -> dict[str, Any]:
     state.setdefault("retry_counts", {})
     state.setdefault("retry_target", "")
     state.setdefault("retry_delay_seconds", 0.0)
-    state["state_schema_version"] = CURRENT_STATE_SCHEMA_VERSION
+    state["state_schema_version"] = 4
     return state
 
 
@@ -187,7 +187,7 @@ def _migrate_v4_to_v5(state: dict[str, Any]) -> dict[str, Any]:
     state.setdefault("run_id", "")
     state.setdefault("run_branch", "")
     state.setdefault("workspace_directory", "")
-    state["state_schema_version"] = CURRENT_STATE_SCHEMA_VERSION
+    state["state_schema_version"] = 5
     return state
 
 

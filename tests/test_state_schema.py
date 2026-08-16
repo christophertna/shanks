@@ -10,6 +10,7 @@ from workflow.nodes import NodeDependencies
 from workflow.state import (
     CURRENT_STATE_SCHEMA_VERSION,
     StateSchemaError,
+    _STATE_MIGRATIONS,
     migrate_state,
 )
 
@@ -87,6 +88,20 @@ class StateSchemaTests(unittest.TestCase):
         self.assertFalse(migrated["pr_stale"])
         self.assertEqual(migrated["pr_reviewers"], [])
         self.assertEqual(migrated["pr_labels"], [])
+
+    def test_state_migrations_advance_one_version_at_a_time(self) -> None:
+        state = {"state_schema_version": 0}
+        visited_versions = []
+
+        for version in range(CURRENT_STATE_SCHEMA_VERSION):
+            self.assertEqual(state["state_schema_version"], version)
+            state = _STATE_MIGRATIONS[version](state)
+            visited_versions.append(state["state_schema_version"])
+
+        self.assertEqual(
+            visited_versions,
+            list(range(1, CURRENT_STATE_SCHEMA_VERSION + 1)),
+        )
 
     def test_sqlite_saver_migrates_legacy_checkpoint_on_read(self) -> None:
         connection = sqlite3.connect(":memory:", check_same_thread=False)
