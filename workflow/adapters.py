@@ -41,6 +41,10 @@ SECRET_SCAN_TIMEOUT_SECONDS = 60
 ITEM_BUILT_MARKER = "<promise>ITEM_BUILT</promise>"
 UNCERTAINTIES_MARKER = "RALPH_UNCERTAINTIES:"
 ALLOWED_AGENT_EXECUTABLES = frozenset({"bash", "claude", "codex", "python", "python3"})
+# Per-item validation runs a test command, never an agent, so it gets a
+# narrower policy than the shared agent allowlist above: no shell interpreter
+# and no inline-code flag, both of which would re-open arbitrary execution.
+VALIDATION_EXECUTABLES = frozenset({"python", "python3"})
 AGENT_ALLOWED_ENVIRONMENT_KEYS = frozenset(
     {
         "HOME",
@@ -492,7 +496,20 @@ class LocalTestAdapter(SubprocessAgentAdapter):
         if not command:
             return self.command
         parsed = tuple(shlex.split(command))
-        return parsed or self.command
+        if not parsed:
+            return self.command
+        executable = Path(parsed[0]).name
+        if executable not in VALIDATION_EXECUTABLES:
+            allowed = ", ".join(sorted(VALIDATION_EXECUTABLES))
+            raise ValueError(
+                f"{executable!r} is not an allowed validation executable ({allowed})."
+            )
+        for argument in parsed[1:]:
+            # Short-flag clusters, so -c, -Ic and -uc are all rejected.
+            if argument.startswith("-") and not argument.startswith("--"):
+                if "c" in argument[1:]:
+                    raise ValueError(f"inline-code flag {argument!r} is not allowed.")
+        return parsed
 
 
 class DebuggerAdapter(SubprocessAgentAdapter):

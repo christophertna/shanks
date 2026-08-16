@@ -2,7 +2,11 @@ Shanks feature roadmap
 
 Priority 1 - Reliability and contributor experience
 
-(Empty. Promote from Suggestions when something earns it.)
+1- Expand the mypy quality gate to cover the remaining core runtime modules:
+   `workflow/lifecycle.py`, `workflow/workspaces.py`, `workflow/cli.py`, and
+   `graph.py`, while keeping `quality_commands()` and `[tool.mypy].files`
+   aligned. Fix the surfaced typing errors and make the expanded command the
+   CI/local source of truth.
 
 Suggestions
 
