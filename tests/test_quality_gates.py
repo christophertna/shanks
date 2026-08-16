@@ -1,4 +1,5 @@
 import subprocess
+import tomllib
 import unittest
 from pathlib import Path
 
@@ -23,6 +24,30 @@ class QualityGateTests(unittest.TestCase):
         self.assertEqual(
             commands["dependency/security audit"][:3],
             ("python", "-m", "pip_audit"),
+        )
+
+    def test_typing_gate_checks_every_core_runtime_module(self) -> None:
+        # The gate passes no paths, so mypy reads [tool.mypy] files. Anything
+        # dropped from that list silently loses type checking - which is how
+        # workflow/nodes.py went unchecked while the two lists disagreed.
+        self.assertEqual(dict(quality_commands("python"))["typing"][3:], ())
+
+        pyproject = Path(__file__).resolve().parent.parent / "pyproject.toml"
+        configured = set(tomllib.loads(pyproject.read_text())["tool"]["mypy"]["files"])
+        self.assertLessEqual(
+            {
+                "graph.py",
+                "scripts/quality_gates.py",
+                "workflow/adapters.py",
+                "workflow/cli.py",
+                "workflow/contracts.py",
+                "workflow/lifecycle.py",
+                "workflow/nodes.py",
+                "workflow/retries.py",
+                "workflow/state.py",
+                "workflow/workspaces.py",
+            },
+            configured,
         )
 
     def test_numstat_parser_counts_text_and_binary_files(self) -> None:

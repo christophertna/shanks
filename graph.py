@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import builtins
 import os
 import sqlite3
 from dataclasses import dataclass
@@ -242,7 +243,11 @@ class VersionedSqliteSaver(SqliteSaver):
 
     cleanup_checkpoints = cleanup
 
-    def _checkpoint_groups(self, thread_id: str | None) -> list[tuple[str, str]]:
+    # builtins.list: this class defines a ``list`` method, which shadows the
+    # builtin for annotations evaluated in class scope.
+    def _checkpoint_groups(
+        self, thread_id: str | None
+    ) -> builtins.list[tuple[str, str]]:
         with self.cursor(transaction=False) as cursor:
             try:
                 if thread_id is None:

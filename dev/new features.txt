@@ -2,14 +2,42 @@ Shanks feature roadmap
 
 Priority 1 - Reliability and contributor experience
 
-1- Expand the mypy quality gate to cover the remaining core runtime modules:
-   `workflow/lifecycle.py`, `workflow/workspaces.py`, `workflow/cli.py`, and
-   `graph.py`, while keeping `quality_commands()` and `[tool.mypy].files`
-   aligned. Fix the surfaced typing errors and make the expanded command the
-   CI/local source of truth.
+(Empty. Promote from Suggestions when something earns it.)
 
 Suggestions
 
+- `LocalTestAdapter._command_for`'s inline-code check (#85) scans every
+  argument after the executable, but only interpreter-position flags can
+  actually execute code - once `-m <module>` or a script path appears, the
+  rest belongs to the module. So `python -m pytest -c pytest.ini` is rejected
+  as an inline-code flag even though its `-c` is pytest's config-file option.
+  No bite today (validation here is unittest, which has no `-c`), and the
+  failure is a confusing `validation_failed` rather than an unsafe allow.
+  Stopping the scan at the first `-m`/non-flag argument is the fix, worth
+  doing if a validation command ever legitimately needs a module-level `-c`.
+- `ALLOWED_AGENT_EXECUTABLES` and `VALIDATION_EXECUTABLES`
+  (`workflow/adapters.py`) match on `Path(command[0]).name` against bare
+  `python`/`python3`, so a versioned interpreter name (`python3.11`) is
+  refused. This hits the *default* fallback validation command, not just a
+  custom one: `LocalTestAdapter.__init__` builds it from `sys.executable`, so
+  any environment where that resolves to a versioned binary fails every
+  validation with "Refusing to run unapproved executable: python3.11." Safe
+  in this repo (`.venv/bin/python` is a symlink named `python`) and in CI
+  (`actions/setup-python` also gives `python`), so nothing triggers it today -
+  but it presents as a guardrail bug rather than a setup problem, which is the
+  expensive kind to debug. Matching a `python3.N` pattern, or resolving
+  `sys.executable` before the name check, is the cheap fix.
+- Two agents driving this repo at once share a single Git worktree, and
+  nothing warns either of them. Hit this live: a Codex session ran `git
+  checkout` onto its own branch while a Claude session had uncommitted work in
+  the same tree, mixing both diffs into one dirty state and leaving each
+  agent's files one `git add -A` away from landing in the other's commit.
+  Shanks already solves exactly this for its own runs - `RunWorkspaceManager`
+  gives every run an isolated branch and worktree - but the human/agent
+  development loop has no equivalent. The honest fix is mostly convention, not
+  code: document `git worktree add` per concurrent agent in `AGENTS.md`/
+  `CLAUDE.md`. A `./shanks dev worktree <branch>` helper is the larger version,
+  worth it only if the manual convention proves too easy to forget.
 - The structured viewer's `recovery` subgraph draws its nodes as a bucket with
   no internal edges: `structured_mermaid` only appends `VIEW_RECOVERY_NODES`,
   and `VIEW_RECOVERY_EDGES` is used solely to decide whether to draw the
@@ -39,13 +67,6 @@ Suggestions
   before the first build. Carries a `ponytail:` comment naming the ceiling;
   moving the refresh into `_versioned_node` would fix it at the cost of one
   `git fetch` per node call.
-- `scripts/quality_gates.py`'s mypy target list leaves `lifecycle.py`,
-  `workspaces.py`, `cli.py`, and `graph.py` (large, stateful modules)
-  unchecked. `nodes.py` was the same gap but had a concrete trigger, so it was
-  Priority 1 and is now checked (#78); these four have none. Extend the list
-  once they are clean under mypy, or budget time to fix what surfaces. For
-  scale, `nodes.py` cost 18 errors to clean, nearly all of them merged-state
-  dict literals and `dict(prd_item)` copies that lose the `TypedDict` type.
 - No audit trail of what Ralph actually did inside a session - the run
   manifest records the launching command and the final `--print` output,
   not the individual tool calls (files read/written, Bash commands run)

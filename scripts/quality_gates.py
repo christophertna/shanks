@@ -47,16 +47,9 @@ def quality_commands(
         ),
         (
             "typing",
-            (
-                executable,
-                "-m",
-                "mypy",
-                "scripts/quality_gates.py",
-                "workflow/adapters.py",
-                "workflow/contracts.py",
-                "workflow/retries.py",
-                "workflow/state.py",
-            ),
+            # No paths: mypy reads [tool.mypy] files from pyproject.toml, so the
+            # checked set cannot drift from the configured one.
+            (executable, "-m", "mypy"),
         ),
         (
             "dependency/security audit",

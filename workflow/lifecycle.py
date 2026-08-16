@@ -8,6 +8,7 @@ import time
 import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from typing import Any
 
 TERMINAL_RUN_STATUSES = frozenset(
     {
@@ -444,7 +445,8 @@ def _lifecycle_status(status: str) -> str:
     return "failed"
 
 
-def _record(row: tuple[object, ...]) -> RunRecord:
+def _record(row: tuple[Any, ...]) -> RunRecord:
+    """Build a record from a SQLite row; every column is coerced below."""
     return RunRecord(
         run_id=str(row[0]),
         status=str(row[1]),
