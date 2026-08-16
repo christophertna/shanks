@@ -8,6 +8,7 @@ import re
 import shutil
 import subprocess
 import threading
+import time
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
@@ -18,6 +19,10 @@ from .mode import is_development_mode
 
 _CURRENT_WORKSPACE: ContextVar[Path | None] = ContextVar(
     "shanks_current_workspace",
+    default=None,
+)
+_RUN_DEADLINE: ContextVar[float | None] = ContextVar(
+    "shanks_run_deadline",
     default=None,
 )
 _SAFE_COMPONENT = re.compile(r"[^A-Za-z0-9._-]+")
@@ -373,6 +378,28 @@ def current_workspace_directory() -> Path | None:
     return _CURRENT_WORKSPACE.get()
 
 
+@contextmanager
+def run_deadline_scope(seconds: float | None) -> Iterator[None]:
+    """Make the run's wall-clock budget available to adapters, as a deadline.
+
+    An absolute deadline rather than a duration, so a node running several
+    subprocesses in a row (preflight, the GitHub handoff) spends one shared
+    budget instead of granting the full remainder to each one."""
+
+    token = _RUN_DEADLINE.set(None if seconds is None else time.time() + seconds)
+    try:
+        yield
+    finally:
+        _RUN_DEADLINE.reset(token)
+
+
+def remaining_deadline_seconds() -> float | None:
+    """Return the run's remaining budget, or None when it is unbounded."""
+
+    deadline = _RUN_DEADLINE.get()
+    return None if deadline is None else max(0.0, deadline - time.time())
+
+
 def _normalize_component(value: str) -> str:
     if not isinstance(value, str):
         return ""
@@ -416,5 +443,7 @@ __all__ = [
     "RunWorkspaceManager",
     "WorkspaceError",
     "current_workspace_directory",
+    "remaining_deadline_seconds",
+    "run_deadline_scope",
     "workspace_scope",
 ]

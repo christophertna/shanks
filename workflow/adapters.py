@@ -17,7 +17,7 @@ from pathlib import Path
 
 from .contracts import AgentAdapter, AgentRequest, AgentResult
 from .mode import is_dry_run
-from .workspaces import current_workspace_directory
+from .workspaces import current_workspace_directory, remaining_deadline_seconds
 
 GPT56_LUNA_MODEL = "gpt-5.6-luna"
 GPT56_LUNA_REASONING_EFFORT = "max"
@@ -37,6 +37,7 @@ GUARDED_PATHS_FILE = (
 _GUARDED_PATH_TEMPLATE_EXCEPTIONS = frozenset(
     {".env.example", ".env.sample", ".env.template", ".env.dist"}
 )
+SECRET_SCAN_TIMEOUT_SECONDS = 60
 ITEM_BUILT_MARKER = "<promise>ITEM_BUILT</promise>"
 UNCERTAINTIES_MARKER = "RALPH_UNCERTAINTIES:"
 ALLOWED_AGENT_EXECUTABLES = frozenset({"bash", "claude", "codex", "python", "python3"})
@@ -792,7 +793,8 @@ class GitHubAdapter:
                 status="policy_gate_failed",
                 assigned_model=self.model_name,
                 error="Refusing to commit: could not run the gitleaks secret scan "
-                "(missing gitleaks or a subprocess error; see ./shanks doctor).",
+                "(missing gitleaks, an elapsed run deadline, or a subprocess "
+                "error; see ./shanks doctor).",
                 files_touched=files,
                 commands=commands,
             )
@@ -1504,11 +1506,19 @@ class GitHubAdapter:
                 error=guardrail_error,
                 commands=[_audit_command(command)],
             )
+        timeout = self._timeout_for(command)
+        if timeout <= 0:
+            return AgentResult(
+                status="failed",
+                assigned_model=self.model_name,
+                error="Repository deadline has elapsed.",
+                commands=[_audit_command(command)],
+            )
         try:
             completed = _run_subprocess(
                 command,
                 cwd=self._project_directory(),
-                timeout=self._timeout_for(command),
+                timeout=timeout,
                 env=self._github_environment(command),
             )
         except (OSError, subprocess.TimeoutExpired) as error:
@@ -1550,12 +1560,18 @@ class GitHubAdapter:
             commands=[_audit_command(command)],
         )
 
-    def _timeout_for(self, command: tuple[str, ...]) -> int:
-        """Cap quick read-only lookups so a stall cannot hold a node for an hour."""
+    def _timeout_for(self, command: tuple[str, ...]) -> float:
+        """Cap quick read-only lookups so a stall cannot hold a node for an hour.
+
+        Clamped again by whatever is left of the run's wall-clock budget, so a
+        repository subprocess cannot outlive `max_runtime_seconds` the way an
+        agent subprocess already cannot."""
 
         if any(command[: len(probe)] == probe for probe in PROBE_COMMANDS):
-            return min(self.probe_timeout_seconds, self.timeout_seconds)
-        return self.timeout_seconds
+            timeout = float(min(self.probe_timeout_seconds, self.timeout_seconds))
+        else:
+            timeout = float(self.timeout_seconds)
+        return _clamped_to_run_budget(timeout)
 
     def _quality_gate_command(self, *, staged: bool = False) -> tuple[str, ...]:
         command = (
@@ -1968,6 +1984,13 @@ def _matching_guarded_files(files: list[str]) -> list[str]:
     return matched
 
 
+def _clamped_to_run_budget(timeout: float) -> float:
+    """Trim a fixed subprocess timeout to the run's remaining wall-clock budget."""
+
+    remaining = remaining_deadline_seconds()
+    return timeout if remaining is None else min(timeout, remaining)
+
+
 def _scan_for_secrets(project_directory: Path, files: list[str]) -> str | None:
     """Run hooks/secret-scan.sh's gitleaks invocation over dirty files at once.
 
@@ -1978,6 +2001,9 @@ def _scan_for_secrets(project_directory: Path, files: list[str]) -> str | None:
     gitleaks."""
 
     if shutil.which("gitleaks") is None:
+        return None
+    scan_timeout = _clamped_to_run_budget(SECRET_SCAN_TIMEOUT_SECONDS)
+    if scan_timeout <= 0:
         return None
     with tempfile.TemporaryDirectory(prefix="shanks-policy-gate-") as scan_dir:
         scan_root = Path(scan_dir)
@@ -2008,7 +2034,7 @@ def _scan_for_secrets(project_directory: Path, files: list[str]) -> str | None:
                 ),
                 cwd=project_directory,
                 env=_agent_environment(),
-                timeout=60,
+                timeout=scan_timeout,
             )
         except (OSError, subprocess.TimeoutExpired):
             return None
