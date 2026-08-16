@@ -59,6 +59,7 @@ from .workspaces import (
     RunWorkspaceManager,
     WorkspaceError,
     current_workspace_directory,
+    run_deadline_scope,
     workspace_scope,
 )
 
@@ -301,7 +302,10 @@ def _versioned_node(
         current = {**current, "run_started_at": float(started_at)}
 
         try:
-            with workspace_scope(workspace_directory):
+            with (
+                workspace_scope(workspace_directory),
+                run_deadline_scope(remaining_runtime_seconds(current)),
+            ):
                 reason = _stop_reason(current)
                 if reason:
                     stopped: WorkflowState = {

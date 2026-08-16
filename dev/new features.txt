@@ -2,17 +2,38 @@ Shanks feature roadmap
 
 Priority 1 - Reliability and contributor experience
 
-1- `serve_graph.py` never registers `failed_run` in any curated viewer
-    constant (`GRAPH_NODE_ORDER`, `VIEW_NODE_LABELS`, `VIEW_MAIN_NODES`,
-    `VIEW_RECOVERY_NODES`), even though it is a real, frequently-reached
-    terminal node (routed to from `critic_auditor`, `debugger`, `learning`,
-    `planning`, `pre_commit_policy_gate`, `push_node`, and `validation`). It
-    only appears in the raw/unstyled mermaid mode, never the structured view
-    most people look at. Fix: add it alongside `attempt_limit`/`failed_build`
-    in the recovery-node set.
+1- `serve_graph.py` never registers `failed_run` *or* `retry_backoff` in any
+    curated viewer constant (`GRAPH_NODE_ORDER`, `VIEW_NODE_LABELS`,
+    `VIEW_MAIN_NODES`, `VIEW_RECOVERY_NODES`), even though both are real,
+    frequently-reached nodes: `failed_run` is routed to from `critic_auditor`,
+    `debugger`, `learning`, `planning`, `pre_commit_policy_gate`, `push_node`,
+    and `validation`, and `retry_backoff` from seven `route_after_*` routers.
+    They only appear in the raw/unstyled mermaid mode, never the structured
+    view most people look at. Fix: add `failed_run` alongside
+    `attempt_limit`/`failed_build` in the recovery-node set, and place
+    `retry_backoff` in the recovery set too (it is the retry path, not part of
+    the main flow).
+    The reason both slipped is that nothing checks the curated constants
+    against the graph - `tests/test_viewer.py` covers labels, edge styling, and
+    the critic loop, but never node coverage. Add that check as part of this
+    item, or the next node added repeats the omission:
+
+        nodes = set(create_nodes())
+        missing = nodes - set(GRAPH_NODE_ORDER)   # etc. per constant
+
+    allowing `__start__`/`__end__` as known extras in the ordering/label maps.
+    Note `VIEW_MAIN_NODES` and `VIEW_RECOVERY_NODES` partition the nodes, so
+    the coverage assertion is against their union, not each one.
 
 Suggestions
 
+- `_reconcile_recovered_state`'s `_RECONCILE_TIMEOUT_SECONDS = 15`
+  (`workflow/nodes.py`) and `RunWorkspaceManager`'s Git subprocesses
+  (`workflow/workspaces.py`) are the two external subprocess paths still on a
+  fixed timeout after the run-deadline clamp landed. Both are bounded at
+  seconds rather than the hour `GitHubAdapter` could reach, so the overrun they
+  allow is small; wire them to `remaining_deadline_seconds()` only if a run
+  ever needs a hard wall-clock guarantee rather than a close one.
 - `PROBE_COMMANDS` and `_validate_command`'s allowlist (`workflow/adapters.py`)
   are two hand-maintained lists that must agree: a new read-only command added
   to the allowlist alone silently gets the hour-long `timeout_seconds` instead
@@ -32,18 +53,6 @@ Suggestions
   once they are clean under mypy, or budget time to fix what surfaces. For
   scale, `nodes.py` cost 18 errors to clean, nearly all of them merged-state
   dict literals and `dict(prd_item)` copies that lose the `TypedDict` type.
-- `GitHubAdapter` ignores the run's remaining wall-clock budget.
-  `SubprocessAgentAdapter._run` (`workflow/adapters.py`) clamps its subprocess
-  timeout to `request.timeout_seconds`, fed by `remaining_runtime_seconds()`
-  (`workflow/nodes.py`), and fails with "CLI deadline has elapsed" at zero.
-  `GitHubAdapter._run` has no equivalent clamp and no channel for one - its
-  methods take plain arguments, not an `AgentRequest` - so a run already at
-  its `max_runtime_seconds` deadline can still start a fresh 3600-second
-  quality-gate or `gh pr create` call and overrun the budget by up to an hour.
-  Small exposure in practice (those commands are normally fast, and the
-  read-only lookups are capped at `probe_timeout_seconds`), but the two
-  adapters enforce the same budget inconsistently. Fix shape: thread the
-  remaining budget into `GitHubAdapter` and clamp `_timeout_for` with it.
 - No audit trail of what Ralph actually did inside a session - the run
   manifest records the launching command and the final `--print` output,
   not the individual tool calls (files read/written, Bash commands run)
@@ -80,9 +89,14 @@ Suggestions
 - `./shanks doctor`'s `tools` check only verifies `gitleaks`/`jq` are
   present, not their version (unlike `git`/`gh`, which have
   `_MIN_TOOL_VERSIONS`) - a `gitleaks` upgrade could silently change
-  detection rules/behavior with nothing to notice. Low urgency; worth a
-  version floor if a real detection regression ever traces back to a
-  `gitleaks` upgrade.
+  detection rules/behavior with nothing to notice. The divergence is already
+  structural rather than hypothetical: `.github/workflows/tests.yml` installs
+  a pinned `GITLEAKS_VERSION: 8.18.4` with checksum verification, so CI and a
+  local machine can disagree about what counts as a secret - the local one
+  being whatever `brew`/`go install` last produced. Still low urgency (the
+  disagreement direction that matters, CI flagging what local missed, fails
+  closed), but a `_MIN_TOOL_VERSIONS` entry matching the CI pin is the cheap
+  fix if a detection difference ever costs debugging time.
 - `hooks/post-merge`/`hooks/post-checkout` (#44) run `graphify update .`
   synchronously, unlike `hooks/graphify-update.sh` (the Claude Code hook),
   which backgrounds the call with a lockdir debounce. Fine today since it's

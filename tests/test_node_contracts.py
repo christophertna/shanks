@@ -1,6 +1,7 @@
 import inspect
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -23,6 +24,7 @@ from workflow.adapters import (
     RalphAdapter,
     StubAgentAdapter,
     _run_subprocess,
+    _scan_for_secrets,
 )
 from workflow.adapters import SubprocessAgentAdapter
 from workflow.contracts import (
@@ -36,12 +38,17 @@ from workflow.nodes import (
     _reconcile_recovered_state,
     claude_opus_4_8_dependencies,
     commit_item,
+    create_nodes,
     default_dependencies,
     gpt_5_6_luna_dependencies,
 )
 from workflow.state import WorkflowState
 from workflow.retries import classify_failure, retry_delay, retry_on_exception
-from workflow.workspaces import RunWorkspace
+from workflow.workspaces import (
+    RunWorkspace,
+    remaining_deadline_seconds,
+    run_deadline_scope,
+)
 
 
 class NodeContractTests(unittest.TestCase):
@@ -311,6 +318,119 @@ class NodeContractTests(unittest.TestCase):
             with self.subTest(command=command):
                 self.assertEqual(timeouts[command], adapter.timeout_seconds)
         self.assertLess(adapter.probe_timeout_seconds, adapter.timeout_seconds)
+
+    def test_repository_subprocesses_are_clamped_to_the_remaining_run_budget(
+        self,
+    ) -> None:
+        with TemporaryDirectory() as directory:
+            adapter = GitHubAdapter(
+                Path(directory),
+                initial_dirty_files=(),
+                stale_after_days=None,
+            )
+            timeouts: dict[tuple[str, ...], float] = {}
+
+            def fake_run(command, *, cwd, timeout, env, **kwargs):
+                timeouts[tuple(command)] = timeout
+                return subprocess.CompletedProcess(command, 0, "", "")
+
+            probe = ("git", "branch", "--show-current")
+            gate = adapter._quality_gate_command()
+            handoff = ("git", "add", "--", "example.py")
+            with (
+                patch("workflow.adapters._run_subprocess", side_effect=fake_run),
+                run_deadline_scope(5.0),
+            ):
+                for command in (probe, gate, handoff):
+                    adapter._run(command)
+
+        for command in (probe, gate, handoff):
+            with self.subTest(command=command):
+                self.assertLessEqual(timeouts[command], 5.0)
+        self.assertLess(timeouts[gate], adapter.timeout_seconds)
+        self.assertLess(timeouts[probe], adapter.probe_timeout_seconds)
+
+    def test_repository_subprocesses_fail_before_launch_once_the_budget_is_gone(
+        self,
+    ) -> None:
+        with TemporaryDirectory() as directory:
+            adapter = GitHubAdapter(
+                Path(directory),
+                initial_dirty_files=(),
+                stale_after_days=None,
+            )
+            with (
+                patch("workflow.adapters._run_subprocess") as run,
+                run_deadline_scope(0.0),
+            ):
+                result = adapter._run(("git", "branch", "--show-current"))
+
+        run.assert_not_called()
+        self.assertEqual(result.status, "failed")
+        self.assertIn("deadline has elapsed", result.error)
+
+    def test_nodes_publish_the_remaining_run_budget_to_repository_adapters(
+        self,
+    ) -> None:
+        observed: list[float | None] = []
+
+        class BudgetProbeRepository:
+            def preflight(self) -> AgentResult:
+                observed.append(remaining_deadline_seconds())
+                return AgentResult(status="completed", assigned_model="probe")
+
+        stub = StubAgentAdapter("stub", "stub")
+        node = create_nodes(
+            NodeDependencies(
+                planner=stub,
+                builder=stub,
+                critic=stub,
+                validator=stub,
+                debugger=stub,
+                repository=BudgetProbeRepository(),
+            )
+        )["preflight"]
+
+        node(
+            {
+                "task": "budgeted run",
+                "run_started_at": time.time() - 100.0,
+                "max_runtime_seconds": 120.0,
+            },
+            {"configurable": {"thread_id": "run/1"}},
+        )
+
+        self.assertEqual(len(observed), 1)
+        remaining = observed[0]
+        self.assertIsNotNone(remaining)
+        self.assertGreater(remaining, 15.0)
+        self.assertLessEqual(remaining, 20.0)
+        self.assertIsNone(remaining_deadline_seconds())
+
+    def test_policy_gate_scan_is_clamped_to_the_remaining_run_budget(self) -> None:
+        if shutil.which("gitleaks") is None:
+            self.skipTest("gitleaks is not installed; see ./shanks doctor")
+        with TemporaryDirectory() as directory:
+            project = Path(directory)
+            (project / "example.py").write_text("value = 1\n", encoding="utf-8")
+            completed = subprocess.CompletedProcess(("gitleaks",), 0, "", "")
+
+            with (
+                patch(
+                    "workflow.adapters._run_subprocess",
+                    return_value=completed,
+                ) as run,
+                run_deadline_scope(3.0),
+            ):
+                self.assertEqual(_scan_for_secrets(project, ["example.py"]), "")
+            self.assertLessEqual(run.call_args.kwargs["timeout"], 3.0)
+
+            with (
+                patch("workflow.adapters._run_subprocess") as run,
+                run_deadline_scope(0.0),
+            ):
+                self.assertIsNone(_scan_for_secrets(project, ["example.py"]))
+            run.assert_not_called()
 
     def test_probe_timeout_seconds_must_be_positive(self) -> None:
         with TemporaryDirectory() as directory:
