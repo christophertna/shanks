@@ -36,7 +36,7 @@ Run the repository quality gates from a feature branch with:
 | [`test_state_schema.py`](test_state_schema.py) | 9 | State migration, retry metadata, versioned checkpoints, and legacy resume behavior |
 | [`test_lifecycle.py`](test_lifecycle.py) | 8 | Run leases, stale recovery, recovery-state reconciliation, interruption/resume, terminal release, and checkpoint cleanup |
 | [`test_workspaces.py`](test_workspaces.py) | 12 | Run identity, Git worktree creation/reuse, syncing the gitignored Claude Code hook guard into new worktrees, local/remote branch listing and deletion, workspace context, and workspace state migration |
-| [`test_viewer.py`](test_viewer.py) | 8 | Viewer HTML, execution-state data including pending interrupts and repository drift, checkpoint sharing, the live-reload module path, and Mermaid output |
+| [`test_viewer.py`](test_viewer.py) | 10 | Viewer HTML, execution-state data including pending interrupts and repository drift, checkpoint sharing, the live-reload module path, curated-constant node coverage, and Mermaid output |
 | [`test_quality_gates.py`](test_quality_gates.py) | 9 | Quality command definitions, safe diff refs, numstat parsing, generated-output handling, diff limits, and gate failure reporting |
 | [`test_fault_injection.py`](test_fault_injection.py) | 7 | Injected Git, GitHub, validation, checkpoint, and agent process failures |
 | [`test_git_integration.py`](test_git_integration.py) | 4 | Real temporary Git repositories, worktrees, commits, pushes, PR creation/reuse, fake-`gh` recovery, dry-run preview behavior, and upstream/worktree drift reporting |
@@ -517,6 +517,14 @@ Source: [`test_viewer.py`](test_viewer.py).
   review, decision, delivery, recovery, safety, failure, stopped, and
   completion nodes, with a legend explaining the colors.
 - Detailed rendering exposes the main and recovery sections and their links.
+- `retry_backoff` and `failed_run` render in the detailed view's recovery
+  section with their curated labels, and stay out of the overview.
+- Every curated viewer constant (`GRAPH_NODE_ORDER`, `VIEW_NODE_LABELS`,
+  `VIEW_NODE_CLASSES`, and the `VIEW_MAIN_NODES`/`VIEW_RECOVERY_NODES` union)
+  covers exactly the nodes `create_nodes()` builds, allowing `__start__` and
+  `__end__` as viewer-only extras, and the two view sets stay disjoint. This is
+  what keeps a newly added node from silently vanishing from the structured
+  view, which is how `failed_run` and `retry_backoff` were both missed.
 - Invalid or unintended edges are excluded, including direct GitHub-to-debugger
   routing, validation-to-debugger dashed styling, critic-to-validation or
   critic-to-item-router edges, self-loops, and direct building-to-end edges.

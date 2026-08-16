@@ -35,10 +35,14 @@ GRAPH_NODE_ORDER = {
     "item_router": 11,
     "push_node": 12,
     "pull_request_node": 13,
-    "attempt_limit": 14,
-    "failed_build": 15,
-    "stop_run": 16,
-    "__end__": 17,
+    # Recovery nodes rank after the main flow so their loop-back edges (e.g.
+    # retry_backoff -> building) style as dashed and their inbound edges solid.
+    "retry_backoff": 14,
+    "attempt_limit": 15,
+    "failed_build": 16,
+    "failed_run": 17,
+    "stop_run": 18,
+    "__end__": 19,
 }
 
 VIEW_NODE_LABELS = {
@@ -56,8 +60,10 @@ VIEW_NODE_LABELS = {
     "item_router": "more items",
     "push_node": "push branch",
     "pull_request_node": "open pull request",
+    "retry_backoff": "Retry backoff",
     "attempt_limit": "Attempt limit",
     "failed_build": "Failed build",
+    "failed_run": "Failed run",
     "stop_run": "Stop run",
     "__end__": "Complete",
 }
@@ -123,10 +129,14 @@ VIEW_INTAKE_EDGES = (
     ("learning", "intake", "-.->"),
 )
 VIEW_MAIN_RECOVERY_EDGES = (("item_router", "planning"),)
+# Partitions the graph's nodes with VIEW_MAIN_NODES; their union is asserted to
+# cover create_nodes() in tests/test_viewer.py.
 VIEW_RECOVERY_NODES = (
     "debugger",
+    "retry_backoff",
     "attempt_limit",
     "failed_build",
+    "failed_run",
     "stop_run",
 )
 VIEW_RECOVERY_EDGES = (
