@@ -10,13 +10,18 @@ from langgraph.checkpoint.memory import InMemorySaver
 
 from graph import build_graph as compile_graph
 from serve_graph import (
+    GRAPH_NODE_ORDER,
+    VIEW_MAIN_NODES,
+    VIEW_NODE_CLASSES,
+    VIEW_NODE_LABELS,
+    VIEW_RECOVERY_NODES,
     execution_state,
     load_graph_module,
     structured_mermaid,
     style_mermaid,
 )
 from workflow.adapters import StubAgentAdapter
-from workflow.nodes import NodeDependencies
+from workflow.nodes import NodeDependencies, create_nodes
 
 
 def build_graph(*args, **kwargs):
@@ -243,7 +248,9 @@ class GraphViewerTests(unittest.TestCase):
         self.assertIn("planning --> building;", content)
         self.assertIn("building --> validation;", content)
         self.assertIn("building --> failed_build;", content)
-        self.assertIn("building -.-> retry_backoff;", content)
+        # retry_backoff now has a rank, so its edges follow the same rule as
+        # attempt_limit/failed_build above: solid into the detour, dashed back.
+        self.assertIn("building --> retry_backoff;", content)
         self.assertIn("retry_backoff -.-> building;", content)
         self.assertIn("failed_build --> __end__;", content)
         self.assertIn("failed_run --> __end__;", content)
@@ -259,6 +266,64 @@ class GraphViewerTests(unittest.TestCase):
 
         self.assertNotIn("building --> __end__;", content)
         self.assertNotIn("validation -.-> planning;", content)
+
+    def test_curated_viewer_constants_cover_every_graph_node(self) -> None:
+        nodes = set(create_nodes(stub_dependencies()))
+        # The viewer draws the graph's entry and exit, which are not real nodes.
+        terminals = {"__start__", "__end__"}
+
+        for name, curated in (
+            ("GRAPH_NODE_ORDER", set(GRAPH_NODE_ORDER)),
+            ("VIEW_NODE_LABELS", set(VIEW_NODE_LABELS)),
+            ("VIEW_NODE_CLASSES", set(VIEW_NODE_CLASSES)),
+            (
+                "VIEW_MAIN_NODES | VIEW_RECOVERY_NODES",
+                set(VIEW_MAIN_NODES) | set(VIEW_RECOVERY_NODES),
+            ),
+        ):
+            with self.subTest(constant=name):
+                self.assertEqual(
+                    nodes - curated,
+                    set(),
+                    f"{name} is missing graph nodes; add them or the viewer "
+                    "silently drops them from the structured view",
+                )
+                self.assertEqual(
+                    curated - nodes - terminals,
+                    set(),
+                    f"{name} names nodes the graph no longer has",
+                )
+
+        self.assertEqual(
+            set(VIEW_MAIN_NODES) & set(VIEW_RECOVERY_NODES),
+            set(),
+            "the main and recovery sets must partition the nodes, not overlap",
+        )
+
+    def test_structured_view_shows_the_retry_and_failed_run_paths(self) -> None:
+        drawable_graph = build_graph().get_graph()
+        decision_nodes = {
+            node.id
+            for node in drawable_graph.nodes.values()
+            if (node.metadata or {}).get("kind") == "decision"
+        }
+
+        overview = structured_mermaid(drawable_graph.draw_mermaid(), decision_nodes)
+        detailed = structured_mermaid(
+            drawable_graph.draw_mermaid(),
+            decision_nodes,
+            detailed=True,
+        )
+
+        for node in ('retry_backoff["Retry backoff"]', 'failed_run["Failed run"]'):
+            with self.subTest(node=node):
+                self.assertNotIn(node, overview)
+                self.assertIn(node, detailed)
+        self.assertIn('retry_backoff["Retry backoff"]:::recoveryNode', detailed)
+        self.assertIn('failed_run["Failed run"]:::failureNode', detailed)
+        recovery_section = detailed.split("subgraph recovery", 1)[1]
+        self.assertIn("retry_backoff", recovery_section)
+        self.assertIn("failed_run", recovery_section)
 
     def test_structured_view_labels_and_critic_loop(self) -> None:
         drawable_graph = build_graph().get_graph()
