@@ -463,6 +463,24 @@ class NodeContractTests(unittest.TestCase):
         self.assertIn("Task: test task", result.prompt)
         self.assertEqual(result.commands[0][0], sys.executable)
 
+    def test_subprocess_adapter_accepts_versioned_python_executables(self) -> None:
+        adapter = SubprocessAgentAdapter(
+            command=("/usr/local/bin/python3.11", "-c", "print('adapter ok')"),
+            model_name="versioned-python",
+        )
+        completed = subprocess.CompletedProcess(
+            args=adapter.command,
+            returncode=0,
+            stdout="adapter ok",
+            stderr="",
+        )
+
+        with patch("workflow.adapters._run_subprocess", return_value=completed) as run:
+            result = adapter.run(AgentRequest(task="test versioned Python"))
+
+        self.assertEqual(result.status, "completed")
+        self.assertEqual(run.call_args.args[0], adapter.command)
+
     def test_subprocess_adapter_uses_remaining_runtime_budget(self) -> None:
         adapter = SubprocessAgentAdapter(
             command=(sys.executable, "-c", "print('adapter ok')"),
@@ -637,6 +655,34 @@ class NodeContractTests(unittest.TestCase):
         self.assertEqual(
             run.call_args.args[0],
             (sys.executable, "-m", "unittest", "tests.test_graph"),
+        )
+
+    def test_local_test_adapter_accepts_versioned_python_validation_commands(
+        self,
+    ) -> None:
+        adapter = LocalTestAdapter(Path("/tmp/shanks"))
+        completed = subprocess.CompletedProcess(
+            args=(),
+            returncode=0,
+            stdout="item tests passed",
+            stderr="",
+        )
+
+        with patch("workflow.adapters._run_subprocess", return_value=completed) as run:
+            result = adapter.run(
+                AgentRequest(
+                    task="validate this item",
+                    validation_command=(
+                        "/usr/local/bin/python3.11 -m unittest tests.test_graph"
+                    ),
+                )
+            )
+
+        self.assertEqual(result.status, "validated")
+        self.assertTrue(result.validation_passed)
+        self.assertEqual(
+            run.call_args.args[0],
+            ("/usr/local/bin/python3.11", "-m", "unittest", "tests.test_graph"),
         )
 
     def test_local_test_adapter_rejects_shell_and_inline_code_commands(self) -> None:
