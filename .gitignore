@@ -22,7 +22,7 @@ graphify-out/manifest.json
 graphify-out/.graphify_labels.json
 
 # Python virtual environment and caches
-.venv/
+.venv
 __pycache__/
 *.py[cod]
 
