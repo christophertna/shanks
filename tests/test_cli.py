@@ -14,7 +14,13 @@ from langgraph.types import Interrupt
 
 from graph import VersionedSqliteSaver
 from workflow.adapters import GitHubAdapter
-from workflow.cli import _REQUIRED_TOOLS, CliError, dev_worktree, main
+from workflow.cli import (
+    _REQUIRED_TOOLS,
+    CliError,
+    _check_claude_hooks,
+    dev_worktree,
+    main,
+)
 from workflow.lifecycle import RunLifecycleManager
 from workflow.workspaces import RunWorkspaceManager
 
@@ -213,6 +219,8 @@ class ShanksCliTests(unittest.TestCase):
         self.assertIn("[OK] dependencies", output.getvalue())
         self.assertIn("[OK] authentication", output.getvalue())
         self.assertIn("[OK] hooks", output.getvalue())
+        # Proves the check is wired into doctor_checks(), not just importable.
+        self.assertIn("[OK] claude-hooks", output.getvalue())
         self.assertIn("Doctor: PASS", output.getvalue())
 
     def test_doctor_fails_invalid_environment(self) -> None:
@@ -346,6 +354,51 @@ class ShanksCliTests(unittest.TestCase):
 
     def test_doctor_and_github_preflight_tool_lists_match(self) -> None:
         self.assertEqual(set(_REQUIRED_TOOLS), set(GitHubAdapter.REQUIRED_TOOLS))
+
+    def _hooks_project(self, root: Path, settings: str | None) -> Path:
+        project = root / "project"
+        (project / "hooks").mkdir(parents=True)
+        (project / "hooks" / "guard.sh").write_text("", encoding="utf-8")
+        # A real Git hook: wired by core.hooksPath, never by settings.json.
+        (project / "hooks" / "post-merge").write_text("", encoding="utf-8")
+        if settings is not None:
+            (project / ".claude").mkdir()
+            (project / ".claude" / "settings.json").write_text(
+                settings, encoding="utf-8"
+            )
+        return project
+
+    def test_doctor_flags_hook_scripts_the_wiring_never_references(self) -> None:
+        wired = '{"hooks": {"PreToolUse": [{"command": "bash hooks/guard.sh"}]}}'
+        with tempfile.TemporaryDirectory() as directory:
+            project = self._hooks_project(Path(directory), wired)
+            check = _check_claude_hooks(project)
+            self.assertTrue(check.passed, check.detail)
+            self.assertIn("guard.sh", check.detail)
+
+            (project / "hooks" / "unwired.sh").write_text("", encoding="utf-8")
+            check = _check_claude_hooks(project)
+
+        self.assertFalse(check.passed)
+        self.assertIn("unwired.sh", check.detail)
+        # The extensionless Git hook is not this check's business.
+        self.assertNotIn("post-merge", check.detail)
+
+    def test_doctor_warns_without_settings_and_fails_on_broken_settings(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            absent = _check_claude_hooks(self._hooks_project(Path(directory), None))
+
+        with tempfile.TemporaryDirectory() as directory:
+            broken = _check_claude_hooks(
+                self._hooks_project(Path(directory), "{not json")
+            )
+
+        # Gitignored, so a fresh clone and CI legitimately lack it.
+        self.assertTrue(absent.passed)
+        self.assertIn("no .claude/settings.json", absent.detail)
+        # Present but unparsable means Claude Code loads no hooks either.
+        self.assertFalse(broken.passed)
+        self.assertIn("unusable", broken.detail)
 
     def test_tests_md_counts_match_actual_test_methods(self) -> None:
         repo_root = Path(__file__).parents[1]

@@ -83,6 +83,7 @@ def doctor_checks(
         _check_environment(environment),
         _check_checkpoint(project, environment),
         _check_hooks_path(project, runner),
+        _check_claude_hooks(project),
     ]
 
 
@@ -341,6 +342,45 @@ def _check_hooks_path(project: Path, runner: Runner) -> DoctorCheck:
             + (f" (currently {configured!r})" if configured else ""),
         )
     return DoctorCheck("hooks", True, "core.hooksPath=hooks")
+
+
+def _check_claude_hooks(project: Path) -> DoctorCheck:
+    """Report `hooks/*.sh` scripts the gitignored hook wiring never references.
+
+    `hooks/` is tracked but `.claude/settings.json` is not, so a hook can be
+    committed, documented, and CI-tested while firing nowhere. Only `*.sh` is
+    checked: `post-merge`/`post-checkout`/`pre-push` are real Git hooks, wired
+    by `core.hooksPath` above rather than by this file.
+    """
+
+    settings = project / ".claude" / "settings.json"
+    scripts = sorted(path.name for path in (project / "hooks").glob("*.sh"))
+    if not settings.is_file():
+        # A fresh clone and CI both legitimately lack it (it is gitignored),
+        # and without it there is no wiring to compare against - so this is a
+        # warning, while a script the existing wiring forgot is a failure.
+        return DoctorCheck(
+            "claude-hooks",
+            True,
+            "no .claude/settings.json; no Claude Code hooks are active here",
+        )
+    try:
+        wiring = settings.read_text(encoding="utf-8")
+        json.loads(wiring)
+    except (OSError, ValueError) as error:
+        return DoctorCheck(
+            "claude-hooks", False, f".claude/settings.json is unusable: {error}"
+        )
+    unwired = [name for name in scripts if name not in wiring]
+    if unwired:
+        return DoctorCheck(
+            "claude-hooks",
+            False,
+            "never referenced by .claude/settings.json: " + ", ".join(unwired),
+        )
+    return DoctorCheck(
+        "claude-hooks", True, f"{len(scripts)} hook scripts wired: {', '.join(scripts)}"
+    )
 
 
 def _github_environment(environment: Mapping[str, str]) -> dict[str, str]:

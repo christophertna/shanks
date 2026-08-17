@@ -6,6 +6,12 @@ worktree). They only fire for Claude-CLI-driven agents — Codex-based agents
 (`CodexAdapter`, `GPT56LunaCriticAdapter`, `DebuggerAdapter(tool="codex")`)
 use Codex's own `--sandbox` flag instead and never see them.
 
+Because that wiring file is gitignored while `hooks/` is tracked, a hook can be
+committed, documented here, and CI-tested while firing nowhere. `./shanks
+doctor`'s `claude-hooks` check reports any `hooks/*.sh` the settings file never
+references (and warns when the file is missing entirely, which is the normal
+state of a fresh clone), so add the wiring in the same change as the script.
+
 ## Fail-open vs fail-closed on a missing `jq` (or other required tool)
 
 The "On missing tool" column below isn't accidental — it's a per-hook call
