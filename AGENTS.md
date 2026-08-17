@@ -22,6 +22,21 @@ Rules:
   first; use `SHANKS_ALLOW_BRANCH_SWITCH=1` only when you are certain the dirty
   files are yours.
 
+### Starting a parallel feature
+
+From a clean, up-to-date `main` checkout:
+
+```bash
+git status -sb
+git switch main
+git pull --ff-only
+./shanks dev worktree feat/<feature-name>
+```
+
+Run the agent in the directory printed by the command. Each agent commits and
+pushes only its own branch; merge the branches through their pull requests
+after validation. Keep the parent checkout for worktree setup, not editing.
+
 ## graphify
 
 This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.

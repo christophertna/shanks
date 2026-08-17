@@ -45,6 +45,7 @@ ALLOWED_AGENT_EXECUTABLES = frozenset({"bash", "claude", "codex", "python", "pyt
 # narrower policy than the shared agent allowlist above: no shell interpreter
 # and no inline-code flag, both of which would re-open arbitrary execution.
 VALIDATION_EXECUTABLES = frozenset({"python", "python3"})
+_VERSIONED_PYTHON_EXECUTABLE = re.compile(r"python3\.\d+\Z")
 AGENT_ALLOWED_ENVIRONMENT_KEYS = frozenset(
     {
         "HOME",
@@ -276,7 +277,7 @@ class SubprocessAgentAdapter:
         if not command:
             return "Refusing to run an empty command."
         executable = Path(command[0]).name
-        if executable not in ALLOWED_AGENT_EXECUTABLES:
+        if not _is_allowed_executable(executable, ALLOWED_AGENT_EXECUTABLES):
             return f"Refusing to run unapproved executable: {executable}."
 
         roots = self.allowed_directories or (
@@ -499,7 +500,7 @@ class LocalTestAdapter(SubprocessAgentAdapter):
         if not parsed:
             return self.command
         executable = Path(parsed[0]).name
-        if executable not in VALIDATION_EXECUTABLES:
+        if not _is_allowed_executable(executable, VALIDATION_EXECUTABLES):
             allowed = ", ".join(sorted(VALIDATION_EXECUTABLES))
             raise ValueError(
                 f"{executable!r} is not an allowed validation executable ({allowed})."
@@ -1848,6 +1849,15 @@ def _agent_environment() -> dict[str, str]:
 
 def _resolve_path(path: Path) -> Path:
     return path.expanduser().resolve(strict=False)
+
+
+def _is_allowed_executable(executable: str, allowed: frozenset[str]) -> bool:
+    """Allow configured executables and versioned Python 3 interpreters."""
+
+    return executable in allowed or (
+        "python3" in allowed
+        and _VERSIONED_PYTHON_EXECUTABLE.fullmatch(executable) is not None
+    )
 
 
 def _branch_values(values: object) -> tuple[str, ...]:
