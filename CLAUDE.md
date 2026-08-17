@@ -26,6 +26,9 @@ assembles the graph; `serve_graph.py` serves a live Mermaid viewer at
 - Diagnose the local setup: `./shanks doctor` — checks mode, required tools,
   pinned dependencies, GitHub CLI auth, `SHANKS_*` settings, and SQLite
   checkpoint setup; exits non-zero on failure.
+- Isolate a second agent: `./shanks dev worktree <branch>` — creates a sibling
+  worktree with `.claude/settings.json` copied and `.venv` symlinked, so two
+  agents can work on different branches at once without sharing a tree.
 - Manage runs: `./shanks runs list|status RUN_ID|resume RUN_ID|cancel RUN_ID|
   recover|cleanup|remove RUN_ID|prune` — see `dev/commands.md` for the full
   option reference.
@@ -76,8 +79,10 @@ in `AGENTS.md`; the short version:
 - Run `git status -sb` before your first write. A dirty tree you did not make,
   or a branch you did not create, means someone else is working here — stop and
   say so.
-- Start work with `git worktree add ../shanks-<branch> -b <branch>` rather than
-  sharing this tree. `git checkout -b` in place is fine.
+- Start work with `./shanks dev worktree <branch>` rather than sharing this
+  tree — it copies the gitignored `.claude/settings.json` and symlinks `.venv`,
+  which a bare `git worktree add` does not, leaving that tree with no hooks and
+  no test runner. `git checkout -b` in place is fine.
 - Stage explicit paths; never `git add -A` or `git add .`.
 - `hooks/guard-worktree.sh` blocks a branch switch while tracked files are
   dirty. Override with `SHANKS_ALLOW_BRANCH_SWITCH=1` only when the dirty files

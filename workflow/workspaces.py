@@ -33,6 +33,26 @@ class WorkspaceError(RuntimeError):
     """Raised when a run cannot be assigned a safe isolated workspace."""
 
 
+def sync_local_guardrails(project_directory: Path, directory: Path) -> bool:
+    """Carry the gitignored Claude Code hook guard into a new worktree.
+
+    ``.claude/`` is gitignored, so `git worktree add` never checks out
+    ``.claude/settings.json`` there; without it, Claude Code loads no project
+    hooks (e.g. the dangerous-command guard) in that worktree. Shared by run
+    worktrees and `shanks dev worktree`, so neither can silently skip it.
+
+    Returns True when settings were copied, False when the source has none.
+    """
+
+    settings = project_directory / ".claude" / "settings.json"
+    if not settings.is_file():
+        return False
+    target = directory / ".claude" / "settings.json"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(settings, target)
+    return True
+
+
 @dataclass(frozen=True, slots=True)
 class RunWorkspace:
     """The branch and worktree assigned to one workflow run."""
@@ -124,19 +144,7 @@ class RunWorkspaceManager:
         return workspace
 
     def _sync_local_guardrails(self, directory: Path) -> None:
-        """Carry the gitignored Claude Code hook guard into a new worktree.
-
-        ``.claude/`` is gitignored, so `git worktree add` never checks out
-        ``.claude/settings.json`` there; without it, Claude Code loads no
-        project hooks (e.g. the dangerous-command guard) in that worktree.
-        """
-
-        settings = self.project_directory / ".claude" / "settings.json"
-        if not settings.is_file():
-            return
-        target = directory / ".claude" / "settings.json"
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(settings, target)
+        sync_local_guardrails(self.project_directory, directory)
 
     def workspace_for(self, run_id: str) -> RunWorkspace:
         """Return the deterministic workspace identity for ``run_id``."""
