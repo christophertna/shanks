@@ -66,6 +66,23 @@ assembles the graph; `serve_graph.py` serves a live Mermaid viewer at
   right after `git worktree add`. `hooks/` itself is tracked, so it's
   already checked out normally.
 
+## Shared checkout
+
+Another coding agent (Codex, or a second Claude session) may be editing this
+repo at the same time, in the same checkout — this has already caused two
+sessions' uncommitted work to be mixed into one dirty tree. The full rules are
+in `AGENTS.md`; the short version:
+
+- Run `git status -sb` before your first write. A dirty tree you did not make,
+  or a branch you did not create, means someone else is working here — stop and
+  say so.
+- Start work with `git worktree add ../shanks-<branch> -b <branch>` rather than
+  sharing this tree. `git checkout -b` in place is fine.
+- Stage explicit paths; never `git add -A` or `git add .`.
+- `hooks/guard-worktree.sh` blocks a branch switch while tracked files are
+  dirty. Override with `SHANKS_ALLOW_BRANCH_SWITCH=1` only when the dirty files
+  are certainly yours.
+
 ## Repo etiquette
 
 - Commit style: Conventional Commits (`feat:`, `fix:`, `chore:`, `ci:`), short

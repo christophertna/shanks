@@ -11,6 +11,10 @@
           {
             "type": "command",
             "command": "bash hooks/deny-dangerous.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash hooks/guard-worktree.sh"
           }
         ]
       }
