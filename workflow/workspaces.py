@@ -11,7 +11,7 @@ import threading
 import time
 from contextlib import contextmanager
 from contextvars import ContextVar
-from dataclasses import dataclass, field
+from dataclasses import InitVar, dataclass, field
 from pathlib import Path
 from typing import Iterator
 
@@ -49,18 +49,21 @@ class RunWorkspaceManager:
 
     project_directory: Path
     base_branch: str = "main"
-    worktree_root: Path | None = None
+    # Optional only at construction; __post_init__ always resolves it into the
+    # non-optional ``root`` below, so internal callers never re-narrow it.
+    worktree_root: InitVar[Path | None] = None
     branch_prefix: str = "shanks/run"
     timeout_seconds: int = 30
     protected_branches: tuple[str, ...] = DEFAULT_PROTECTED_BRANCHES
+    root: Path = field(init=False)
     _lock: threading.Lock = field(init=False, repr=False)
 
-    def __post_init__(self) -> None:
+    def __post_init__(self, worktree_root: Path | None) -> None:
         self.project_directory = self.project_directory.expanduser().resolve()
-        root = self.worktree_root or self.project_directory / ".shanks" / "worktrees"
-        self.worktree_root = root.expanduser().resolve()
+        root = worktree_root or self.project_directory / ".shanks" / "worktrees"
+        self.root = root.expanduser().resolve()
         try:
-            self.worktree_root.relative_to(self.project_directory)
+            self.root.relative_to(self.project_directory)
         except ValueError as error:
             raise ValueError(
                 "worktree_root must be inside project_directory"
@@ -100,8 +103,9 @@ class RunWorkspaceManager:
                 self._sync_local_guardrails(directory)
                 return workspace
 
-            self.worktree_root.mkdir(parents=True, exist_ok=True)
+            self.root.mkdir(parents=True, exist_ok=True)
             branch_exists = self._branch_exists(branch)
+            command: tuple[str, ...]
             if branch_exists:
                 command = ("git", "worktree", "add", str(directory), branch)
             else:
@@ -143,7 +147,7 @@ class RunWorkspaceManager:
         return RunWorkspace(
             run_id,
             f"{self.branch_prefix}/{normalized_id}",
-            self.worktree_root / normalized_id,
+            self.root / normalized_id,
             self.base_branch,
         )
 
@@ -159,9 +163,7 @@ class RunWorkspaceManager:
         normalized_id = _normalize_component(run_id)
         if not normalized_id:
             return
-        target = self._safe_removal_directory(
-            directory or self.worktree_root / normalized_id
-        )
+        target = self._safe_removal_directory(directory or self.root / normalized_id)
         if not target.exists():
             return
         parts = ["git", "worktree", "remove"]
@@ -191,9 +193,7 @@ class RunWorkspaceManager:
             return
 
         normalized_id = _normalize_component(run_id)
-        target = self._safe_removal_directory(
-            directory or self.worktree_root / normalized_id
-        )
+        target = self._safe_removal_directory(directory or self.root / normalized_id)
         with self._lock:
             if target.exists():
                 raise WorkspaceError(
@@ -235,11 +235,9 @@ class RunWorkspaceManager:
     def list_worktrees(self) -> list[str]:
         """Return the run ids of worktree directories present on disk."""
 
-        if not self.worktree_root.is_dir():
+        if not self.root.is_dir():
             return []
-        return sorted(
-            entry.name for entry in self.worktree_root.iterdir() if entry.is_dir()
-        )
+        return sorted(entry.name for entry in self.root.iterdir() if entry.is_dir())
 
     def list_branches(self) -> list[str]:
         """Return the run ids of local branches under this run's prefix."""

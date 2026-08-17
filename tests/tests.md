@@ -37,7 +37,7 @@ Run the repository quality gates from a feature branch with:
 | [`test_lifecycle.py`](test_lifecycle.py) | 8 | Run leases, stale recovery, recovery-state reconciliation, interruption/resume, terminal release, and checkpoint cleanup |
 | [`test_workspaces.py`](test_workspaces.py) | 12 | Run identity, Git worktree creation/reuse, syncing the gitignored Claude Code hook guard into new worktrees, local/remote branch listing and deletion, workspace context, and workspace state migration |
 | [`test_viewer.py`](test_viewer.py) | 10 | Viewer HTML, execution-state data including pending interrupts and repository drift, checkpoint sharing, the live-reload module path, curated-constant node coverage, and Mermaid output |
-| [`test_quality_gates.py`](test_quality_gates.py) | 9 | Quality command definitions, safe diff refs, numstat parsing, generated-output handling, diff limits, and gate failure reporting |
+| [`test_quality_gates.py`](test_quality_gates.py) | 10 | Quality command definitions, typing-gate module coverage, safe diff refs, numstat parsing, generated-output handling, diff limits, and gate failure reporting |
 | [`test_fault_injection.py`](test_fault_injection.py) | 7 | Injected Git, GitHub, validation, checkpoint, and agent process failures |
 | [`test_git_integration.py`](test_git_integration.py) | 4 | Real temporary Git repositories, worktrees, commits, pushes, PR creation/reuse, fake-`gh` recovery, dry-run preview behavior, and upstream/worktree drift reporting |
 | [`test_agent_integration.py`](test_agent_integration.py) | 5 | Real Codex and Claude CLI smoke tests, including the sandboxed Claude write path and the GPT-5.6 Luna/Claude Opus 4.8 critic adapters, against a small deterministic project (opt-in) |
@@ -151,6 +151,11 @@ Sources: [`test_quality_gates.py`](test_quality_gates.py),
 - Black checks the repository's Python paths without rewriting files; Ruff
   checks the same paths; Mypy checks the production modules; and pip-audit
   scans both runtime and development requirement files.
+- The typing gate passes no paths of its own, so `[tool.mypy] files` in
+  `pyproject.toml` is the single source of truth for what gets checked. The
+  test asserts the command carries no path arguments and that every core
+  runtime module is still in that list, so coverage cannot be silently dropped
+  the way `workflow/nodes.py` was while the two lists disagreed.
 - The diff gate parses `git diff --numstat`, counts binary files safely, rejects
   malformed output, and enforces limits of 50 changed files and 2,000 changed
   lines by default. Derived `graphify-out/` artifacts are excluded from those

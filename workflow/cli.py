@@ -16,8 +16,9 @@ import json
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
+from functools import partial
 from pathlib import Path
-from typing import Any, Iterable, Iterator, Sequence
+from typing import Any, Iterable, Iterator, Literal, Sequence
 
 from .lifecycle import (
     RunBusyError,
@@ -32,6 +33,9 @@ class CliError(RuntimeError):
     """Raised for an operator-correctable run-management error."""
 
 
+# Mirrors ``graph.build_graph``'s ``tool`` parameter; mypy flags the call sites
+# if the two ever drift.
+ToolName = Literal["claude", "codex"]
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 _REQUIREMENT_FILES = ("requirements.txt", "requirements-dev.txt")
 _REQUIRED_TOOLS = ("git", "gh", "bash", "jq", "gitleaks")
@@ -598,7 +602,9 @@ def _project_directory(args: argparse.Namespace) -> Path:
     return project
 
 
-def _build_graph(args: argparse.Namespace, checkpointer: Any, *, tool: str = "codex"):
+def _build_graph(
+    args: argparse.Namespace, checkpointer: Any, *, tool: ToolName = "codex"
+):
     from graph import build_graph
 
     return build_graph(
@@ -977,24 +983,28 @@ def _prune(args: argparse.Namespace, json_output: bool) -> int:
             for target in worktrees:
                 if target["orphan"]:
                     target["action"] = _apply(
-                        lambda t=target: workspace_manager.remove(
-                            t["id"], force=args.force
+                        partial(
+                            workspace_manager.remove, target["id"], force=args.force
                         )
                     )
             if args.delete_branches:
                 for target in branches:
                     if target["orphan"]:
                         target["action"] = _apply(
-                            lambda t=target: workspace_manager.delete_branch(
-                                t["id"], force=args.force
+                            partial(
+                                workspace_manager.delete_branch,
+                                target["id"],
+                                force=args.force,
                             )
                         )
             if args.include_remote:
                 for target in remote_branches:
                     if target["orphan"]:
                         target["action"] = _apply(
-                            lambda t=target: workspace_manager.delete_remote_branch(
-                                t["id"], remote=args.remote
+                            partial(
+                                workspace_manager.delete_remote_branch,
+                                target["id"],
+                                remote=args.remote,
                             )
                         )
 
@@ -1053,7 +1063,7 @@ def _print_prune_report(payload: dict[str, Any]) -> None:
         print("Nothing to report.")
 
 
-def _tool_for_values(values: dict[str, Any]) -> str:
+def _tool_for_values(values: dict[str, Any]) -> ToolName:
     model = str(values.get("assigned_model", "")).lower()
     return "claude" if "claude" in model else "codex"
 
