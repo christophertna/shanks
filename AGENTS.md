@@ -37,6 +37,23 @@ Run the agent in the directory printed by the command. Each agent commits and
 pushes only its own branch; merge the branches through their pull requests
 after validation. Keep the parent checkout for worktree setup, not editing.
 
+### Finishing a parallel feature
+
+After the feature PR is merged, verify the merge before deleting its worktree
+or branch:
+
+```bash
+gh pr view <number> --json state,mergeCommit
+git worktree remove ../shanks-<branch>
+git branch -D <branch>
+git remote prune origin
+```
+
+`git branch -d` can refuse a squash-merged branch because its original tip is
+not an ancestor of `main`; use `-D` only after the merged check above. The
+`dev/commands.md` `Parallel agents` examples show the matching worktree
+creation flow. Keep the parent checkout for this cleanup as well.
+
 ## graphify
 
 This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
