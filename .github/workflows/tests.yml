@@ -52,6 +52,7 @@ jobs:
           bash hooks/test.hooks/test-secret-scan.sh
           bash hooks/test.hooks/test-pre-push.sh
           bash hooks/test.hooks/test-run-impacted-tests.sh
+          bash hooks/test.hooks/test-format-touched.sh
           bash hooks/test.hooks/test-post-merge-checkout.sh
 
       - name: Run quality gates

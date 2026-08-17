@@ -61,7 +61,8 @@ and its recovery paths, with semantic node colors and a legend for every node ty
   expose project-scoped Codex and Claude entrypoints.
 - `.github/workflows/tests.yml` runs the unittest suite and the
   `hooks/test.hooks/` guard harnesses (`test-deny-dangerous.sh`, `test-secret-scan.sh`,
-  `test-pre-push.sh`, `test-run-impacted-tests.sh`, `test-post-merge-checkout.sh`)
+  `test-pre-push.sh`, `test-run-impacted-tests.sh`, `test-format-touched.sh`,
+  `test-post-merge-checkout.sh`)
   on pushes and pull requests.
 - `.github/workflows/agent-smoke-tests.yml` is an opt-in, manually-triggered
   (`workflow_dispatch`) job that runs `tests/test_agent_integration.py` against
@@ -394,7 +395,11 @@ CLI throughout the agent workflow.
   graphify graph in the background after each Write/Edit. `hooks/run-impacted-tests.sh`
   runs the matching unittest module for a touched Python file or the matching
   shell harness for a touched hook, and skips silently when no match exists.
-  Run `hooks/test.hooks/test-run-impacted-tests.sh` to test it. These hooks are
+  Run `hooks/test.hooks/test-run-impacted-tests.sh` to test it.
+  `hooks/format-touched.sh` applies `black` to the touched Python file and
+  reports `ruff` (and, for files in `[tool.mypy] files`, `mypy`) failures at
+  the edit instead of at the next `scripts/quality_gates.py` run. Run
+  `hooks/test.hooks/test-format-touched.sh` to test it. These hooks are
   wired through the gitignored `.claude/settings.json`, which contains a
   machine-specific `graphify` path.
 

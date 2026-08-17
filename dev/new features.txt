@@ -2,21 +2,7 @@ Shanks feature roadmap
 
 Priority 1 - Reliability and contributor experience
 
-1- Add a `PostToolUse` hook that runs Black/Ruff (and mypy) on the exact file
-   Claude just touched and feeds failures back immediately, instead of only
-   catching them later at `scripts/quality_gates.py --diff-base origin/main`.
-   Concrete trigger: the formatting gate failed on both #85 and #86, each
-   costing a manual `black` run plus a full gate re-run at the end of the work
-   rather than at the edit that caused it. `hooks/run-impacted-tests.sh`
-   already implements this shape for tests (and caught a rename mid-edit
-   during #86), so the pattern, the wiring, and the shell harness convention
-   all exist - this is mostly reuse. Keep it advisory-fast: format/lint the
-   single touched file, not the tree. Passes the test the
-   `hooks/pr-checkpoint-reminder.sh` lesson below sets for new advisory hooks:
-   the failure mode here really is a tool-call boundary (Write/Edit happen, and
-   the hook sees the exact path), not an agent choosing prose over a tool call.
-
-2- Accept versioned interpreter names in the executable allowlists.
+1- Accept versioned interpreter names in the executable allowlists.
    `ALLOWED_AGENT_EXECUTABLES` and `VALIDATION_EXECUTABLES`
    (`workflow/adapters.py`) match on `Path(command[0]).name` against bare
    `python`/`python3`, so `python3.11` is refused. This hits the *default*
@@ -32,6 +18,13 @@ Priority 1 - Reliability and contributor experience
 
 Suggestions
 
+- `hooks/format-touched.sh` decides whether to run mypy by grepping
+  `pyproject.toml` for the touched file's quoted relative path, so the hook
+  and `[tool.mypy] files` agree only textually (carries a `ponytail:` comment
+  naming the ceiling). Fine while every listed path is one quoted line; a glob
+  or a second quoted-path list in that file would need a real TOML read. The
+  failure mode is a skipped advisory type-check, not a bad allow - the gate
+  still runs mypy over the full list.
 - `LocalTestAdapter._command_for`'s inline-code check (#85) scans every
   argument after the executable, but only interpreter-position flags can
   actually execute code - once `-m <module>` or a script path appears, the
