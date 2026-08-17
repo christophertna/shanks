@@ -3,7 +3,8 @@
 This document summarizes the behavior covered by the repository's tracked test
 files. The Python suite contains **171 unittest methods** across twelve
 modules; `hooks/test.hooks/test-deny-dangerous.sh`, `hooks/test.hooks/test-secret-scan.sh`,
-`hooks/test.hooks/test-pre-push.sh`, `hooks/test.hooks/test-run-impacted-tests.sh`, and
+`hooks/test.hooks/test-pre-push.sh`, `hooks/test.hooks/test-run-impacted-tests.sh`,
+`hooks/test.hooks/test-format-touched.sh`, and
 `hooks/test.hooks/test-post-merge-checkout.sh` are separate shell regression
 harnesses, all run in CI alongside the Python suite (see
 [`.github/workflows/tests.yml`](../.github/workflows/tests.yml)).
@@ -47,6 +48,7 @@ Run the repository quality gates from a feature branch with:
 | [`../hooks/test.hooks/test-guard-worktree.sh`](../hooks/test.hooks/test-guard-worktree.sh) | 13 shell checks | Branch-switch blocking while tracked files are dirty, with branch creation (`-b`/`-B`/`-c`), `--` path restores, clean trees, untracked-only trees, non-git commands, and the override env var all allowed |
 | [`../hooks/test.hooks/test-pre-push.sh`](../hooks/test.hooks/test-pre-push.sh) | 3 shell checks | `pre-push` gates on quality-gate exit status and fails open when the venv Python is missing |
 | [`../hooks/test.hooks/test-run-impacted-tests.sh`](../hooks/test.hooks/test-run-impacted-tests.sh) | 14 shell checks | Scoped test-module and shell-harness resolution, pass/fail feedback, and silent skip on no match, non-Python files, a missing interpreter, extensionless Git hooks, and shell files outside `hooks/` |
+| [`../hooks/test.hooks/test-format-touched.sh`](../hooks/test.hooks/test-format-touched.sh) | 9 shell checks | Black reformat reporting, ruff and mypy failure feedback, `[tool.mypy] files` gating of the mypy run, and silent skip on non-Python files, files outside the project, missing files, and a missing interpreter |
 | [`../hooks/test.hooks/test-post-merge-checkout.sh`](../hooks/test.hooks/test-post-merge-checkout.sh) | 3 shell checks | `post-checkout`'s same-SHA no-op skip and different-SHA `graphify update` trigger, and `post-merge`'s no-op fallback when `graphify` isn't on PATH |
 
 ### CLI diagnostics
@@ -314,6 +316,25 @@ so it never depends on the real suite's runtime. It verifies that the hook:
 - Skips silently for an extensionless Git hook (e.g. `hooks/post-merge`,
   which has no `.sh` match) and for a `.sh` file outside `hooks/`, even if a
   same-named harness coincidentally exists.
+
+### Scoped formatting and lint checks
+
+The shell harness invokes `hooks/format-touched.sh` with a synthetic
+PostToolUse payload and a stubbed `python` interpreter (`SHANKS_FORMAT_PYTHON`)
+so it never depends on the real `black`/`ruff`/`mypy` installs. It verifies
+that the hook:
+
+- Runs quietly (exit 0) when every stubbed tool succeeds.
+- Reports the reformat (exit 2) when `black --check` fails and the following
+  `black` write pass succeeds, since the file on disk no longer matches what
+  the agent wrote.
+- Surfaces `ruff check` and `mypy` failures (exit 2) with their output on
+  stderr.
+- Runs `mypy` only for files listed in `[tool.mypy] files`, so a failing
+  `mypy` stub is never reached for an unlisted file.
+- Skips silently for non-Python files, Python files outside the project
+  directory, files that no longer exist, and a missing Python interpreter
+  (fails open).
 
 ## GitHub commit and pull-request delivery
 
