@@ -2,28 +2,7 @@ Shanks feature roadmap
 
 Priority 1 - Reliability and contributor experience
 
-1- Isolate the coding agents that build Shanks, each in its own Git worktree.
-   Scope: this is about MY development loop as the person building this
-   project - the Claude Code / Codex sessions editing this repo - not about
-   Shanks the product, and not about the runs Shanks orchestrates. Shanks
-   already isolates its own runs (`RunWorkspaceManager` gives every run a
-   branch and worktree), and giving *PRD items* parallel worktrees is a
-   separate, unrelated feature tracked as Big tasks item 3. Nothing covers the
-   agents writing Shanks itself.
-   The problem: two agents driving this checkout at once share one working
-   tree and nothing warns either of them. Hit live this session - a Codex
-   session ran `git checkout` onto its own branch while a Claude session had
-   uncommitted work in the same tree, mixing both diffs into one dirty state
-   and leaving each agent's files one `git add -A` away from landing in the
-   other's commit. Recovering it needed a hand-audited `git diff` per file.
-   Start with the cheap half: document the `git worktree add` convention in
-   `AGENTS.md`/`CLAUDE.md` so a second agent never starts in an occupied tree,
-   and so an agent checks for a dirty tree and a foreign branch before its
-   first write. Add a `./shanks dev worktree <branch>` helper only if the
-   manual convention proves too easy to forget - note it would be a developer
-   convenience command, not part of the workflow Shanks runs.
-
-2- Add a `PostToolUse` hook that runs Black/Ruff (and mypy) on the exact file
+1- Add a `PostToolUse` hook that runs Black/Ruff (and mypy) on the exact file
    Claude just touched and feeds failures back immediately, instead of only
    catching them later at `scripts/quality_gates.py --diff-base origin/main`.
    Concrete trigger: the formatting gate failed on both #85 and #86, each
@@ -37,7 +16,7 @@ Priority 1 - Reliability and contributor experience
    the failure mode here really is a tool-call boundary (Write/Edit happen, and
    the hook sees the exact path), not an agent choosing prose over a tool call.
 
-3- Accept versioned interpreter names in the executable allowlists.
+2- Accept versioned interpreter names in the executable allowlists.
    `ALLOWED_AGENT_EXECUTABLES` and `VALIDATION_EXECUTABLES`
    (`workflow/adapters.py`) match on `Path(command[0]).name` against bare
    `python`/`python3`, so `python3.11` is refused. This hits the *default*

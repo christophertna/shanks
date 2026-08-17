@@ -23,6 +23,13 @@ bypassable via `SHANKS_ALLOW_DEPENDENCY_EDIT=1`, so failing open on a missing
 unless you can name why this hook is more like `guard-dependency-files.sh`
 than `deny-dangerous.sh`.
 
+`guard-worktree.sh` is the second fail-open example, for the same reason: it
+is a collision nudge between concurrent agents, not a safety backstop, and it
+is already bypassable via `SHANKS_ALLOW_BRANCH_SWITCH=1`. What it prevents is
+also recoverable — a wrongly carried change is still in the working tree, not
+destroyed — so failing open on a missing `jq`/`git` costs less than blocking
+every branch switch on a machine that lacks them.
+
 ## Reference
 
 | Hook | Trigger | Matcher | Does | On missing tool |
@@ -30,6 +37,7 @@ than `deny-dangerous.sh`.
 | `deny-dangerous.sh` | PreToolUse | `Bash` | Blocks catastrophic shell commands (`rm -rf /`, `curl\|sh`, force-push, `gh auth token`, ...) via `dangerous-patterns.txt` | Fails closed (blocks) if `jq` missing |
 | `guard-dependency-files.sh` | PreToolUse | `Write\|Edit` | Blocks writes to lockfiles, pinned `requirements*.txt`, `.env` files via `guarded-paths.txt`; override with `SHANKS_ALLOW_DEPENDENCY_EDIT=1` | Fails open (allows) if `jq` missing |
 | `secret-scan.sh` | PreToolUse | `Write\|Edit`, `Bash` | Scans written/edited content or the Bash command text with `gitleaks`, blocks on a match | Fails closed (blocks) if `jq`/`gitleaks` missing |
+| `guard-worktree.sh` | PreToolUse | `Bash` | Blocks `git checkout`/`git switch` to another ref while tracked files are dirty, so a second agent in this checkout never carries the first one's uncommitted work onto its branch; branch creation (`-b`/`-B`/`-c`/`-C`) and `--` path restores stay allowed. Override with `SHANKS_ALLOW_BRANCH_SWITCH=1` | Fails open (allows) if `jq`/`git` missing |
 | `graphify hook-guard search` | PreToolUse | `Bash\|Grep` | Injects a reminder to run `graphify query` before raw grep/Bash search | Advisory only, never blocks |
 | `graphify hook-guard read` | PreToolUse | `Read\|Glob` | Injects a reminder to run `graphify query`/`explain` before reading raw source | Advisory only, never blocks |
 | `graphify-update.sh` | PostToolUse | `Write\|Edit` | Refreshes the graphify graph in the background (AST-only, no LLM cost) | No-op if graphify isn't installed |
