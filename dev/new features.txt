@@ -2,32 +2,8 @@ Shanks feature roadmap
 
 Priority 1 - Reliability and contributor experience
 
-1- Accept versioned interpreter names in the executable allowlists.
-   `ALLOWED_AGENT_EXECUTABLES` and `VALIDATION_EXECUTABLES`
-   (`workflow/adapters.py`) match on `Path(command[0]).name` against bare
-   `python`/`python3`, so `python3.11` is refused. This hits the *default*
-   fallback validation command, not just a custom one: `LocalTestAdapter`
-   builds it from `sys.executable`, so any environment where that resolves to
-   a versioned binary fails every validation with "Refusing to run unapproved
-   executable: python3.11." Safe in this repo (`.venv/bin/python` is a symlink
-   named `python`) and in CI (`actions/setup-python` also gives `python`), so
-   nothing triggers it today - but it presents as a guardrail bug rather than a
-   setup problem, which is the expensive kind to debug. Match a `python3.N`
-   pattern, or resolve `sys.executable` before the name check, and cover both
-   allowlists.
-
-2- Diagnose Claude Code hooks that exist but are not wired.
-   `hooks/` is tracked, but the wiring lives in the gitignored
-   `.claude/settings.json`, so a hook script can be committed, documented,
-   CI-tested, and still never fire - and a fresh clone gets *zero* Claude Code
-   hooks with nothing reporting it. `_check_hooks_path` (`workflow/cli.py`)
-   only covers the Git-side `core.hooksPath`. Add a `claude-hooks` doctor check
-   that reads `.claude/settings.json` and reports any `hooks/*.sh` it does not
-   reference, warning when the file is absent entirely. A tracked example
-   settings file is the possible second half (`.claude/skills/*` are already
-   force-tracked past the ignore, so it is mechanically possible), but it
-   carries a machine-specific `graphify` path - decide that separately rather
-   than committing one verbatim.
+Nothing queued - #91, #92, and #93 cleared the list. Promote from Suggestions
+below when picking up the next item.
 
 Suggestions
 

@@ -89,7 +89,11 @@ git config core.hooksPath hooks
 ```
 
 `./shanks doctor` checks this is set, so a skipped step surfaces as a
-diagnostic instead of silently disabling local push gating.
+diagnostic instead of silently disabling local push gating. Its `claude-hooks`
+check covers the other half: `hooks/` is tracked but the Claude Code wiring
+lives in the gitignored `.claude/settings.json`, so it reports any `hooks/*.sh`
+that file never references, and warns when the file is absent entirely (a
+fresh clone has no Claude Code hooks at all).
 
 Run the tests:
 
@@ -155,7 +159,7 @@ gh auth refresh -h github.com -s workflow
 | `./shanks --mode` | Show the current mode. `-mode` and `mode` are aliases. |
 | `./shanks -mode` | Show the current mode. |
 | `./shanks mode` | Show the current mode. |
-| `./shanks doctor` | Check tools and versions, pinned dependencies, GitHub authentication, environment variables, SQLite setup, and `core.hooksPath`. |
+| `./shanks doctor` | Check tools and versions, pinned dependencies, GitHub authentication, environment variables, SQLite setup, `core.hooksPath`, and whether every `hooks/*.sh` script is wired into `.claude/settings.json`. |
 | `./shanks runs list` | List checkpointed runs. |
 | `./shanks runs status RUN_ID` | Show a run's persisted lifecycle and checkpoint status, the prompt it is paused on, its repository drift note, and its newest run-manifest events. |
 | `./shanks runs resume RUN_ID RESPONSE` | Resume a run with a response such as `implement`, `learn`, `approve`, or `reject`. |

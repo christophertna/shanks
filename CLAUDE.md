@@ -24,8 +24,9 @@ assembles the graph; `serve_graph.py` serves a live Mermaid viewer at
   venv's interpreter, not system `python`)
 - Viewer: `.venv/bin/python serve_graph.py`
 - Diagnose the local setup: `./shanks doctor` — checks mode, required tools,
-  pinned dependencies, GitHub CLI auth, `SHANKS_*` settings, and SQLite
-  checkpoint setup; exits non-zero on failure.
+  pinned dependencies, GitHub CLI auth, `SHANKS_*` settings, SQLite checkpoint
+  setup, and whether every `hooks/*.sh` is wired into the gitignored
+  `.claude/settings.json`; exits non-zero on failure.
 - Isolate a second agent: `./shanks dev worktree <branch>` — creates a sibling
   worktree with `.claude/settings.json` copied and `.venv` symlinked, so two
   agents can work on different branches at once without sharing a tree.

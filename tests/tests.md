@@ -1,7 +1,7 @@
 # Test coverage
 
 This document summarizes the behavior covered by the repository's tracked test
-files. The Python suite contains **209 unittest methods** across twelve
+files. The Python suite contains **211 unittest methods** across twelve
 modules; every `hooks/test.hooks/test-*.sh` file is a separate shell
 regression harness, run in CI alongside the Python suite (see
 [`.github/workflows/tests.yml`](../.github/workflows/tests.yml)). The harness
@@ -31,7 +31,7 @@ Run the repository quality gates from a feature branch with:
 
 | File | Tests | Main areas |
 | --- | ---: | --- |
-| [`test_cli.py`](test_cli.py) | 23 | Execution-mode reporting, dev worktree creation and ignored `.venv` symlinks, doctor diagnostics (including Git/gh version checks and `core.hooksPath`), documentation-count guards for the Python and shell test suites, hook-harness coverage in this file and in CI, and run listing, status (including pending interrupts, drift, and recent events), resume, cancellation, recovery, cleanup, pruning, and safety checks |
+| [`test_cli.py`](test_cli.py) | 25 | Execution-mode reporting, dev worktree creation and ignored `.venv` symlinks, doctor diagnostics (including Git/gh version checks, `core.hooksPath`, and unwired Claude Code hooks), documentation-count guards for the Python and shell test suites, hook-harness coverage in this file and in CI, and run listing, status (including pending interrupts, drift, and recent events), resume, cancellation, recovery, cleanup, pruning, and safety checks |
 | [`test_graph.py`](test_graph.py) | 46 | Workflow orchestration, item metadata, repository drift injection, append-only run-manifest behavior, targeted retries, budgets, approvals, dry-run previews, and GitHub handoff |
 | [`test_node_contracts.py`](test_node_contracts.py) | 70 | Agent, failure-classification, subprocess, versioned interpreter allowlists, Ralph, local-test, critic, quality-gate, pre-commit policy gate, recovery reconciliation, repository-protocol conformance, preview-protocol narrowing, subprocess timeout budgets, and GitHub adapter contracts |
 | [`test_state_schema.py`](test_state_schema.py) | 10 | State migration, one-step migration chains, retry metadata, versioned checkpoints, and legacy resume behavior |
@@ -68,6 +68,13 @@ Run the repository quality gates from a feature branch with:
   can be committed, pass locally, and never run anywhere: the row list above is
   what the suite iterates, and the CI step is a separate hand-maintained copy.
   It found `test-guard-worktree.sh` documented here but missing from CI.
+- `test_cli.py` verifies the `claude-hooks` doctor check: a `hooks/*.sh` script
+  the gitignored `.claude/settings.json` never references fails the check, an
+  extensionless Git hook beside it does not, an absent settings file is a
+  warning rather than a failure (a fresh clone and CI both legitimately lack
+  it), and a present-but-unparsable one fails. The healthy-doctor test also
+  asserts `[OK] claude-hooks` appears, so the check stays wired into
+  `doctor_checks()` rather than merely importable.
 
 ### Developer worktrees
 
