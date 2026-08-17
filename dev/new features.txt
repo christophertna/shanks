@@ -16,6 +16,19 @@ Priority 1 - Reliability and contributor experience
    pattern, or resolve `sys.executable` before the name check, and cover both
    allowlists.
 
+2- Diagnose Claude Code hooks that exist but are not wired.
+   `hooks/` is tracked, but the wiring lives in the gitignored
+   `.claude/settings.json`, so a hook script can be committed, documented,
+   CI-tested, and still never fire - and a fresh clone gets *zero* Claude Code
+   hooks with nothing reporting it. `_check_hooks_path` (`workflow/cli.py`)
+   only covers the Git-side `core.hooksPath`. Add a `claude-hooks` doctor check
+   that reads `.claude/settings.json` and reports any `hooks/*.sh` it does not
+   reference, warning when the file is absent entirely. A tracked example
+   settings file is the possible second half (`.claude/skills/*` are already
+   force-tracked past the ignore, so it is mechanically possible), but it
+   carries a machine-specific `graphify` path - decide that separately rather
+   than committing one verbatim.
+
 Suggestions
 
 - `hooks/format-touched.sh` decides whether to run mypy by grepping
@@ -188,14 +201,17 @@ OS-specific (macOS-only mechanisms and fixes)
   sandbox at all yet, so the same gap is compounded there - filesystem
   writes aren't contained either. Defer until there's a concrete need (e.g.
   running against untrusted PRD content).
-- `hooks/run-impacted-tests.sh` has no timeout on the matched test run - a
-  hung test (infinite loop, blocked I/O) would stall every subsequent
-  Write/Edit indefinitely, since the hook runs synchronously by design (it
-  needs the exit code for blocking feedback). The stall risk itself is not
-  OS-specific, but the fix is harder on macOS specifically: Linux ships GNU
-  coreutils' `timeout` by default, macOS does not, so a portable version
-  needs a hand-rolled background-process-plus-kill pattern instead of one
-  command. Not urgent today - all matched modules are fast and none hang.
+- Neither `hooks/run-impacted-tests.sh` nor `hooks/format-touched.sh` has a
+  timeout on the command it runs - a hung test (infinite loop, blocked I/O) or
+  a stuck `black`/`ruff`/`mypy` would stall every subsequent Write/Edit
+  indefinitely, since both hooks run synchronously by design (they need the
+  exit code for blocking feedback). The stall risk itself is not OS-specific,
+  but the fix is harder on macOS specifically: Linux ships GNU coreutils'
+  `timeout` by default, macOS does not, so a portable version needs a
+  hand-rolled background-process-plus-kill pattern instead of one command.
+  Not urgent today - all matched modules are fast and none hang, and the
+  format hook measures 0.55s on `workflow/nodes.py` (mypy incremental is
+  0.13s of that).
 
 Big tasks (ordered by priority)
 

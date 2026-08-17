@@ -60,9 +60,9 @@ and its recovery paths, with semantic node colors and a legend for every node ty
 - `skills/` contains shared skill sources; `.agents/skills/` and `.claude/skills/`
   expose project-scoped Codex and Claude entrypoints.
 - `.github/workflows/tests.yml` runs the unittest suite and the
-  `hooks/test.hooks/` guard harnesses (`test-deny-dangerous.sh`, `test-secret-scan.sh`,
-  `test-pre-push.sh`, `test-run-impacted-tests.sh`, `test-format-touched.sh`,
-  `test-post-merge-checkout.sh`)
+  `hooks/test.hooks/` guard harnesses (every `test-*.sh` there, kept in sync
+  with `tests/tests.md` and this workflow by
+  `test_every_shell_harness_is_documented_and_run_in_ci`)
   on pushes and pull requests.
 - `.github/workflows/agent-smoke-tests.yml` is an opt-in, manually-triggered
   (`workflow_dispatch`) job that runs `tests/test_agent_integration.py` against

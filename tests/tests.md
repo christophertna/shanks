@@ -1,13 +1,13 @@
 # Test coverage
 
 This document summarizes the behavior covered by the repository's tracked test
-files. The Python suite contains **171 unittest methods** across twelve
-modules; `hooks/test.hooks/test-deny-dangerous.sh`, `hooks/test.hooks/test-secret-scan.sh`,
-`hooks/test.hooks/test-pre-push.sh`, `hooks/test.hooks/test-run-impacted-tests.sh`,
-`hooks/test.hooks/test-format-touched.sh`, and
-`hooks/test.hooks/test-post-merge-checkout.sh` are separate shell regression
-harnesses, all run in CI alongside the Python suite (see
-[`.github/workflows/tests.yml`](../.github/workflows/tests.yml)).
+files. The Python suite contains **207 unittest methods** across twelve
+modules; every `hooks/test.hooks/test-*.sh` file is a separate shell
+regression harness, run in CI alongside the Python suite (see
+[`.github/workflows/tests.yml`](../.github/workflows/tests.yml)). The harness
+rows in the table below are the list this suite iterates, so
+`test_every_shell_harness_is_documented_and_run_in_ci` asserts they cover the
+directory exactly and that CI runs each one.
 
 The tests use in-memory graphs, temporary SQLite databases and temporary
 projects, real temporary Git repositories, a fake `gh` executable, stub
@@ -31,7 +31,7 @@ Run the repository quality gates from a feature branch with:
 
 | File | Tests | Main areas |
 | --- | ---: | --- |
-| [`test_cli.py`](test_cli.py) | 22 | Execution-mode reporting, dev worktree creation, doctor diagnostics (including Git/gh version checks and `core.hooksPath`), documentation-count guards for the Python and shell test suites, and run listing, status (including pending interrupts, drift, and recent events), resume, cancellation, recovery, cleanup, pruning, and safety checks |
+| [`test_cli.py`](test_cli.py) | 23 | Execution-mode reporting, dev worktree creation, doctor diagnostics (including Git/gh version checks and `core.hooksPath`), documentation-count guards for the Python and shell test suites, hook-harness coverage in this file and in CI, and run listing, status (including pending interrupts, drift, and recent events), resume, cancellation, recovery, cleanup, pruning, and safety checks |
 | [`test_graph.py`](test_graph.py) | 46 | Workflow orchestration, item metadata, repository drift injection, append-only run-manifest behavior, targeted retries, budgets, approvals, dry-run previews, and GitHub handoff |
 | [`test_node_contracts.py`](test_node_contracts.py) | 68 | Agent, failure-classification, subprocess, Ralph, local-test, critic, quality-gate, pre-commit policy gate, recovery reconciliation, repository-protocol conformance, preview-protocol narrowing, subprocess timeout budgets, and GitHub adapter contracts |
 | [`test_state_schema.py`](test_state_schema.py) | 10 | State migration, one-step migration chains, retry metadata, versioned checkpoints, and legacy resume behavior |
@@ -60,8 +60,14 @@ Run the repository quality gates from a feature branch with:
 - `test_cli.py` verifies the doctor tool-presence check and
   `GitHubAdapter.preflight()`'s required-tool list stay in sync.
 - `test_cli.py` verifies this file's own counts stay accurate: each `test_*.py`
-  row against that module's `def test_` count, and each shell-harness row
-  against the `passed: N, failed: 0` line the harness itself prints.
+  row against that module's `def test_` count, the headline unittest-method
+  total against the sum of those rows, and each shell-harness row against the
+  `passed: N, failed: 0` line the harness itself prints.
+- `test_cli.py` verifies the harness rows cover `hooks/test.hooks/` exactly and
+  that `.github/workflows/tests.yml` runs each one. Without it a new harness
+  can be committed, pass locally, and never run anywhere: the row list above is
+  what the suite iterates, and the CI step is a separate hand-maintained copy.
+  It found `test-guard-worktree.sh` documented here but missing from CI.
 
 ### Developer worktrees
 
