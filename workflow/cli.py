@@ -40,7 +40,10 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 _REQUIREMENT_FILES = ("requirements.txt", "requirements-dev.txt")
 _REQUIRED_TOOLS = ("git", "gh", "bash", "jq", "gitleaks")
 _AGENT_TOOLS = ("codex", "claude")
-_MIN_TOOL_VERSIONS = {"git": (2, 30), "gh": (2, 40)}
+# The gitleaks floor tracks `GITLEAKS_VERSION` in .github/workflows/tests.yml:
+# an older local gitleaks can miss a secret CI would catch, so the two must not
+# drift apart. `test_doctor_gitleaks_floor_matches_the_ci_pin` enforces it.
+_MIN_TOOL_VERSIONS = {"git": (2, 30), "gh": (2, 40), "gitleaks": (8, 18)}
 RECENT_EVENT_LIMIT = 5
 _VERSION_PATTERN = re.compile(r"(\d+)\.(\d+)")
 _VALID_MODES = {"runtime", DEVELOPMENT_MODE, DRY_RUN_MODE, "dry_run"}

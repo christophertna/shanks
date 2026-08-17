@@ -126,6 +126,13 @@ Then open `http://127.0.0.1:8765/graph.html`.
 | Python | 3.11 | `./shanks doctor`, `pyproject.toml` (`target-version`/`mypy`), CI |
 | Git | 2.30 | `./shanks doctor` |
 | GitHub CLI (`gh`) | 2.40 | `./shanks doctor` (also checks `gh auth status`) |
+| `gitleaks` | 8.18 | `./shanks doctor`, kept equal to `GITLEAKS_VERSION` in `.github/workflows/tests.yml` by `test_doctor_gitleaks_floor_matches_the_ci_pin` |
+
+The `gitleaks` floor exists because the secret-scanning guards
+(`hooks/secret-scan.sh`, the pre-commit policy gate) are only as good as the
+local binary: CI installs a pinned, checksum-verified version, so a local
+gitleaks older than that one would pass `doctor` and then miss secrets CI
+catches.
 
 Runtime and development dependencies are pinned in `requirements.txt` and
 `requirements-dev.txt`; `./shanks doctor` verifies the installed versions
