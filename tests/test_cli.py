@@ -43,8 +43,12 @@ class DevWorktreeTests(unittest.TestCase):
         ):
             subprocess.run(("git", *args), cwd=project, check=True, capture_output=True)
         (project / "README.md").write_text("initial\n", encoding="utf-8")
+        (project / ".gitignore").write_text(".venv\n", encoding="utf-8")
         subprocess.run(
-            ("git", "add", "README.md"), cwd=project, check=True, capture_output=True
+            ("git", "add", "README.md", ".gitignore"),
+            cwd=project,
+            check=True,
+            capture_output=True,
         )
         subprocess.run(
             ("git", "commit", "-m", "initial"),
@@ -73,6 +77,11 @@ class DevWorktreeTests(unittest.TestCase):
             self.assertTrue((created / ".claude" / "settings.json").is_file())
             self.assertTrue((created / ".venv" / "bin" / "python").exists())
             self.assertTrue((created / ".venv").is_symlink())
+            ignored = subprocess.run(
+                ("git", "check-ignore", "--quiet", ".venv"),
+                cwd=created,
+            )
+            self.assertEqual(ignored.returncode, 0)
 
             branch = subprocess.run(
                 ("git", "branch", "--show-current"),
