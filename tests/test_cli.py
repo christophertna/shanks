@@ -14,7 +14,7 @@ from langgraph.types import Interrupt
 
 from graph import VersionedSqliteSaver
 from workflow.adapters import GitHubAdapter
-from workflow.cli import _REQUIRED_TOOLS, main
+from workflow.cli import _REQUIRED_TOOLS, CliError, dev_worktree, main
 from workflow.lifecycle import RunLifecycleManager
 from workflow.workspaces import RunWorkspaceManager
 
@@ -22,6 +22,78 @@ from workflow.workspaces import RunWorkspaceManager
 # fails closed without these, so a missing one looks like a guard regression
 # (`expected=allow got=block`) rather than an unset-up machine.
 _SHELL_HARNESS_TOOLS = ("bash", "jq", "gitleaks")
+
+
+class DevWorktreeTests(unittest.TestCase):
+    def _project(self, root: Path) -> Path:
+        project = root / "project"
+        project.mkdir()
+        for args in (
+            ("init", "-b", "main"),
+            ("config", "user.email", "tests@example.com"),
+            ("config", "user.name", "Tests"),
+        ):
+            subprocess.run(("git", *args), cwd=project, check=True, capture_output=True)
+        (project / "README.md").write_text("initial\n", encoding="utf-8")
+        subprocess.run(
+            ("git", "add", "README.md"), cwd=project, check=True, capture_output=True
+        )
+        subprocess.run(
+            ("git", "commit", "-m", "initial"),
+            cwd=project,
+            check=True,
+            capture_output=True,
+        )
+        # Both are gitignored in the real repo, so `git worktree add` alone
+        # never carries them over.
+        (project / ".claude").mkdir()
+        (project / ".claude" / "settings.json").write_text("{}\n", encoding="utf-8")
+        (project / ".venv" / "bin").mkdir(parents=True)
+        (project / ".venv" / "bin" / "python").write_text("", encoding="utf-8")
+        return project
+
+    def test_dev_worktree_carries_hooks_and_venv_into_the_new_tree(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = self._project(Path(directory))
+
+            with redirect_stdout(io.StringIO()):
+                created = dev_worktree("feat/parallel", project_directory=project)
+
+            self.assertEqual(created.name, "project-feat-parallel")
+            self.assertTrue((created / "README.md").is_file())
+            # The whole point: a bare worktree has neither of these.
+            self.assertTrue((created / ".claude" / "settings.json").is_file())
+            self.assertTrue((created / ".venv" / "bin" / "python").exists())
+            self.assertTrue((created / ".venv").is_symlink())
+
+            branch = subprocess.run(
+                ("git", "branch", "--show-current"),
+                cwd=created,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(branch.stdout.strip(), "feat/parallel")
+
+    def test_dev_worktree_refuses_an_existing_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = self._project(Path(directory))
+            target = Path(directory) / "taken"
+            target.mkdir()
+
+            with self.assertRaises(CliError):
+                dev_worktree("feat/x", project_directory=project, directory=target)
+
+    def test_dev_worktree_warns_when_the_project_has_no_hook_settings(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = self._project(Path(directory))
+            (project / ".claude" / "settings.json").unlink()
+
+            errors = io.StringIO()
+            with redirect_stdout(io.StringIO()), redirect_stderr(errors):
+                created = dev_worktree("feat/y", project_directory=project)
+
+            self.assertFalse((created / ".claude" / "settings.json").exists())
+            self.assertIn("no hooks", errors.getvalue())
 
 
 class ShanksCliTests(unittest.TestCase):

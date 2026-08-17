@@ -26,7 +26,7 @@ from .lifecycle import (
 )
 from .mode import DEVELOPMENT_MODE, DRY_RUN_MODE, execution_mode, is_development_mode
 from .state import cancel_run
-from .workspaces import RunWorkspaceManager, WorkspaceError
+from .workspaces import RunWorkspaceManager, WorkspaceError, sync_local_guardrails
 
 
 class CliError(RuntimeError):
@@ -382,8 +382,83 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "doctor":
         return run_doctor()
 
+    if args.command == "dev":
+        try:
+            dev_worktree(
+                args.branch,
+                project_directory=args.project_directory,
+                directory=args.directory,
+            )
+        except (CliError, OSError) as error:
+            print(f"shanks: {error}", file=sys.stderr)
+            return 1
+        return 0
+
     parser.print_help()
     return 0
+
+
+def dev_worktree(
+    branch: str,
+    *,
+    project_directory: Path | None = None,
+    directory: Path | None = None,
+) -> Path:
+    """Create an isolated dev worktree for one agent and return its path.
+
+    A bare `git worktree add` leaves out everything gitignored - notably
+    `.claude/settings.json` (so no hooks fire at all) and `.venv/` (so the test
+    commands do not exist). Doing that by hand silently produces a *less*
+    guarded worktree than the main checkout, which is the failure this wraps.
+    """
+
+    project = (project_directory or PROJECT_ROOT).expanduser().resolve()
+    branch = branch.strip()
+    if not branch:
+        raise CliError("branch name cannot be empty")
+
+    if directory is None:
+        directory = project.parent / f"{project.name}-{branch.replace('/', '-')}"
+    directory = directory.expanduser().resolve()
+    if directory.exists():
+        raise CliError(f"{directory} already exists")
+
+    existing = subprocess.run(
+        ("git", "show-ref", "--verify", "--quiet", f"refs/heads/{branch}"),
+        cwd=project,
+        capture_output=True,
+        text=True,
+    )
+    add: tuple[str, ...] = ("git", "worktree", "add", str(directory))
+    add += (branch,) if existing.returncode == 0 else ("-b", branch)
+    created = subprocess.run(add, cwd=project, capture_output=True, text=True)
+    if created.returncode != 0:
+        raise CliError(f"git worktree add failed: {created.stderr.strip()}")
+
+    hooks_synced = sync_local_guardrails(project, directory)
+
+    venv = project / ".venv"
+    venv_linked = False
+    if venv.is_dir() and not (directory / ".venv").exists():
+        # The venv's interpreter and shebangs are absolute, so one symlink
+        # serves every worktree - no second install to keep in sync.
+        os.symlink(venv, directory / ".venv")
+        venv_linked = True
+
+    print(f"Created {directory} on branch {branch}")
+    print(
+        f"  hooks   {'.claude/settings.json copied' if hooks_synced else 'NOT SYNCED'}"
+    )
+    print(f"  venv    {'symlinked' if venv_linked else 'not linked'}")
+    if not hooks_synced:
+        print(
+            "  warning: no .claude/settings.json in the project, so this "
+            "worktree runs with no hooks (no dangerous-command or secret "
+            "scanning). Create it before pointing an agent here.",
+            file=sys.stderr,
+        )
+    print(f"\nPoint one agent at it with:\n  cd {directory}")
+    return directory
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -401,6 +476,30 @@ def _build_parser() -> argparse.ArgumentParser:
     commands = parser.add_subparsers(dest="command")
     commands.add_parser("mode", help="Show the current execution mode.")
     commands.add_parser("doctor", help="Diagnose the local Shanks environment.")
+
+    dev = commands.add_parser(
+        "dev",
+        help="Developer helpers for working on Shanks itself.",
+    )
+    dev_actions = dev.add_subparsers(dest="dev_command", required=True)
+    worktree = dev_actions.add_parser(
+        "worktree",
+        help="Create an isolated worktree so a second agent has its own tree.",
+    )
+    worktree.add_argument("branch", help="Branch to create or check out there.")
+    worktree.add_argument(
+        "--directory",
+        type=Path,
+        default=None,
+        help="Worktree path; defaults to ../<project>-<branch> beside the project.",
+    )
+    worktree.add_argument(
+        "--project-dir",
+        dest="project_directory",
+        type=Path,
+        default=None,
+        help="Project to branch from; defaults to this checkout.",
+    )
 
     runs = commands.add_parser(
         "runs",

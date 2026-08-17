@@ -8,10 +8,13 @@ Rules:
 - Before your first write, run `git status -sb`. If the tree is dirty with
   changes you did not make, or HEAD is on a branch you did not create, another
   agent is working here. Say so and stop rather than editing on top of it.
-- Start your own work with `git worktree add ../shanks-<branch> -b <branch>`
-  and work there, so two agents never share one working tree. Creating a branch
-  in place (`git checkout -b`) is fine — it carries your own changes forward and
-  is not blocked.
+- Start your own work with `./shanks dev worktree <branch>`, which creates the
+  worktree beside this one and carries in the two gitignored things a bare
+  `git worktree add` leaves out: `.claude/settings.json` (without it *no* hooks
+  fire there) and `.venv` (without it the test commands do not exist). Do not
+  hand-roll the worktree — a missed `.claude/` copy silently disables every
+  guard. Creating a branch in place (`git checkout -b`) is fine too; it carries
+  your own changes forward and is not blocked.
 - Never run `git add -A` / `git add .`. Stage the exact files you changed, so a
   concurrent agent's work cannot ride along in your commit.
 - `hooks/guard-worktree.sh` blocks `git checkout`/`git switch` to another ref

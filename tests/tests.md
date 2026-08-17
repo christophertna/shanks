@@ -30,7 +30,7 @@ Run the repository quality gates from a feature branch with:
 
 | File | Tests | Main areas |
 | --- | ---: | --- |
-| [`test_cli.py`](test_cli.py) | 19 | Execution-mode reporting, doctor diagnostics (including Git/gh version checks and `core.hooksPath`), documentation-count guards for the Python and shell test suites, and run listing, status (including pending interrupts, drift, and recent events), resume, cancellation, recovery, cleanup, pruning, and safety checks |
+| [`test_cli.py`](test_cli.py) | 22 | Execution-mode reporting, dev worktree creation, doctor diagnostics (including Git/gh version checks and `core.hooksPath`), documentation-count guards for the Python and shell test suites, and run listing, status (including pending interrupts, drift, and recent events), resume, cancellation, recovery, cleanup, pruning, and safety checks |
 | [`test_graph.py`](test_graph.py) | 46 | Workflow orchestration, item metadata, repository drift injection, append-only run-manifest behavior, targeted retries, budgets, approvals, dry-run previews, and GitHub handoff |
 | [`test_node_contracts.py`](test_node_contracts.py) | 68 | Agent, failure-classification, subprocess, Ralph, local-test, critic, quality-gate, pre-commit policy gate, recovery reconciliation, repository-protocol conformance, preview-protocol narrowing, subprocess timeout budgets, and GitHub adapter contracts |
 | [`test_state_schema.py`](test_state_schema.py) | 10 | State migration, one-step migration chains, retry metadata, versioned checkpoints, and legacy resume behavior |
@@ -60,6 +60,16 @@ Run the repository quality gates from a feature branch with:
 - `test_cli.py` verifies this file's own counts stay accurate: each `test_*.py`
   row against that module's `def test_` count, and each shell-harness row
   against the `passed: N, failed: 0` line the harness itself prints.
+
+### Developer worktrees
+
+- `shanks dev worktree <branch>` creates the worktree, copies the gitignored
+  `.claude/settings.json` in, and symlinks `.venv`, so a second agent's tree has
+  the same hooks and test commands as the main checkout. A bare
+  `git worktree add` carries neither, which would leave that agent running with
+  no dangerous-command or secret scanning at all.
+- It refuses an existing target directory, and warns on stderr when the project
+  itself has no `.claude/settings.json` to copy.
 
 ### Run management
 
