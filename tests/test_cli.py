@@ -15,6 +15,7 @@ from langgraph.types import Interrupt
 from graph import VersionedSqliteSaver
 from workflow.adapters import GitHubAdapter
 from workflow.cli import (
+    _MIN_TOOL_VERSIONS,
     _REQUIRED_TOOLS,
     CliError,
     _check_claude_hooks,
@@ -354,6 +355,23 @@ class ShanksCliTests(unittest.TestCase):
 
     def test_doctor_and_github_preflight_tool_lists_match(self) -> None:
         self.assertEqual(set(_REQUIRED_TOOLS), set(GitHubAdapter.REQUIRED_TOOLS))
+
+    def test_doctor_gitleaks_floor_matches_the_ci_pin(self) -> None:
+        repo_root = Path(__file__).parents[1]
+        workflow = (repo_root / ".github" / "workflows" / "tests.yml").read_text(
+            encoding="utf-8"
+        )
+
+        pinned = re.findall(r"GITLEAKS_VERSION:\s*(\d+)\.(\d+)\.\d+", workflow)
+        self.assertEqual(len(pinned), 1, "tests.yml no longer pins GITLEAKS_VERSION")
+        major, minor = pinned[0]
+        self.assertEqual(
+            _MIN_TOOL_VERSIONS["gitleaks"],
+            (int(major), int(minor)),
+            "doctor's gitleaks floor drifted from the version CI installs, so a "
+            "local gitleaks older than CI's would pass doctor and then miss "
+            "secrets CI catches",
+        )
 
     def _hooks_project(self, root: Path, settings: str | None) -> Path:
         project = root / "project"

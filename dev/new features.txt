@@ -2,8 +2,34 @@ Shanks feature roadmap
 
 Priority 1 - Reliability and contributor experience
 
-Nothing queued - #91, #92, and #93 cleared the list. Promote from Suggestions
-below when picking up the next item.
+1- Document how to retire a merged developer worktree.
+   `AGENTS.md` says how to *start* parallel work (the "Starting a parallel
+   feature" block #91 added) and nothing about finishing it, so the teardown
+   gets re-derived by hand every time - three times in one session while
+   landing #89, #90, and #93. Add a "Finishing a parallel feature" block beside
+   it, cross-referenced from `dev/commands.md`'s `./shanks dev worktree`
+   examples. The sequence, verified after #92: `git worktree remove
+   ../shanks-<branch>` now succeeds without `--force` (the ignored `.venv`
+   symlink was the only blocker), then `git branch -D <branch>` because
+   `git branch -d` refuses a squash-merged branch that is not an ancestor of
+   `main` - so name the merged-check first (`gh pr view <n> --json state`, or
+   `git diff --stat <branch> <merge-commit>` being empty) rather than telling
+   anyone to reach for `-D` blind - then `git remote prune origin` for the
+   tracking refs GitHub already deleted (61 of them had piled up). Deliberately
+   documentation, not a `./shanks dev cleanup` command: the recipe is three
+   commands and the risky one is the merged-check, which is a judgement a
+   command would have to re-encode. Revisit if the recipe proves error-prone in
+   practice.
+
+2- Add a `UserPromptSubmit` hook that injects fresh repository state.
+   Current branch, recent commits, and open-PR status, so a session never
+   starts blind. Concrete trigger: `main` sat red for roughly twenty minutes
+   after #91 merged with a stale `tests.md` total, and it surfaced only because
+   a `PostToolUse` hook happened to fire from a different worktree. Keep the
+   suite *out* of the injected state, or cache it - `.venv/bin/python -m
+   unittest discover -s tests` is ~15s and would be paid on every prompt.
+   Passes the `hooks/pr-checkpoint-reminder.sh` test below: `UserPromptSubmit`
+   always fires, so this does not depend on the agent choosing to call a tool.
 
 Suggestions
 
@@ -65,10 +91,6 @@ Suggestions
   commands read-only, so the two critics have materially different
   verification power. Worth a design discussion, not just a permissions
   tweak, before changing it.
-- Add a `UserPromptSubmit` hook that injects fresh state before Claude reads
-  the prompt: current branch, recent commits, open PR status, and whether
-  `.venv/bin/python -m unittest discover -s tests` currently passes, so a run
-  never starts blind on a broken build.
 - Split oversized workflow modules for maintainability and iteration speed.
   `workflow/adapters.py` combines agent, critic, test, GitHub, parsing, and
   security boundaries, while `workflow/nodes.py` combines orchestration,
@@ -82,17 +104,20 @@ Suggestions
   (Git 2.30, gh 2.40) is never actually exercised on Linux either. Pinning
   old Git/gh versions in CI to prove the floor works is real setup effort for
   a small payoff — defer unless a real floor-version bug shows up.
-- `./shanks doctor`'s `tools` check only verifies `gitleaks`/`jq` are
-  present, not their version (unlike `git`/`gh`, which have
-  `_MIN_TOOL_VERSIONS`) - a `gitleaks` upgrade could silently change
-  detection rules/behavior with nothing to notice. The divergence is already
-  structural rather than hypothetical: `.github/workflows/tests.yml` installs
-  a pinned `GITLEAKS_VERSION: 8.18.4` with checksum verification, so CI and a
-  local machine can disagree about what counts as a secret - the local one
-  being whatever `brew`/`go install` last produced. Still low urgency (the
-  disagreement direction that matters, CI flagging what local missed, fails
-  closed), but a `_MIN_TOOL_VERSIONS` entry matching the CI pin is the cheap
-  fix if a detection difference ever costs debugging time.
+- `./shanks doctor`'s `claude-hooks` check (#93) matches hook *filenames* in
+  `.claude/settings.json`, so it proves a script is mentioned, not that it is
+  wired correctly: a hook listed under the wrong matcher (`Bash` where it
+  should be `Write|Edit`) or inside a block Claude Code ignores still passes.
+  Names-only is the deliberate ceiling - reading the matcher structure means
+  encoding Claude Code's settings schema, which changes upstream. Revisit if a
+  mis-matched hook ever ships.
+- `tests/tests.md`'s counts are manual double-entry - a per-file row and the
+  headline total - and they are a merge-conflict magnet. Both failure modes
+  showed up in one session: #91 bumped a row without the total and left `main`
+  failing its own suite, and the count lines were the *only* conflict between
+  #92 and #93. The guard added in #90 catches the drift but does not fix it.
+  Deriving the headline from the rows (or a `--fix` mode that rewrites both)
+  is the shape; worth doing if it bites a third time.
 - `hooks/post-merge`/`hooks/post-checkout` (#44) run `graphify update .`
   synchronously, unlike `hooks/graphify-update.sh` (the Claude Code hook),
   which backgrounds the call with a lockdir debounce. Fine today since it's
