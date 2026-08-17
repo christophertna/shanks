@@ -23,6 +23,14 @@ from workflow.workspaces import RunWorkspaceManager
 # (`expected=allow got=block`) rather than an unset-up machine.
 _SHELL_HARNESS_TOOLS = ("bash", "jq", "gitleaks")
 
+# A harness row in tests/tests.md. Shared so "documented" means the same thing
+# to the test that runs those harnesses and to the test that checks none are
+# missing from the table - a row shape only one of them recognized would let a
+# harness look covered while never running.
+_HARNESS_ROW = re.compile(
+    r"\[`(\.\./hooks/test\.hooks/[\w.-]+\.sh)`\]\(\1\) \| (\d+) shell checks \|"
+)
+
 
 class DevWorktreeTests(unittest.TestCase):
     def _project(self, root: Path) -> Path:
@@ -347,6 +355,17 @@ class ShanksCliTests(unittest.TestCase):
                 f"but it has {actual}",
             )
 
+        # The prose total drifted 35 methods behind the table before anything
+        # checked it, so tie it to the same rows.
+        totals = re.findall(r"\*\*(\d+) unittest methods\*\*", tests_md)
+        self.assertEqual(len(totals), 1)
+        self.assertEqual(
+            sum(int(count) for _, count in documented),
+            int(totals[0]),
+            "tests/tests.md's headline unittest-method total disagrees with the "
+            "per-file counts in its own table",
+        )
+
     def test_tests_md_shell_check_counts_match_harness_output(self) -> None:
         repo_root = Path(__file__).parents[1]
         tests_md = (repo_root / "tests" / "tests.md").read_text(encoding="utf-8")
@@ -363,10 +382,7 @@ class ShanksCliTests(unittest.TestCase):
             f"local setup.",
         )
 
-        documented = re.findall(
-            r"\[`(\.\./hooks/test\.hooks/[\w.-]+\.sh)`\]\(\1\) \| (\d+) shell checks \|",
-            tests_md,
-        )
+        documented = _HARNESS_ROW.findall(tests_md)
         self.assertTrue(documented)
 
         for relative_path, count in documented:
@@ -387,6 +403,32 @@ class ShanksCliTests(unittest.TestCase):
                 f"passed: {count}, failed: 0",
                 f"tests/tests.md documents {count} shell checks for "
                 f"{harness.name}, but it reported {result.stdout.strip()}",
+            )
+
+    def test_every_shell_harness_is_documented_and_run_in_ci(self) -> None:
+        repo_root = Path(__file__).parents[1]
+        tests_md = (repo_root / "tests" / "tests.md").read_text(encoding="utf-8")
+        workflow = (repo_root / ".github" / "workflows" / "tests.yml").read_text(
+            encoding="utf-8"
+        )
+
+        present = {
+            path.name for path in (repo_root / "hooks" / "test.hooks").glob("*.sh")
+        }
+        documented = {Path(path).name for path, _ in _HARNESS_ROW.findall(tests_md)}
+
+        self.assertEqual(
+            present,
+            documented,
+            "tests/tests.md's harness rows are what "
+            "test_tests_md_shell_check_counts_match_harness_output iterates, so "
+            "a harness missing from that table is never run by this suite",
+        )
+        for name in sorted(present):
+            self.assertIn(
+                f"bash hooks/test.hooks/{name}",
+                workflow,
+                f"{name} is not run by .github/workflows/tests.yml",
             )
 
     def test_runs_list_and_status_support_json_output(self) -> None:

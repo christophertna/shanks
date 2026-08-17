@@ -47,8 +47,11 @@ every branch switch on a machine that lacks them.
 Pattern files: `dangerous-patterns.txt` (for `deny-dangerous.sh`),
 `guarded-paths.txt` (for `guard-dependency-files.sh`). Regression harnesses
 live in `hooks/test.hooks/`: `test-deny-dangerous.sh`, `test-secret-scan.sh`,
-`test-pre-push.sh`, `test-run-impacted-tests.sh`, `test-format-touched.sh`,
-`test-post-merge-checkout.sh`.
+`test-guard-worktree.sh`, `test-pre-push.sh`, `test-run-impacted-tests.sh`,
+`test-format-touched.sh`, `test-post-merge-checkout.sh`. Every one of them has
+a row in `tests/tests.md` and a line in `.github/workflows/tests.yml`;
+`test_every_shell_harness_is_documented_and_run_in_ci` (`tests/test_cli.py`)
+fails if a new harness is missing from either.
 
 `secret-scan.sh`'s Bash coverage only catches secrets typed literally into
 the command text (e.g. `echo "sk-..." >> config.py`, a heredoc, `sed -i`) —
