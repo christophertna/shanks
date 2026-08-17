@@ -2,7 +2,54 @@ Shanks feature roadmap
 
 Priority 1 - Reliability and contributor experience
 
-(Empty. Promote from Suggestions when something earns it.)
+1- Isolate the coding agents that build Shanks, each in its own Git worktree.
+   Scope: this is about MY development loop as the person building this
+   project - the Claude Code / Codex sessions editing this repo - not about
+   Shanks the product, and not about the runs Shanks orchestrates. Shanks
+   already isolates its own runs (`RunWorkspaceManager` gives every run a
+   branch and worktree), and giving *PRD items* parallel worktrees is a
+   separate, unrelated feature tracked as Big tasks item 3. Nothing covers the
+   agents writing Shanks itself.
+   The problem: two agents driving this checkout at once share one working
+   tree and nothing warns either of them. Hit live this session - a Codex
+   session ran `git checkout` onto its own branch while a Claude session had
+   uncommitted work in the same tree, mixing both diffs into one dirty state
+   and leaving each agent's files one `git add -A` away from landing in the
+   other's commit. Recovering it needed a hand-audited `git diff` per file.
+   Start with the cheap half: document the `git worktree add` convention in
+   `AGENTS.md`/`CLAUDE.md` so a second agent never starts in an occupied tree,
+   and so an agent checks for a dirty tree and a foreign branch before its
+   first write. Add a `./shanks dev worktree <branch>` helper only if the
+   manual convention proves too easy to forget - note it would be a developer
+   convenience command, not part of the workflow Shanks runs.
+
+2- Add a `PostToolUse` hook that runs Black/Ruff (and mypy) on the exact file
+   Claude just touched and feeds failures back immediately, instead of only
+   catching them later at `scripts/quality_gates.py --diff-base origin/main`.
+   Concrete trigger: the formatting gate failed on both #85 and #86, each
+   costing a manual `black` run plus a full gate re-run at the end of the work
+   rather than at the edit that caused it. `hooks/run-impacted-tests.sh`
+   already implements this shape for tests (and caught a rename mid-edit
+   during #86), so the pattern, the wiring, and the shell harness convention
+   all exist - this is mostly reuse. Keep it advisory-fast: format/lint the
+   single touched file, not the tree. Passes the test the
+   `hooks/pr-checkpoint-reminder.sh` lesson below sets for new advisory hooks:
+   the failure mode here really is a tool-call boundary (Write/Edit happen, and
+   the hook sees the exact path), not an agent choosing prose over a tool call.
+
+3- Accept versioned interpreter names in the executable allowlists.
+   `ALLOWED_AGENT_EXECUTABLES` and `VALIDATION_EXECUTABLES`
+   (`workflow/adapters.py`) match on `Path(command[0]).name` against bare
+   `python`/`python3`, so `python3.11` is refused. This hits the *default*
+   fallback validation command, not just a custom one: `LocalTestAdapter`
+   builds it from `sys.executable`, so any environment where that resolves to
+   a versioned binary fails every validation with "Refusing to run unapproved
+   executable: python3.11." Safe in this repo (`.venv/bin/python` is a symlink
+   named `python`) and in CI (`actions/setup-python` also gives `python`), so
+   nothing triggers it today - but it presents as a guardrail bug rather than a
+   setup problem, which is the expensive kind to debug. Match a `python3.N`
+   pattern, or resolve `sys.executable` before the name check, and cover both
+   allowlists.
 
 Suggestions
 
@@ -15,29 +62,6 @@ Suggestions
   failure is a confusing `validation_failed` rather than an unsafe allow.
   Stopping the scan at the first `-m`/non-flag argument is the fix, worth
   doing if a validation command ever legitimately needs a module-level `-c`.
-- `ALLOWED_AGENT_EXECUTABLES` and `VALIDATION_EXECUTABLES`
-  (`workflow/adapters.py`) match on `Path(command[0]).name` against bare
-  `python`/`python3`, so a versioned interpreter name (`python3.11`) is
-  refused. This hits the *default* fallback validation command, not just a
-  custom one: `LocalTestAdapter.__init__` builds it from `sys.executable`, so
-  any environment where that resolves to a versioned binary fails every
-  validation with "Refusing to run unapproved executable: python3.11." Safe
-  in this repo (`.venv/bin/python` is a symlink named `python`) and in CI
-  (`actions/setup-python` also gives `python`), so nothing triggers it today -
-  but it presents as a guardrail bug rather than a setup problem, which is the
-  expensive kind to debug. Matching a `python3.N` pattern, or resolving
-  `sys.executable` before the name check, is the cheap fix.
-- Two agents driving this repo at once share a single Git worktree, and
-  nothing warns either of them. Hit this live: a Codex session ran `git
-  checkout` onto its own branch while a Claude session had uncommitted work in
-  the same tree, mixing both diffs into one dirty state and leaving each
-  agent's files one `git add -A` away from landing in the other's commit.
-  Shanks already solves exactly this for its own runs - `RunWorkspaceManager`
-  gives every run an isolated branch and worktree - but the human/agent
-  development loop has no equivalent. The honest fix is mostly convention, not
-  code: document `git worktree add` per concurrent agent in `AGENTS.md`/
-  `CLAUDE.md`. A `./shanks dev worktree <branch>` helper is the larger version,
-  worth it only if the manual convention proves too easy to forget.
 - The structured viewer's `recovery` subgraph draws its nodes as a bucket with
   no internal edges: `structured_mermaid` only appends `VIEW_RECOVERY_NODES`,
   and `VIEW_RECOVERY_EDGES` is used solely to decide whether to draw the
@@ -84,9 +108,6 @@ Suggestions
   the prompt: current branch, recent commits, open PR status, and whether
   `.venv/bin/python -m unittest discover -s tests` currently passes, so a run
   never starts blind on a broken build.
-- Add a `PostToolUse` hook that runs Black/Ruff (and mypy) on the exact file
-  Claude just touched and feeds failures back immediately, instead of only
-  catching them later at `scripts/quality_gates.py --diff-base origin/main`.
 - Split oversized workflow modules for maintainability and iteration speed.
   `workflow/adapters.py` combines agent, critic, test, GitHub, parsing, and
   security boundaries, while `workflow/nodes.py` combines orchestration,
