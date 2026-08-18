@@ -410,7 +410,9 @@ CLI throughout the agent workflow.
   `hooks/format-touched.sh` applies `black` to the touched Python file and
   reports `ruff` (and, for files in `[tool.mypy] files`, `mypy`) failures at
   the edit instead of at the next `scripts/quality_gates.py` run. Run
-  `hooks/test.hooks/test-format-touched.sh` to test it. These hooks are
+  `hooks/test.hooks/test-format-touched.sh` to test it. Both resolve the
+  project root from the touched file's own Git tree rather than the session's
+  directory, so an edit into a sibling worktree is checked there. These hooks are
   wired through the gitignored `.claude/settings.json`, which contains a
   machine-specific `graphify` path.
 

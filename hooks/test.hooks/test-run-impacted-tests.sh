@@ -31,6 +31,22 @@ exit 1
 EOF
 chmod +x "$TMP/hooks/test.hooks/test-outside.sh"
 
+# A sibling checkout: its own Git tree, holding a test module and a harness
+# that exist nowhere in $TMP. Resolving from the session's `.cwd` finds
+# neither and skips silently — the bug this guards.
+SIBLING="$TMP/sibling"
+mkdir -p "$SIBLING/tests" "$SIBLING/workflow" "$SIBLING/hooks/test.hooks"
+git -C "$SIBLING" init -q 2>/dev/null
+: > "$SIBLING/tests/test_sibling.py"
+: > "$SIBLING/workflow/sibling.py"
+
+cat > "$SIBLING/hooks/test.hooks/test-sibling.sh" <<'EOF'
+#!/bin/bash
+echo "FAIL: sibling harness failure" >&2
+exit 1
+EOF
+chmod +x "$SIBLING/hooks/test.hooks/test-sibling.sh"
+
 cat > "$TMP/python-pass" <<'EOF'
 #!/bin/bash
 exit 0
@@ -84,6 +100,11 @@ check allow "editing the shell harness itself" "$TMP/hooks/test.hooks/test-widge
 check block "editing the shell harness itself, failing" "$TMP/hooks/test.hooks/test-failing.sh" "$TMP/python-pass"
 check allow "extensionless git hook (no .sh match)" "$TMP/hooks/post-merge" "$TMP/python-pass"
 check allow "shell file outside hooks/ is ignored" "$TMP/scripts/outside.sh" "$TMP/python-pass"
+
+check block "python file in a sibling worktree, not the session cwd" \
+  "$SIBLING/workflow/sibling.py" "$TMP/python-fail"
+check block "shell file in a sibling worktree, not the session cwd" \
+  "$SIBLING/hooks/sibling.sh" "$TMP/python-pass"
 
 printf 'passed: %s, failed: %s\n' "$passed" "$failed"
 [ "$failed" -eq 0 ]

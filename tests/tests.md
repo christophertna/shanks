@@ -47,8 +47,8 @@ Run the repository quality gates from a feature branch with:
 | [`../hooks/test.hooks/test-secret-scan.sh`](../hooks/test.hooks/test-secret-scan.sh) | 7 shell checks | gitleaks-backed secret blocking on Write/Edit content, new_string, and Bash command text |
 | [`../hooks/test.hooks/test-guard-worktree.sh`](../hooks/test.hooks/test-guard-worktree.sh) | 13 shell checks | Branch-switch blocking while tracked files are dirty, with branch creation (`-b`/`-B`/`-c`), `--` path restores, clean trees, untracked-only trees, non-git commands, and the override env var all allowed |
 | [`../hooks/test.hooks/test-pre-push.sh`](../hooks/test.hooks/test-pre-push.sh) | 3 shell checks | `pre-push` gates on quality-gate exit status and fails open when the venv Python is missing |
-| [`../hooks/test.hooks/test-run-impacted-tests.sh`](../hooks/test.hooks/test-run-impacted-tests.sh) | 14 shell checks | Scoped test-module and shell-harness resolution, pass/fail feedback, and silent skip on no match, non-Python files, a missing interpreter, extensionless Git hooks, and shell files outside `hooks/` |
-| [`../hooks/test.hooks/test-format-touched.sh`](../hooks/test.hooks/test-format-touched.sh) | 9 shell checks | Black reformat reporting, ruff and mypy failure feedback, `[tool.mypy] files` gating of the mypy run, and silent skip on non-Python files, files outside the project, missing files, and a missing interpreter |
+| [`../hooks/test.hooks/test-run-impacted-tests.sh`](../hooks/test.hooks/test-run-impacted-tests.sh) | 16 shell checks | Scoped test-module and shell-harness resolution against the touched file's own Git tree, pass/fail feedback, and silent skip on no match, non-Python files, a missing interpreter, extensionless Git hooks, and shell files outside `hooks/` |
+| [`../hooks/test.hooks/test-format-touched.sh`](../hooks/test.hooks/test-format-touched.sh) | 10 shell checks | Black reformat reporting, ruff and mypy failure feedback, `[tool.mypy] files` gating of the mypy run resolved against the touched file's own Git tree, and silent skip on non-Python files, files outside the project, missing files, and a missing interpreter |
 | [`../hooks/test.hooks/test-post-merge-checkout.sh`](../hooks/test.hooks/test-post-merge-checkout.sh) | 3 shell checks | `post-checkout`'s same-SHA no-op skip and different-SHA `graphify update` trigger, and `post-merge`'s no-op fallback when `graphify` isn't on PATH |
 
 ### CLI diagnostics
@@ -333,6 +333,10 @@ so it never depends on the real suite's runtime. It verifies that the hook:
 - Skips silently for an extensionless Git hook (e.g. `hooks/post-merge`,
   which has no `.sh` match) and for a `.sh` file outside `hooks/`, even if a
   same-named harness coincidentally exists.
+- Resolves both the Python and shell cases against the touched file's own Git
+  tree, not the session's `.cwd`: a file edited in a sibling worktree runs
+  that worktree's test module and harness, which the session's directory
+  would never find.
 
 ### Scoped formatting and lint checks
 
@@ -352,6 +356,10 @@ that the hook:
 - Skips silently for non-Python files, Python files outside the project
   directory, files that no longer exist, and a missing Python interpreter
   (fails open).
+- Resolves the project root from the touched file's own Git tree, not the
+  session's `.cwd`: a file edited in a sibling worktree is formatted and
+  type-checked against that worktree's `pyproject.toml`, where the session's
+  directory used to skip it silently.
 
 ## GitHub commit and pull-request delivery
 

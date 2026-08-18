@@ -18,14 +18,26 @@ CWD="$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)"
 [ -n "$CWD" ] || CWD="$PWD"
 [ -n "$FILE_PATH" ] || exit 0
 
-DIRNAME="$(dirname -- "$FILE_PATH")"
+# Physical paths throughout, so the comparisons below hold: `git rev-parse`
+# returns them, and a payload path may reach the tree through a symlink
+# (/tmp -> /private/tmp on macOS).
+physical() { (cd -- "$1" 2>/dev/null && pwd -P) || printf '%s' "$1"; }
+
+# The root is the touched file's tree, not the session's: an agent rooted in
+# the parent checkout that edits a file in a sibling worktree must run that
+# worktree's tests, not the parent's. Falls back to the payload's `.cwd`.
+CWD="$(physical "$CWD")"
+DIRNAME="$(physical "$(dirname -- "$FILE_PATH")")"
+FILE_PATH="$DIRNAME/$(basename -- "$FILE_PATH")"
+ROOT="$(git -C "$DIRNAME" rev-parse --show-toplevel 2>/dev/null)"
+[ -n "$ROOT" ] || ROOT="$CWD"
 
 case "$FILE_PATH" in
   *.py)
     STEM="$(basename -- "$FILE_PATH" .py)"
     case "$STEM" in
       test_*)
-        if [ "$DIRNAME" = "$CWD/tests" ]; then
+        if [ "$DIRNAME" = "$ROOT/tests" ]; then
           MODULE="tests.$STEM"
         else
           MODULE="tests.test_$STEM"
@@ -36,19 +48,19 @@ case "$FILE_PATH" in
         ;;
     esac
 
-    TARGET="$CWD/tests/${MODULE#tests.}.py"
+    TARGET="$ROOT/tests/${MODULE#tests.}.py"
     [ -f "$TARGET" ] || exit 0
 
-    PYTHON="${SHANKS_TEST_IMPACT_PYTHON:-$CWD/.venv/bin/python}"
+    PYTHON="${SHANKS_TEST_IMPACT_PYTHON:-$ROOT/.venv/bin/python}"
     command -v "$PYTHON" >/dev/null 2>&1 || exit 0
 
     LABEL="$MODULE"
-    OUTPUT="$(cd "$CWD" && "$PYTHON" -m unittest "$MODULE" 2>&1)"
+    OUTPUT="$(cd "$ROOT" && "$PYTHON" -m unittest "$MODULE" 2>&1)"
     STATUS=$?
     ;;
   *.sh)
     case "$DIRNAME" in
-      "$CWD/hooks"|"$CWD/hooks/test.hooks") ;;
+      "$ROOT/hooks"|"$ROOT/hooks/test.hooks") ;;
       *) exit 0 ;;
     esac
 
@@ -57,7 +69,7 @@ case "$FILE_PATH" in
       test-*) HARNESS_NAME="$STEM" ;;
       *) HARNESS_NAME="test-$STEM" ;;
     esac
-    HARNESS="$CWD/hooks/test.hooks/$HARNESS_NAME.sh"
+    HARNESS="$ROOT/hooks/test.hooks/$HARNESS_NAME.sh"
     [ -f "$HARNESS" ] || exit 0
 
     LABEL="hooks/test.hooks/$HARNESS_NAME.sh"
