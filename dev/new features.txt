@@ -2,26 +2,7 @@ Shanks feature roadmap
 
 Priority 1 - Reliability and contributor experience
 
-1- Document how to retire a merged developer worktree.
-   `AGENTS.md` says how to *start* parallel work (the "Starting a parallel
-   feature" block #91 added) and nothing about finishing it, so the teardown
-   gets re-derived by hand every time - three times in one session while
-   landing #89, #90, and #93. Add a "Finishing a parallel feature" block beside
-   it, cross-referenced from `dev/commands.md`'s `./shanks dev worktree`
-   examples. The sequence, verified after #92: `git worktree remove
-   ../shanks-<branch>` now succeeds without `--force` (the ignored `.venv`
-   symlink was the only blocker), then `git branch -D <branch>` because
-   `git branch -d` refuses a squash-merged branch that is not an ancestor of
-   `main` - so name the merged-check first (`gh pr view <n> --json state`, or
-   `git diff --stat <branch> <merge-commit>` being empty) rather than telling
-   anyone to reach for `-D` blind - then `git remote prune origin` for the
-   tracking refs GitHub already deleted (61 of them had piled up). Deliberately
-   documentation, not a `./shanks dev cleanup` command: the recipe is three
-   commands and the risky one is the merged-check, which is a judgement a
-   command would have to re-encode. Revisit if the recipe proves error-prone in
-   practice.
-
-2- Add a `UserPromptSubmit` hook that injects fresh repository state.
+1- Add a `UserPromptSubmit` hook that injects fresh repository state.
    Current branch, recent commits, and open-PR status, so a session never
    starts blind. Concrete trigger: `main` sat red for roughly twenty minutes
    after #91 merged with a stale `tests.md` total, and it surfaced only because
@@ -104,6 +85,19 @@ Suggestions
   (Git 2.30, gh 2.40) is never actually exercised on Linux either. Pinning
   old Git/gh versions in CI to prove the floor works is real setup effort for
   a small payoff — defer unless a real floor-version bug shows up.
+- `AGENTS.md`'s "Finishing a parallel feature" block (#95) points at
+  "`dev/commands.md`'s Parallel agents examples", but `git ls-files dev/`
+  returns only `dev/new features.txt` - the rest of `dev/` is gitignored, so
+  that pointer resolves to nothing on any machine but this one. Either move
+  the worktree examples somewhere tracked (README) or drop the reference.
+- `./shanks doctor`'s `claude-hooks` check (#93) only looks scripts ->
+  settings. The reverse - `.claude/settings.json` referencing a `hooks/*.sh`
+  that no longer exists, which is exactly what a removal like
+  `pr-checkpoint-reminder.sh` leaves behind - is unchecked, and the wiring
+  file is hand-edited and gitignored, so nothing else would catch it. All
+  seven current references were verified to resolve, so this is prevention
+  rather than a live bug; the same function already reads the file, so it is
+  a few lines.
 - `./shanks doctor`'s `claude-hooks` check (#93) matches hook *filenames* in
   `.claude/settings.json`, so it proves a script is mentioned, not that it is
   wired correctly: a hook listed under the wrong matcher (`Bash` where it

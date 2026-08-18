@@ -21,6 +21,20 @@ files = [
 ]
 EOF
 
+# A sibling checkout: its own Git tree, with its own `[tool.mypy] files` list.
+# Resolving from the session's `.cwd` never matches this path at all — the bug
+# this guards.
+SIBLING="$TMP/sibling"
+mkdir -p "$SIBLING/workflow"
+git -C "$SIBLING" init -q 2>/dev/null
+: > "$SIBLING/workflow/sibling.py"
+cat > "$SIBLING/pyproject.toml" <<'EOF'
+[tool.mypy]
+files = [
+    "workflow/sibling.py",
+]
+EOF
+
 # Stub interpreters: $1=-m, $2=tool, rest are that tool's arguments.
 # $TMP/fail-<tool> makes the matching tool exit non-zero; "black --check"
 # fails via $TMP/fail-black-check so the reformat pass can still succeed.
@@ -87,6 +101,11 @@ check allow "deleted or missing file" "$TMP/workflow/gone.py" "$TMP/python"
 check allow "python interpreter missing (fail open)" \
   "$TMP/workflow/nodes.py" "$TMP/no-such-python"
 rm -f "$TMP/fail-ruff"
+
+: > "$TMP/fail-mypy"
+check block "python file in a sibling worktree, not the session cwd" \
+  "$SIBLING/workflow/sibling.py" "$TMP/python"
+rm -f "$TMP/fail-mypy"
 
 printf 'passed: %s, failed: %s\n' "$passed" "$failed"
 [ "$failed" -eq 0 ]

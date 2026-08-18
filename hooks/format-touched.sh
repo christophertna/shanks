@@ -20,39 +20,54 @@ CWD="$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)"
 [ -n "$CWD" ] || CWD="$PWD"
 [ -n "$FILE_PATH" ] || exit 0
 
+# Physical paths throughout, so the prefix match below holds: `git rev-parse`
+# returns them, and a payload path may reach the tree through a symlink
+# (/tmp -> /private/tmp on macOS).
+physical() { (cd -- "$1" 2>/dev/null && pwd -P) || printf '%s' "$1"; }
+
+# The root is the touched file's tree, not the session's: an agent rooted in
+# the parent checkout that edits a file in a sibling worktree used to fall
+# straight through the prefix match below and format nothing at all. Falls
+# back to the payload's `.cwd`.
+CWD="$(physical "$CWD")"
+DIRNAME="$(physical "$(dirname -- "$FILE_PATH")")"
+FILE_PATH="$DIRNAME/$(basename -- "$FILE_PATH")"
+ROOT="$(git -C "$DIRNAME" rev-parse --show-toplevel 2>/dev/null)"
+[ -n "$ROOT" ] || ROOT="$CWD"
+
 case "$FILE_PATH" in
-  "$CWD"/*.py) ;;
+  "$ROOT"/*.py) ;;
   *) exit 0 ;;
 esac
 [ -f "$FILE_PATH" ] || exit 0
 
-PYTHON="${SHANKS_FORMAT_PYTHON:-$CWD/.venv/bin/python}"
+PYTHON="${SHANKS_FORMAT_PYTHON:-$ROOT/.venv/bin/python}"
 command -v "$PYTHON" >/dev/null 2>&1 || exit 0
 
-REL="${FILE_PATH#"$CWD"/}"
+REL="${FILE_PATH#"$ROOT"/}"
 REPORT=""
 
 note() {
   REPORT="${REPORT}$1"$'\n'
 }
 
-if ! (cd "$CWD" && "$PYTHON" -m black --check --quiet "$REL") >/dev/null 2>&1; then
-  if OUTPUT="$(cd "$CWD" && "$PYTHON" -m black --quiet "$REL" 2>&1)"; then
+if ! (cd "$ROOT" && "$PYTHON" -m black --check --quiet "$REL") >/dev/null 2>&1; then
+  if OUTPUT="$(cd "$ROOT" && "$PYTHON" -m black --quiet "$REL" 2>&1)"; then
     note "black reformatted $REL — re-read it before editing again."
   else
     note "black failed on $REL:"$'\n'"$OUTPUT"
   fi
 fi
 
-if ! OUTPUT="$(cd "$CWD" && "$PYTHON" -m ruff check "$REL" 2>&1)"; then
+if ! OUTPUT="$(cd "$ROOT" && "$PYTHON" -m ruff check "$REL" 2>&1)"; then
   note "ruff check failed on $REL:"$'\n'"$OUTPUT"
 fi
 
 # ponytail: textual grep of pyproject.toml's `[tool.mypy] files` list rather
 # than a TOML parse — a listed path is one quoted line there today. Parse it
 # properly if that list ever gets globs or a second quoted-path list appears.
-if grep -q "\"$REL\"," "$CWD/pyproject.toml" 2>/dev/null; then
-  if ! OUTPUT="$(cd "$CWD" && "$PYTHON" -m mypy "$REL" 2>&1)"; then
+if grep -q "\"$REL\"," "$ROOT/pyproject.toml" 2>/dev/null; then
+  if ! OUTPUT="$(cd "$ROOT" && "$PYTHON" -m mypy "$REL" 2>&1)"; then
     note "mypy failed on $REL:"$'\n'"$OUTPUT"
   fi
 fi
