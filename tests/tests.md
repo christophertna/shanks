@@ -1,7 +1,7 @@
 # Test coverage
 
 This document summarizes the behavior covered by the repository's tracked test
-files. The Python suite contains **212 unittest methods** across twelve
+files. The Python suite contains **214 unittest methods** across twelve
 modules; every `hooks/test.hooks/test-*.sh` file is a separate shell
 regression harness, run in CI alongside the Python suite (see
 [`.github/workflows/tests.yml`](../.github/workflows/tests.yml)). The harness
@@ -36,7 +36,7 @@ Run the repository quality gates from a feature branch with:
 | [`test_node_contracts.py`](test_node_contracts.py) | 70 | Agent, failure-classification, subprocess, versioned interpreter allowlists, Ralph, local-test, critic, quality-gate, pre-commit policy gate, recovery reconciliation, repository-protocol conformance, preview-protocol narrowing, subprocess timeout budgets, and GitHub adapter contracts |
 | [`test_state_schema.py`](test_state_schema.py) | 10 | State migration, one-step migration chains, retry metadata, versioned checkpoints, and legacy resume behavior |
 | [`test_lifecycle.py`](test_lifecycle.py) | 8 | Run leases, stale recovery, recovery-state reconciliation, interruption/resume, terminal release, and checkpoint cleanup |
-| [`test_workspaces.py`](test_workspaces.py) | 12 | Run identity, Git worktree creation/reuse, syncing the gitignored Claude Code hook guard into new worktrees, local/remote branch listing and deletion, workspace context, and workspace state migration |
+| [`test_workspaces.py`](test_workspaces.py) | 14 | Run identity, Git worktree creation/reuse, syncing the gitignored Claude Code hook guard and `.venv` symlink into new worktrees, local/remote branch listing and deletion, workspace context, and workspace state migration |
 | [`test_viewer.py`](test_viewer.py) | 10 | Viewer HTML, execution-state data including pending interrupts and repository drift, checkpoint sharing, the live-reload module path, curated-constant node coverage, and Mermaid output |
 | [`test_quality_gates.py`](test_quality_gates.py) | 10 | Quality command definitions, typing-gate module coverage, safe diff refs, numstat parsing, generated-output handling, diff limits, and gate failure reporting |
 | [`test_fault_injection.py`](test_fault_injection.py) | 7 | Injected Git, GitHub, validation, checkpoint, and agent process failures |
@@ -536,6 +536,12 @@ Sources: [`test_workspaces.py`](test_workspaces.py) and
 - Each configured `thread_id` becomes a persisted run identity with its own
   Git branch and worktree; repeated invocations of the same run reuse that
   workspace.
+- A run worktree receives the same gitignored guardrails as a developer
+  worktree: `.claude/settings.json` is copied in (and re-copied on reuse), and
+  `.venv` is symlinked so the `PostToolUse` hooks - which resolve their
+  interpreter from the touched file's own tree - find one there instead of
+  failing open. Both are skipped without error when the project has neither,
+  and re-syncing an existing worktree does not trip over the existing symlink.
 - Workspace context routes agent, Ralph, and GitHub subprocesses into the run's
   directory, and Ralph metadata is stored under the isolated run directory.
 - Live leases block a second owner of the same run; expired leases are recovered

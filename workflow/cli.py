@@ -479,14 +479,7 @@ def dev_worktree(
         raise CliError(f"git worktree add failed: {created.stderr.strip()}")
 
     hooks_synced = sync_local_guardrails(project, directory)
-
-    venv = project / ".venv"
-    venv_linked = False
-    if venv.is_dir() and not (directory / ".venv").exists():
-        # The venv's interpreter and shebangs are absolute, so one symlink
-        # serves every worktree - no second install to keep in sync.
-        os.symlink(venv, directory / ".venv")
-        venv_linked = True
+    venv_linked = (directory / ".venv").is_symlink()
 
     print(f"Created {directory} on branch {branch}")
     print(
