@@ -41,8 +41,17 @@ def sync_local_guardrails(project_directory: Path, directory: Path) -> bool:
     hooks (e.g. the dangerous-command guard) in that worktree. Shared by run
     worktrees and `shanks dev worktree`, so neither can silently skip it.
 
+    ``.venv`` is gitignored the same way, and the ``PostToolUse`` hooks resolve
+    their interpreter (``$ROOT/.venv/bin/python``) from the touched file's own
+    tree - so without it they load but silently fail open. The venv's shebangs
+    are absolute, so one symlink serves every worktree.
+
     Returns True when settings were copied, False when the source has none.
     """
+
+    venv = project_directory / ".venv"
+    if venv.is_dir() and not os.path.lexists(directory / ".venv"):
+        os.symlink(venv, directory / ".venv")
 
     settings = project_directory / ".claude" / "settings.json"
     if not settings.is_file():

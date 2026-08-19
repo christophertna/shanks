@@ -68,8 +68,10 @@ assembles the graph; `serve_graph.py` serves a live Mermaid viewer at
   otherwise carry `.claude/settings.json` — and without it, Claude Code
   loads no project hooks (e.g. `hooks/deny-dangerous.sh`, the dangerous-shell-
   command guard) in that worktree. `_sync_local_guardrails()` copies it in
-  right after `git worktree add`. `hooks/` itself is tracked, so it's
-  already checked out normally.
+  right after `git worktree add`, and symlinks `.venv` the same way — the
+  `PostToolUse` hooks resolve `$ROOT/.venv/bin/python` from the touched file's
+  own tree, so without the link they load but silently fail open. `hooks/`
+  itself is tracked, so it's already checked out normally.
 
 ## Shared checkout
 

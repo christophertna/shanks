@@ -143,6 +143,46 @@ class WorkspaceTests(unittest.TestCase):
 
             self.assertFalse((workspace.directory / ".claude").exists())
 
+    def test_ensure_symlinks_the_project_venv_into_the_worktree(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._git(root, "init", "-b", "main")
+            self._git(root, "config", "user.email", "tests@example.com")
+            self._git(root, "config", "user.name", "Tests")
+            (root / "README.md").write_text("initial\n", encoding="utf-8")
+            (root / ".gitignore").write_text(".venv\n", encoding="utf-8")
+            self._git(root, "add", "README.md", ".gitignore")
+            self._git(root, "commit", "-m", "initial")
+
+            interpreter = root / ".venv" / "bin" / "python"
+            interpreter.parent.mkdir(parents=True)
+            interpreter.write_text("#!/bin/sh\n", encoding="utf-8")
+
+            manager = RunWorkspaceManager(root)
+            workspace = manager.ensure("thread/venv")
+
+            linked = workspace.directory / ".venv"
+            self.assertTrue(linked.is_symlink())
+            self.assertTrue((linked / "bin" / "python").exists())
+            # A second ensure() must not trip over the existing link.
+            manager.ensure("thread/venv")
+            self.assertTrue(linked.is_symlink())
+
+    def test_ensure_tolerates_a_project_without_a_venv(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._git(root, "init", "-b", "main")
+            self._git(root, "config", "user.email", "tests@example.com")
+            self._git(root, "config", "user.name", "Tests")
+            (root / "README.md").write_text("initial\n", encoding="utf-8")
+            self._git(root, "add", "README.md")
+            self._git(root, "commit", "-m", "initial")
+
+            manager = RunWorkspaceManager(root)
+            workspace = manager.ensure("thread/no-venv")
+
+            self.assertFalse((workspace.directory / ".venv").exists())
+
     def test_development_mode_can_delete_a_run_branch_after_worktree_removal(
         self,
     ) -> None:

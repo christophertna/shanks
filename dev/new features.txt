@@ -2,13 +2,29 @@ Shanks feature roadmap
 
 Priority 1 - Reliability and contributor experience
 
-1- Add a `UserPromptSubmit` hook that injects fresh repository state.
+1- Derive `tests/tests.md`'s counts instead of hand-maintaining them.
+   The file carries the same numbers twice - a per-file row and the headline
+   total - and the pair has already bitten twice: #91 bumped a row without the
+   total and left `main` failing its own suite for ~20 minutes, and the count
+   lines were the *only* merge conflict between #92 and #93. The guard added
+   in #90 (`test_tests_md_counts_match_actual_test_methods` and the shell-check
+   equivalent, `tests/test_cli.py`) catches the drift but does not fix it, and
+   every hook or test change still edits the numbers by hand - #96 touched two
+   harness rows. Recurrence is not speculative: `AGENTS.md` encourages parallel
+   worktrees, which is what produced the #92/#93 conflict. Deriving the
+   headline from the rows, or a `--fix` mode that rewrites both from the actual
+   suite, is the shape. Note this also removes the *cause* of the red-`main`
+   incident that motivates item 2, which only improves detection of it.
+
+2- Add a `UserPromptSubmit` hook that injects fresh repository state.
    Current branch, recent commits, and open-PR status, so a session never
    starts blind. Concrete trigger: `main` sat red for roughly twenty minutes
    after #91 merged with a stale `tests.md` total, and it surfaced only because
-   a `PostToolUse` hook happened to fire from a different worktree. Keep the
-   suite *out* of the injected state, or cache it - `.venv/bin/python -m
-   unittest discover -s tests` is ~15s and would be paid on every prompt.
+   a `PostToolUse` hook fired from a different worktree and resolved its tests
+   against the parent tree - an accident #96 deliberately removed, so nothing
+   would catch the same failure that way again. Keep the suite *out* of the
+   injected state, or cache it - `.venv/bin/python -m unittest discover -s
+   tests` is ~15s and would be paid on every prompt.
    Passes the `hooks/pr-checkpoint-reminder.sh` test below: `UserPromptSubmit`
    always fires, so this does not depend on the agent choosing to call a tool.
 
@@ -105,13 +121,6 @@ Suggestions
   Names-only is the deliberate ceiling - reading the matcher structure means
   encoding Claude Code's settings schema, which changes upstream. Revisit if a
   mis-matched hook ever ships.
-- `tests/tests.md`'s counts are manual double-entry - a per-file row and the
-  headline total - and they are a merge-conflict magnet. Both failure modes
-  showed up in one session: #91 bumped a row without the total and left `main`
-  failing its own suite, and the count lines were the *only* conflict between
-  #92 and #93. The guard added in #90 catches the drift but does not fix it.
-  Deriving the headline from the rows (or a `--fix` mode that rewrites both)
-  is the shape; worth doing if it bites a third time.
 - `hooks/post-merge`/`hooks/post-checkout` (#44) run `graphify update .`
   synchronously, unlike `hooks/graphify-update.sh` (the Claude Code hook),
   which backgrounds the call with a lockdir debounce. Fine today since it's
