@@ -13,6 +13,16 @@ from unittest.mock import patch
 from langgraph.types import Interrupt
 
 from graph import VersionedSqliteSaver
+from scripts.sync_tests_md import (
+    HARNESS_ROW,
+    HEADLINE,
+    PYTHON_ROW,
+    HarnessError,
+    apply_harness_counts,
+    apply_python_counts,
+    harness_counts,
+    python_counts,
+)
 from workflow.adapters import GitHubAdapter
 from workflow.cli import (
     _MIN_TOOL_VERSIONS,
@@ -29,14 +39,6 @@ from workflow.workspaces import RunWorkspaceManager
 # fails closed without these, so a missing one looks like a guard regression
 # (`expected=allow got=block`) rather than an unset-up machine.
 _SHELL_HARNESS_TOOLS = ("bash", "jq", "gitleaks")
-
-# A harness row in tests/tests.md. Shared so "documented" means the same thing
-# to the test that runs those harnesses and to the test that checks none are
-# missing from the table - a row shape only one of them recognized would let a
-# harness look covered while never running.
-_HARNESS_ROW = re.compile(
-    r"\[`(\.\./hooks/test\.hooks/[\w.-]+\.sh)`\]\(\1\) \| (\d+) shell checks \|"
-)
 
 
 class DevWorktreeTests(unittest.TestCase):
@@ -419,32 +421,64 @@ class ShanksCliTests(unittest.TestCase):
         self.assertIn("unusable", broken.detail)
 
     def test_tests_md_counts_match_actual_test_methods(self) -> None:
+        # Checked against the same derivation `--fix` writes, so the guard and
+        # the fixer cannot disagree about a number. The headline total is part
+        # of it: it drifted 35 methods behind the table before anything looked.
         repo_root = Path(__file__).parents[1]
         tests_md = (repo_root / "tests" / "tests.md").read_text(encoding="utf-8")
 
-        documented = re.findall(r"\[`(test_\w+\.py)`\]\(\1\) \| (\d+) \|", tests_md)
+        stale = "; run `.venv/bin/python scripts/sync_tests_md.py --fix`"
+        documented = {name: int(count) for name, count in PYTHON_ROW.findall(tests_md)}
         self.assertTrue(documented)
+        self.assertEqual(python_counts(tests_md, repo_root), documented, stale)
 
-        for filename, count in documented:
-            source = (repo_root / "tests" / filename).read_text(encoding="utf-8")
-            actual = len(re.findall(r"^\s*def test_", source, re.MULTILINE))
-            self.assertEqual(
-                actual,
-                int(count),
-                f"tests/tests.md documents {count} tests for {filename}, "
-                f"but it has {actual}",
+        totals = HEADLINE.findall(tests_md)
+        self.assertEqual(len(totals), 1)
+        self.assertEqual(sum(documented.values()), int(totals[0]), stale)
+
+    def test_sync_tests_md_rewrites_stale_rows_and_the_headline(self) -> None:
+        # The guards above only ever see a correct file, so nothing else proves
+        # the derivation can actually correct a wrong number.
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            (repo / "tests").mkdir()
+            (repo / "tests" / "test_example.py").write_text(
+                "def test_one() -> None:\n    pass\n\n"
+                "    def test_two(self) -> None:\n        pass\n",
+                encoding="utf-8",
+            )
+            stale = (
+                "The Python suite contains **99 unittest methods** across one\n"
+                "module.\n\n"
+                "| [`test_example.py`](test_example.py) | 7 | Examples |\n"
             )
 
-        # The prose total drifted 35 methods behind the table before anything
-        # checked it, so tie it to the same rows.
-        totals = re.findall(r"\*\*(\d+) unittest methods\*\*", tests_md)
-        self.assertEqual(len(totals), 1)
-        self.assertEqual(
-            sum(int(count) for _, count in documented),
-            int(totals[0]),
-            "tests/tests.md's headline unittest-method total disagrees with the "
-            "per-file counts in its own table",
-        )
+            fixed = apply_python_counts(stale, repo)
+
+            self.assertIn("| [`test_example.py`](test_example.py) | 2 |", fixed)
+            self.assertIn("**2 unittest methods**", fixed)
+            self.assertEqual(fixed, apply_python_counts(fixed, repo))
+
+    def test_sync_tests_md_never_writes_a_failing_harness_count(self) -> None:
+        # A failing harness still prints whatever it reached, which is not the
+        # count - writing it would document a passing suite that does not exist.
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            (repo / "hooks" / "test.hooks").mkdir(parents=True)
+            harness = repo / "hooks" / "test.hooks" / "test-example.sh"
+            row = (
+                "| [`../hooks/test.hooks/test-example.sh`]"
+                "(../hooks/test.hooks/test-example.sh) | 1 shell checks | Example |\n"
+            )
+
+            harness.write_text("echo 'passed: 5, failed: 0'\n", encoding="utf-8")
+            self.assertIn("| 5 shell checks |", apply_harness_counts(row, repo))
+
+            harness.write_text(
+                "echo 'passed: 4, failed: 1'\nexit 1\n", encoding="utf-8"
+            )
+            with self.assertRaises(HarnessError):
+                apply_harness_counts(row, repo)
 
     def test_tests_md_shell_check_counts_match_harness_output(self) -> None:
         repo_root = Path(__file__).parents[1]
@@ -462,28 +496,15 @@ class ShanksCliTests(unittest.TestCase):
             f"local setup.",
         )
 
-        documented = _HARNESS_ROW.findall(tests_md)
+        documented = {path: int(count) for path, count in HARNESS_ROW.findall(tests_md)}
         self.assertTrue(documented)
-
-        for relative_path, count in documented:
-            harness = (repo_root / "tests" / relative_path).resolve()
-            result = subprocess.run(
-                ["bash", str(harness)],
-                capture_output=True,
-                text=True,
-                cwd=repo_root,
-            )
-            self.assertEqual(
-                result.returncode,
-                0,
-                f"{harness.name} failed:\n{result.stdout}{result.stderr}",
-            )
-            self.assertEqual(
-                result.stdout.strip().splitlines()[-1],
-                f"passed: {count}, failed: 0",
-                f"tests/tests.md documents {count} shell checks for "
-                f"{harness.name}, but it reported {result.stdout.strip()}",
-            )
+        # Runs every documented harness: a non-zero exit or a summary line that
+        # is not `passed: N, failed: 0` raises instead of yielding a count.
+        self.assertEqual(
+            harness_counts(tests_md, repo_root),
+            documented,
+            "; run `.venv/bin/python scripts/sync_tests_md.py --fix`",
+        )
 
     def test_every_shell_harness_is_documented_and_run_in_ci(self) -> None:
         repo_root = Path(__file__).parents[1]
@@ -495,7 +516,7 @@ class ShanksCliTests(unittest.TestCase):
         present = {
             path.name for path in (repo_root / "hooks" / "test.hooks").glob("*.sh")
         }
-        documented = {Path(path).name for path, _ in _HARNESS_ROW.findall(tests_md)}
+        documented = {Path(path).name for path, _ in HARNESS_ROW.findall(tests_md)}
 
         self.assertEqual(
             present,

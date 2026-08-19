@@ -22,6 +22,9 @@ assembles the graph; `serve_graph.py` serves a live Mermaid viewer at
 
 - Tests: `.venv/bin/python -m unittest discover -s tests` (use the checked-in
   venv's interpreter, not system `python`)
+- Test counts in `tests/tests.md`: never hand-edit them — run
+  `.venv/bin/python scripts/sync_tests_md.py --fix` after adding or removing a
+  test (or a shell harness check). `tests/test_cli.py` fails on stale counts.
 - Viewer: `.venv/bin/python serve_graph.py`
 - Diagnose the local setup: `./shanks doctor` — checks mode, required tools
   (including Git/gh/gitleaks version floors), pinned dependencies, GitHub CLI

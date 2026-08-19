@@ -2,21 +2,7 @@ Shanks feature roadmap
 
 Priority 1 - Reliability and contributor experience
 
-1- Derive `tests/tests.md`'s counts instead of hand-maintaining them.
-   The file carries the same numbers twice - a per-file row and the headline
-   total - and the pair has already bitten twice: #91 bumped a row without the
-   total and left `main` failing its own suite for ~20 minutes, and the count
-   lines were the *only* merge conflict between #92 and #93. The guard added
-   in #90 (`test_tests_md_counts_match_actual_test_methods` and the shell-check
-   equivalent, `tests/test_cli.py`) catches the drift but does not fix it, and
-   every hook or test change still edits the numbers by hand - #96 touched two
-   harness rows. Recurrence is not speculative: `AGENTS.md` encourages parallel
-   worktrees, which is what produced the #92/#93 conflict. Deriving the
-   headline from the rows, or a `--fix` mode that rewrites both from the actual
-   suite, is the shape. Note this also removes the *cause* of the red-`main`
-   incident that motivates item 2, which only improves detection of it.
-
-2- Add a `UserPromptSubmit` hook that injects fresh repository state.
+1- Add a `UserPromptSubmit` hook that injects fresh repository state.
    Current branch, recent commits, and open-PR status, so a session never
    starts blind. Concrete trigger: `main` sat red for roughly twenty minutes
    after #91 merged with a stale `tests.md` total, and it surfaced only because
@@ -25,6 +11,11 @@ Priority 1 - Reliability and contributor experience
    would catch the same failure that way again. Keep the suite *out* of the
    injected state, or cache it - `.venv/bin/python -m unittest discover -s
    tests` is ~15s and would be paid on every prompt.
+   Note the *cause* of that incident is now gone - `scripts/sync_tests_md.py`
+   derives every count in `tests.md`, so nobody hand-types a total that can go
+   stale. This item is only about detection: a session still starts with no
+   idea whether `main` is green, which branch it is on, or whether its PR is
+   already open.
    Passes the `hooks/pr-checkpoint-reminder.sh` test below: `UserPromptSubmit`
    always fires, so this does not depend on the agent choosing to call a tool.
 
@@ -121,6 +112,23 @@ Suggestions
   Names-only is the deliberate ceiling - reading the matcher structure means
   encoding Claude Code's settings schema, which changes upstream. Revisit if a
   mis-matched hook ever ships.
+- No `hooks/*.sh` entry in `.claude/settings.json` sets a `timeout`, so every
+  hook runs under Claude Code's default per-command cap rather than a budget
+  this repo chose. `hooks/run-impacted-tests.sh` and `hooks/format-touched.sh`
+  are the two that can actually spend it - both run synchronously by design
+  (they need the exit code for blocking feedback), so a hung test or a stuck
+  `black`/`ruff`/`mypy` costs that full cap on every Write/Edit until it is
+  fixed. This became live in unattended runs with #97: before it, both hooks
+  fell through `command -v "$PYTHON"` and exited 0 inside run worktrees, and
+  now they really execute while the build agent works with nobody watching.
+  The fix is a `timeout` field per hook in the settings JSON, not a portable
+  shell `timeout` wrapper (macOS ships no GNU coreutils `timeout`) - but that
+  file is gitignored and hand-maintained, so `./shanks doctor`'s `claude-hooks`
+  check is the only place that could ever notice a missing one, which folds
+  into the two doctor items above. Not urgent: all matched modules are fast and
+  none hang, and the format hook measures 0.55s on `workflow/nodes.py` (mypy
+  incremental is 0.13s of that). Confirm the current default cap against the
+  Claude Code hook docs before writing a number into the file.
 - `hooks/post-merge`/`hooks/post-checkout` (#44) run `graphify update .`
   synchronously, unlike `hooks/graphify-update.sh` (the Claude Code hook),
   which backgrounds the call with a lockdir debounce. Fine today since it's
@@ -205,17 +213,6 @@ OS-specific (macOS-only mechanisms and fixes)
   sandbox at all yet, so the same gap is compounded there - filesystem
   writes aren't contained either. Defer until there's a concrete need (e.g.
   running against untrusted PRD content).
-- Neither `hooks/run-impacted-tests.sh` nor `hooks/format-touched.sh` has a
-  timeout on the command it runs - a hung test (infinite loop, blocked I/O) or
-  a stuck `black`/`ruff`/`mypy` would stall every subsequent Write/Edit
-  indefinitely, since both hooks run synchronously by design (they need the
-  exit code for blocking feedback). The stall risk itself is not OS-specific,
-  but the fix is harder on macOS specifically: Linux ships GNU coreutils'
-  `timeout` by default, macOS does not, so a portable version needs a
-  hand-rolled background-process-plus-kill pattern instead of one command.
-  Not urgent today - all matched modules are fast and none hang, and the
-  format hook measures 0.55s on `workflow/nodes.py` (mypy incremental is
-  0.13s of that).
 
 Big tasks (ordered by priority)
 

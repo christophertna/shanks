@@ -1,13 +1,20 @@
 # Test coverage
 
 This document summarizes the behavior covered by the repository's tracked test
-files. The Python suite contains **214 unittest methods** across twelve
+files. The Python suite contains **216 unittest methods** across twelve
 modules; every `hooks/test.hooks/test-*.sh` file is a separate shell
 regression harness, run in CI alongside the Python suite (see
 [`.github/workflows/tests.yml`](../.github/workflows/tests.yml)). The harness
 rows in the table below are the list this suite iterates, so
 `test_every_shell_harness_is_documented_and_run_in_ci` asserts they cover the
 directory exactly and that CI runs each one.
+
+Every count in this file - each row and the headline total - is derived, not
+typed. `scripts/sync_tests_md.py` recomputes them from the suites themselves;
+run it with `--fix` after adding or removing a test instead of editing the
+numbers by hand. The guards in `tests/test_cli.py` check the file against that
+same derivation, so a stale number fails the suite with the command that fixes
+it.
 
 The tests use in-memory graphs, temporary SQLite databases and temporary
 projects, real temporary Git repositories, a fake `gh` executable, stub
@@ -18,6 +25,12 @@ Run the Python suite with:
 
 ```bash
 .venv/bin/python -m unittest discover -s tests
+```
+
+Update the counts in this file with:
+
+```bash
+.venv/bin/python scripts/sync_tests_md.py --fix
 ```
 
 Run the repository quality gates from a feature branch with:
@@ -31,7 +44,7 @@ Run the repository quality gates from a feature branch with:
 
 | File | Tests | Main areas |
 | --- | ---: | --- |
-| [`test_cli.py`](test_cli.py) | 26 | Execution-mode reporting, dev worktree creation and ignored `.venv` symlinks, doctor diagnostics (including Git/gh/gitleaks version floors, `core.hooksPath`, and unwired Claude Code hooks), documentation-count guards for the Python and shell test suites, hook-harness coverage in this file and in CI, and run listing, status (including pending interrupts, drift, and recent events), resume, cancellation, recovery, cleanup, pruning, and safety checks |
+| [`test_cli.py`](test_cli.py) | 28 | Execution-mode reporting, dev worktree creation and ignored `.venv` symlinks, doctor diagnostics (including Git/gh/gitleaks version floors, `core.hooksPath`, and unwired Claude Code hooks), documentation-count guards for the Python and shell test suites (including the shared count derivation and its fail-closed harness runner), hook-harness coverage in this file and in CI, and run listing, status (including pending interrupts, drift, and recent events), resume, cancellation, recovery, cleanup, pruning, and safety checks |
 | [`test_graph.py`](test_graph.py) | 46 | Workflow orchestration, item metadata, repository drift injection, append-only run-manifest behavior, targeted retries, budgets, approvals, dry-run previews, and GitHub handoff |
 | [`test_node_contracts.py`](test_node_contracts.py) | 70 | Agent, failure-classification, subprocess, versioned interpreter allowlists, Ralph, local-test, critic, quality-gate, pre-commit policy gate, recovery reconciliation, repository-protocol conformance, preview-protocol narrowing, subprocess timeout budgets, and GitHub adapter contracts |
 | [`test_state_schema.py`](test_state_schema.py) | 10 | State migration, one-step migration chains, retry metadata, versioned checkpoints, and legacy resume behavior |
@@ -66,7 +79,15 @@ Run the repository quality gates from a feature branch with:
 - `test_cli.py` verifies this file's own counts stay accurate: each `test_*.py`
   row against that module's `def test_` count, the headline unittest-method
   total against the sum of those rows, and each shell-harness row against the
-  `passed: N, failed: 0` line the harness itself prints.
+  `passed: N, failed: 0` line the harness itself prints. Both guards read those
+  numbers through `scripts/sync_tests_md.py`, the same derivation `--fix`
+  writes, so the checker and the fixer cannot disagree about a count, and both
+  failures name the command that repairs the file.
+- `test_cli.py` verifies the fixer can actually correct a wrong number: a stale
+  row and a stale headline are both rewritten from a temporary suite, and the
+  result is stable on a second pass. A harness that exits non-zero or prints
+  anything but `passed: N, failed: 0` raises instead of yielding a count, so
+  `--fix` can never document a passing suite that does not exist.
 - `test_cli.py` verifies the harness rows cover `hooks/test.hooks/` exactly and
   that `.github/workflows/tests.yml` runs each one. Without it a new harness
   can be committed, pass locally, and never run anywhere: the row list above is

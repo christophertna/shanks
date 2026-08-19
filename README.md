@@ -33,6 +33,7 @@ and its recovery paths, with semantic node colors and a legend for every node ty
 ├── shanks                     # Shell entrypoint for the CLI
 ├── scripts/
 │   ├── quality_gates.py       # Formatting, lint, typing, audit, and diff-size checks
+│   ├── sync_tests_md.py       # Derives tests/tests.md's counts from the suites
 │   ├── sandbox_claude.sh      # macOS filesystem sandbox for Claude runs
 │   └── ralph/                 # Ralph loop, instructions, and PRD example
 ├── hooks/                     # Git and agent safety/automation hooks
@@ -57,6 +58,9 @@ and its recovery paths, with semantic node colors and a legend for every node ty
 - `scripts/ralph/` contains Ralph-oriented supporting instructions and examples.
 - `scripts/quality_gates.py` runs the repository's formatting, typing, lint,
   dependency/security, and diff-size checks.
+- `scripts/sync_tests_md.py` recomputes `tests/tests.md`'s per-file and
+  headline counts from the suites; `tests/test_cli.py`'s guards check the file
+  against the same derivation, so the checker and the fixer cannot disagree.
 - `skills/` contains shared skill sources; `.agents/skills/` and `.claude/skills/`
   expose project-scoped Codex and Claude entrypoints.
 - `.github/workflows/tests.yml` runs the unittest suite and the
@@ -181,6 +185,7 @@ gh auth refresh -h github.com -s workflow
 | `.venv/bin/python -m pip install -r requirements-dev.txt` | Install development dependencies. |
 | `.venv/bin/python -m unittest discover -s tests` | Run the full test suite. |
 | `bash hooks/test.hooks/test-deny-dangerous.sh` | Test the dangerous-command guard. |
+| `.venv/bin/python scripts/sync_tests_md.py --fix` | Rewrite `tests/tests.md`'s test counts from the suites; omit `--fix` to report drift. |
 | `.venv/bin/python scripts/quality_gates.py --diff-base origin/main` | Run all quality gates against `origin/main`. |
 | `.venv/bin/python scripts/quality_gates.py --diff-base origin/main --staged` | Run all quality gates against the staged diff. |
 | `.venv/bin/python serve_graph.py` | Start the workflow viewer; add `--port PORT` to choose a port. |
