@@ -76,6 +76,16 @@ assembles the graph; `serve_graph.py` serves a live Mermaid viewer at
   own tree, so without the link they load but silently fail open. `hooks/`
   itself is tracked, so it's already checked out normally.
 
+## Session context
+
+`hooks/prompt-repo-state.sh` (`UserPromptSubmit`) prints branch, upstream
+drift, uncommitted changes, recent commits, and the branch's open PR into each
+turn's context, so a session never starts blind — particularly about another
+agent's uncommitted work in this shared checkout. It is advisory and always
+exits 0 (a non-zero `UserPromptSubmit` hook would block the prompt). The `gh`
+lookup is cached per branch for five minutes; set
+`SHANKS_PROMPT_STATE_CACHE_MINUTES` to change that.
+
 ## Shared checkout
 
 Another coding agent (Codex, or a second Claude session) may be editing this

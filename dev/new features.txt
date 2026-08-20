@@ -2,22 +2,8 @@ Shanks feature roadmap
 
 Priority 1 - Reliability and contributor experience
 
-1- Add a `UserPromptSubmit` hook that injects fresh repository state.
-   Current branch, recent commits, and open-PR status, so a session never
-   starts blind. Concrete trigger: `main` sat red for roughly twenty minutes
-   after #91 merged with a stale `tests.md` total, and it surfaced only because
-   a `PostToolUse` hook fired from a different worktree and resolved its tests
-   against the parent tree - an accident #96 deliberately removed, so nothing
-   would catch the same failure that way again. Keep the suite *out* of the
-   injected state, or cache it - `.venv/bin/python -m unittest discover -s
-   tests` is ~15s and would be paid on every prompt.
-   Note the *cause* of that incident is now gone - `scripts/sync_tests_md.py`
-   derives every count in `tests.md`, so nobody hand-types a total that can go
-   stale. This item is only about detection: a session still starts with no
-   idea whether `main` is green, which branch it is on, or whether its PR is
-   already open.
-   Passes the `hooks/pr-checkpoint-reminder.sh` test below: `UserPromptSubmit`
-   always fires, so this does not depend on the agent choosing to call a tool.
+(empty - #97, #98, #99 and the `UserPromptSubmit` repository-state hook
+cleared the list. Promote from Suggestions below when something earns it.)
 
 Suggestions
 

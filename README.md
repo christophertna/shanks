@@ -407,6 +407,15 @@ CLI throughout the agent workflow.
   checks for both. The Bash path catches secrets typed literally into command
   text, not values assembled from existing files or variables at runtime. Run
   `hooks/test.hooks/test-secret-scan.sh` to test it.
+- **Session context hook:** `hooks/prompt-repo-state.sh` runs on
+  `UserPromptSubmit` and prints the repository's current state - branch,
+  ahead/behind its upstream as of the last fetch, uncommitted changes, recent
+  commits, and any open PR for the branch - which Claude Code adds to that
+  turn's context. Only the `gh pr list` call touches the network, and it is
+  cached per branch for five minutes; the test suite is deliberately excluded.
+  It never blocks: every path exits 0, because a non-zero `UserPromptSubmit`
+  hook would reject the prompt. Run
+  `hooks/test.hooks/test-prompt-repo-state.sh` to test it.
 - **Graph and impacted-test hooks:** `hooks/graphify-update.sh` refreshes the
   graphify graph in the background after each Write/Edit. `hooks/run-impacted-tests.sh`
   runs the matching unittest module for a touched Python file or the matching
