@@ -23,16 +23,6 @@ Suggestions
   failure is a confusing `validation_failed` rather than an unsafe allow.
   Stopping the scan at the first `-m`/non-flag argument is the fix, worth
   doing if a validation command ever legitimately needs a module-level `-c`.
-- The structured viewer's `recovery` subgraph draws its nodes as a bucket with
-  no internal edges: `structured_mermaid` only appends `VIEW_RECOVERY_NODES`,
-  and `VIEW_RECOVERY_EDGES` is used solely to decide whether to draw the
-  `main <-.-> recovery` connector. So `retry_backoff` and `failed_run` (added
-  with the rest of the coverage fix) render as disconnected boxes next to
-  `debugger`/`attempt_limit`/`failed_build`, which have always rendered the
-  same way. Fine as a legend-style grouping, misleading if read as a flow.
-  Drawing the real recovery edges would make the section a graph rather than a
-  bucket - worth doing only if someone actually tries to trace a failure path
-  in that view.
 - `_reconcile_recovered_state`'s `_RECONCILE_TIMEOUT_SECONDS = 15`
   (`workflow/nodes.py`) and `RunWorkspaceManager`'s Git subprocesses
   (`workflow/workspaces.py`) are the two external subprocess paths still on a
