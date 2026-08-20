@@ -18,6 +18,7 @@ python_version = "3.11"
 files = [
     "graph.py",
     "scripts/quality_gates.py",
+    "scripts/sync_tests_md.py",
     "workflow/adapters.py",
     "workflow/cli.py",
     "workflow/contracts.py",
