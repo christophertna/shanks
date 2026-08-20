@@ -32,11 +32,13 @@ assembles the graph; `serve_graph.py` serves a live Mermaid viewer at
   `hooks/*.sh` is wired into the gitignored `.claude/settings.json`; exits
   non-zero on failure.
 - Isolate a second agent: `./shanks dev worktree <branch>` — creates a sibling
-  worktree with `.claude/settings.json` copied and `.venv` symlinked, so two
-  agents can work on different branches at once without sharing a tree.
-- Refresh existing worktrees after a hook change: `./shanks dev sync [dir...]`
-  — re-copies `.claude/settings.json` (and relinks `.venv`) into every worktree
-  of this checkout, since `dev worktree` only copies them at creation time.
+  worktree with `.claude/settings.json` and `.claude/skills/` copied and
+  `.venv` symlinked, so two agents can work on different branches at once
+  without sharing a tree.
+- Refresh existing worktrees after a hook or skill change:
+  `./shanks dev sync [dir...]` — re-copies `.claude/settings.json` and
+  `.claude/skills/` (and relinks `.venv`) into every worktree of this
+  checkout, since `dev worktree` only copies them at creation time.
 - Manage runs: `./shanks runs list|status RUN_ID|resume RUN_ID|cancel RUN_ID|
   recover|cleanup|remove RUN_ID|prune` — see `dev/commands.md` for the full
   option reference.
@@ -74,7 +76,8 @@ assembles the graph; `serve_graph.py` serves a live Mermaid viewer at
   otherwise carry `.claude/settings.json` — and without it, Claude Code
   loads no project hooks (e.g. `hooks/deny-dangerous.sh`, the dangerous-shell-
   command guard) in that worktree. `_sync_local_guardrails()` copies it in
-  right after `git worktree add`, and symlinks `.venv` the same way — the
+  right after `git worktree add`, copies `.claude/skills/` so an agent there
+  still has this project's skills, and symlinks `.venv` the same way — the
   `PostToolUse` hooks resolve `$ROOT/.venv/bin/python` from the touched file's
   own tree, so without the link they load but silently fail open. `hooks/`
   itself is tracked, so it's already checked out normally.

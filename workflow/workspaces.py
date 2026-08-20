@@ -41,6 +41,13 @@ def sync_local_guardrails(project_directory: Path, directory: Path) -> bool:
     hooks (e.g. the dangerous-command guard) in that worktree. Shared by run
     worktrees and `shanks dev worktree`, so neither can silently skip it.
 
+    ``.claude/skills/`` is gitignored with it, so an agent in a worktree
+    otherwise has none of this project's skills - including the ones its own
+    commit and roadmap workflow runs on. Copied rather than symlinked so a
+    worktree cannot write back into the parent checkout's skills.
+    ``settings.local.json`` is deliberately left out: its permission entries
+    embed the parent checkout's absolute path, so they would never match here.
+
     ``.venv`` is gitignored the same way, and the ``PostToolUse`` hooks resolve
     their interpreter (``$ROOT/.venv/bin/python``) from the touched file's own
     tree - so without it they load but silently fail open. The venv's shebangs
@@ -52,6 +59,12 @@ def sync_local_guardrails(project_directory: Path, directory: Path) -> bool:
     venv = project_directory / ".venv"
     if venv.is_dir() and not os.path.lexists(directory / ".venv"):
         os.symlink(venv, directory / ".venv")
+
+    skills = project_directory / ".claude" / "skills"
+    if skills.is_dir():
+        # ponytail: copies over, never prunes - a skill deleted in the project
+        # lingers in worktrees until the tree is recreated.
+        shutil.copytree(skills, directory / ".claude" / "skills", dirs_exist_ok=True)
 
     settings = project_directory / ".claude" / "settings.json"
     if not settings.is_file():

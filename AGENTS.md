@@ -11,13 +11,14 @@ Rules:
 - Start your own work with `./shanks dev worktree <branch>`, which creates the
   worktree beside this one and carries in the two gitignored things a bare
   `git worktree add` leaves out: `.claude/settings.json` (without it *no* hooks
-  fire there) and `.venv` (without it the test commands do not exist). Do not
+  fire there), `.claude/skills/` (without it none of this project's skills
+  exist there) and `.venv` (without it the test commands do not exist). Do not
   hand-roll the worktree — a missed `.claude/` copy silently disables every
   guard. Creating a branch in place (`git checkout -b`) is fine too; it carries
   your own changes forward and is not blocked.
-- Those two are copied at creation time only, so a worktree made before a hook
-  change still runs the old wiring. Run `./shanks dev sync` from this checkout
-  after any `.claude/settings.json` change to refresh every existing worktree.
+- Those are copied at creation time only, so a worktree made before a hook or
+  skill change still runs the old wiring. Run `./shanks dev sync` from this
+  checkout after any `.claude/` change to refresh every existing worktree.
 - Never run `git add -A` / `git add .`. Stage the exact files you changed, so a
   concurrent agent's work cannot ride along in your commit.
 - `hooks/guard-worktree.sh` blocks `git checkout`/`git switch` to another ref

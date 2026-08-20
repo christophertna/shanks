@@ -70,6 +70,14 @@ class DevWorktreeTests(unittest.TestCase):
         # never carries them over.
         (project / ".claude").mkdir()
         (project / ".claude" / "settings.json").write_text("{}\n", encoding="utf-8")
+        (project / ".claude" / "settings.local.json").write_text(
+            '{"permissions": {"allow": ["Bash(git -C %s status)"]}}\n' % project,
+            encoding="utf-8",
+        )
+        (project / ".claude" / "skills" / "commit-pr").mkdir(parents=True)
+        (project / ".claude" / "skills" / "commit-pr" / "SKILL.md").write_text(
+            "original\n", encoding="utf-8"
+        )
         (project / ".venv" / "bin").mkdir(parents=True)
         (project / ".venv" / "bin" / "python").write_text("", encoding="utf-8")
         return project
@@ -85,6 +93,14 @@ class DevWorktreeTests(unittest.TestCase):
             self.assertTrue((created / "README.md").is_file())
             # The whole point: a bare worktree has neither of these.
             self.assertTrue((created / ".claude" / "settings.json").is_file())
+            # Without these an agent in the worktree has none of the project's
+            # skills - including the ones this repo's own workflow runs on.
+            skill = created / ".claude" / "skills" / "commit-pr" / "SKILL.md"
+            self.assertEqual(skill.read_text(encoding="utf-8"), "original\n")
+            self.assertFalse(skill.is_symlink())
+            # settings.local.json's permissions embed the parent checkout's
+            # absolute path, so copying it here would be wrong.
+            self.assertFalse((created / ".claude" / "settings.local.json").exists())
             self.assertTrue((created / ".venv" / "bin" / "python").exists())
             self.assertTrue((created / ".venv").is_symlink())
             ignored = subprocess.run(
@@ -118,6 +134,9 @@ class DevWorktreeTests(unittest.TestCase):
             # A hook change lands in the project after the worktree was made.
             settings = project / ".claude" / "settings.json"
             settings.write_text('{"hooks": {}}\n', encoding="utf-8")
+            (project / ".claude" / "skills" / "commit-pr" / "SKILL.md").write_text(
+                "revised\n", encoding="utf-8"
+            )
             (created / ".venv").unlink()
 
             with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
@@ -127,6 +146,12 @@ class DevWorktreeTests(unittest.TestCase):
             self.assertEqual(
                 (created / ".claude" / "settings.json").read_text(encoding="utf-8"),
                 settings.read_text(encoding="utf-8"),
+            )
+            self.assertEqual(
+                (created / ".claude" / "skills" / "commit-pr" / "SKILL.md").read_text(
+                    encoding="utf-8"
+                ),
+                "revised\n",
             )
             self.assertTrue((created / ".venv").is_symlink())
 
