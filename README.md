@@ -171,6 +171,8 @@ gh auth refresh -h github.com -s workflow
 | `./shanks -mode` | Show the current mode. |
 | `./shanks mode` | Show the current mode. |
 | `./shanks doctor` | Check tools and versions, pinned dependencies, GitHub authentication, environment variables, SQLite setup, `core.hooksPath`, and whether every `hooks/*.sh` script is wired into `.claude/settings.json`. |
+| `./shanks dev worktree BRANCH` | Create a sibling worktree for a second agent, carrying in the gitignored `.claude/settings.json` and a `.venv` symlink that `git worktree add` leaves out. |
+| `./shanks dev sync [DIR...]` | Re-copy `.claude/settings.json` and relink `.venv` into worktrees that already exist; defaults to every worktree of this checkout. Run it after any hook change. |
 | `./shanks runs list` | List checkpointed runs. |
 | `./shanks runs status RUN_ID` | Show a run's persisted lifecycle and checkpoint status, the prompt it is paused on, its repository drift note, and its newest run-manifest events. |
 | `./shanks runs resume RUN_ID RESPONSE` | Resume a run with a response such as `implement`, `learn`, `approve`, or `reject`. |

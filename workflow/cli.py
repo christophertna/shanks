@@ -427,11 +427,17 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "dev":
         try:
-            dev_worktree(
-                args.branch,
-                project_directory=args.project_directory,
-                directory=args.directory,
-            )
+            if args.dev_command == "sync":
+                dev_sync(
+                    args.directories,
+                    project_directory=args.project_directory,
+                )
+            else:
+                dev_worktree(
+                    args.branch,
+                    project_directory=args.project_directory,
+                    directory=args.directory,
+                )
         except (CliError, OSError) as error:
             print(f"shanks: {error}", file=sys.stderr)
             return 1
@@ -497,6 +503,63 @@ def dev_worktree(
     return directory
 
 
+def _worktree_directories(project: Path) -> list[Path]:
+    listed = subprocess.run(
+        ("git", "worktree", "list", "--porcelain"),
+        cwd=project,
+        capture_output=True,
+        text=True,
+    )
+    if listed.returncode != 0:
+        raise CliError(f"git worktree list failed: {listed.stderr.strip()}")
+    return [
+        Path(line[len("worktree ") :]).resolve()
+        for line in listed.stdout.splitlines()
+        if line.startswith("worktree ")
+    ]
+
+
+def dev_sync(
+    directories: Sequence[Path] | None = None,
+    *,
+    project_directory: Path | None = None,
+) -> list[Path]:
+    """Re-copy the gitignored guardrails into worktrees that already exist.
+
+    `sync_local_guardrails` otherwise runs exactly once, at `git worktree add`
+    time, so every hook change strands every existing worktree until someone
+    copies `.claude/settings.json` by hand. Defaults to every worktree this
+    checkout knows about; the project checkout itself is the source, so it is
+    always skipped.
+    """
+
+    project = (project_directory or PROJECT_ROOT).expanduser().resolve()
+    if not (project / ".claude" / "settings.json").is_file():
+        raise CliError(
+            f"{project} has no .claude/settings.json to sync; create it first"
+        )
+
+    targets = (
+        [directory.expanduser().resolve() for directory in directories]
+        if directories
+        else _worktree_directories(project)
+    )
+    synced: list[Path] = []
+    for target in targets:
+        if target == project:
+            continue
+        if not target.is_dir():
+            print(f"  skipped {target} (does not exist)", file=sys.stderr)
+            continue
+        sync_local_guardrails(project, target)
+        synced.append(target)
+        venv = "venv linked" if (target / ".venv").is_symlink() else "no venv"
+        print(f"  synced  {target} (settings copied, {venv})")
+
+    print(f"Synced {len(synced)} worktree(s) from {project}")
+    return synced
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="shanks",
@@ -535,6 +598,24 @@ def _build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=None,
         help="Project to branch from; defaults to this checkout.",
+    )
+
+    sync = dev_actions.add_parser(
+        "sync",
+        help="Re-copy .claude/settings.json (and link .venv) into worktrees.",
+    )
+    sync.add_argument(
+        "directories",
+        nargs="*",
+        type=Path,
+        help="Worktrees to refresh; defaults to every worktree of this checkout.",
+    )
+    sync.add_argument(
+        "--project-dir",
+        dest="project_directory",
+        type=Path,
+        default=None,
+        help="Project to copy from; defaults to this checkout.",
     )
 
     runs = commands.add_parser(

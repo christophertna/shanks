@@ -2,27 +2,42 @@ Shanks feature roadmap
 
 Priority 1 - Reliability and contributor experience
 
-(empty - #97, #98, #99 and the `UserPromptSubmit` repository-state hook
-cleared the list. Promote from Suggestions below when something earns it.)
+1- Finish what #100 started: fetch freshness and `main`'s CI status.
+   `hooks/prompt-repo-state.sh` reports ahead/behind against `@{upstream}`
+   from local refs and never fetches, so it prints nothing at all while
+   `origin/main` has moved - which is exactly the state this checkout was in
+   while #100 was being reviewed. It also says nothing about whether `main` is
+   green, so the red-`main` incident that motivated the item in the first place
+   is still undetected; #98 removed that incident's *cause*, not the blind spot.
+   `gh run list --branch main --limit 1 --json conclusion` is one more call
+   through the per-branch cache the hook already has. Fetch freshness is the
+   other half: either a debounced background `git fetch` or printing the age of
+   `FETCH_HEAD` so "0 behind" is never mistaken for "up to date". Keep the
+   suite out of it and keep every path exiting 0 - a non-zero
+   `UserPromptSubmit` hook blocks the prompt.
+
+2- `./shanks doctor`: fail when `core.bare` is true.
+   Live incident this session: `core.bare` was set to `true` on this checkout
+   and every Git command died with `fatal: this operation must be run in a work
+   tree` - `status`, `worktree list`, `rev-parse`, all of it - with nothing
+   naming the cause. The working tree, index, and HEAD were intact; `git config
+   core.bare false` restored everything. The cause was never identified, so
+   this is detection rather than prevention, and detection is nearly free:
+   `_check_hooks_path()` (`workflow/cli.py`) is the template - one `git config
+   --get core.bare` read, a failing `DoctorCheck` naming the repair command,
+   and a test beside the existing `core.hooksPath` ones. Note doctor itself has
+   to keep working in that state, which it does: `git config --get` is one of
+   the few commands a bare-flagged repository still answers.
 
 Suggestions
 
-- `hooks/format-touched.sh` decides whether to run mypy by grepping
-  `pyproject.toml` for the touched file's quoted relative path, so the hook
-  and `[tool.mypy] files` agree only textually (carries a `ponytail:` comment
-  naming the ceiling). Fine while every listed path is one quoted line; a glob
-  or a second quoted-path list in that file would need a real TOML read. The
-  failure mode is a skipped advisory type-check, not a bad allow - the gate
-  still runs mypy over the full list.
-- `LocalTestAdapter._command_for`'s inline-code check (#85) scans every
-  argument after the executable, but only interpreter-position flags can
-  actually execute code - once `-m <module>` or a script path appears, the
-  rest belongs to the module. So `python -m pytest -c pytest.ini` is rejected
-  as an inline-code flag even though its `-c` is pytest's config-file option.
-  No bite today (validation here is unittest, which has no `-c`), and the
-  failure is a confusing `validation_failed` rather than an unsafe allow.
-  Stopping the scan at the first `-m`/non-flag argument is the fix, worth
-  doing if a validation command ever legitimately needs a module-level `-c`.
+- `./shanks dev sync` refreshes worktrees on demand, so a hook change still
+  needs someone to remember to run it - nothing detects a stale worktree by
+  itself. `./shanks doctor`'s `claude-hooks` check is the natural place to
+  notice (it already reads the settings file), but it runs in whichever tree
+  you invoke it from, so it would have to compare against the project
+  checkout's copy. Worth doing only if a stale worktree bites again after the
+  manual sync exists.
 - `_reconcile_recovered_state`'s `_RECONCILE_TIMEOUT_SECONDS = 15`
   (`workflow/nodes.py`) and `RunWorkspaceManager`'s Git subprocesses
   (`workflow/workspaces.py`) are the two external subprocess paths still on a
