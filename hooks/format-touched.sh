@@ -63,10 +63,25 @@ if ! OUTPUT="$(cd "$ROOT" && "$PYTHON" -m ruff check "$REL" 2>&1)"; then
   note "ruff check failed on $REL:"$'\n'"$OUTPUT"
 fi
 
-# ponytail: textual grep of pyproject.toml's `[tool.mypy] files` list rather
-# than a TOML parse — a listed path is one quoted line there today. Parse it
-# properly if that list ever gets globs or a second quoted-path list appears.
-if grep -q "\"$REL\"," "$ROOT/pyproject.toml" 2>/dev/null; then
+# Read the TOML value rather than depending on how the list is laid out on
+# lines. Parser errors stay fail-open like the old grep, while the full quality
+# gate still checks the configured mypy files.
+if (
+  cd "$ROOT" &&
+  "$PYTHON" -c '
+import fnmatch
+import sys
+import tomllib
+
+with open(sys.argv[1], "rb") as stream:
+    files = tomllib.load(stream).get("tool", {}).get("mypy", {}).get("files", ())
+if isinstance(files, str):
+    files = (files,)
+raise SystemExit(
+    0 if any(fnmatch.fnmatchcase(sys.argv[2], pattern) for pattern in files) else 1
+)
+' "$ROOT/pyproject.toml" "$REL"
+) >/dev/null 2>&1; then
   if ! OUTPUT="$(cd "$ROOT" && "$PYTHON" -m mypy "$REL" 2>&1)"; then
     note "mypy failed on $REL:"$'\n'"$OUTPUT"
   fi

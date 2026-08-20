@@ -372,8 +372,9 @@ that the hook:
   the agent wrote.
 - Surfaces `ruff check` and `mypy` failures (exit 2) with their output on
   stderr.
-- Runs `mypy` only for files listed in `[tool.mypy] files`, so a failing
-  `mypy` stub is never reached for an unlisted file.
+- Reads `[tool.mypy] files` as TOML, including a single-line list, and runs
+  `mypy` only for matching files, so a failing stub is never reached for an
+  unlisted file.
 - Skips silently for non-Python files, Python files outside the project
   directory, files that no longer exist, and a missing Python interpreter
   (fails open).
