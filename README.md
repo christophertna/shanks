@@ -97,7 +97,10 @@ diagnostic instead of silently disabling local push gating. Its `claude-hooks`
 check covers the other half: `hooks/` is tracked but the Claude Code wiring
 lives in the gitignored `.claude/settings.json`, so it reports any `hooks/*.sh`
 that file never references, and warns when the file is absent entirely (a
-fresh clone has no Claude Code hooks at all).
+fresh clone has no Claude Code hooks at all). Run from a `./shanks dev
+worktree`, it also flags a `.claude/settings.json` that has fallen behind the
+main checkout's - the fix nothing else catches automatically - and points at
+`./shanks dev sync`.
 
 Run the tests:
 

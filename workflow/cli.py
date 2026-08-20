@@ -86,7 +86,7 @@ def doctor_checks(
         _check_environment(environment),
         _check_checkpoint(project, environment),
         _check_hooks_path(project, runner),
-        _check_claude_hooks(project),
+        _check_claude_hooks(project, runner),
     ]
 
 
@@ -347,15 +347,59 @@ def _check_hooks_path(project: Path, runner: Runner) -> DoctorCheck:
     return DoctorCheck("hooks", True, "core.hooksPath=hooks")
 
 
-def _check_claude_hooks(project: Path) -> DoctorCheck:
+def _main_checkout(project: Path, runner: Runner) -> Path | None:
+    """Return the main working tree for `project`, or None if undeterminable.
+
+    `git rev-parse --git-common-dir` resolves to `<main checkout>/.git` from
+    any linked worktree (and from the main checkout itself), without needing
+    `--path-format` (Git 2.31+, newer than this repo's 2.30 floor).
+    """
+
+    try:
+        result = runner(
+            ("git", "rev-parse", "--git-common-dir"),
+            cwd=project,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0:
+        return None
+    common_dir = (project / result.stdout.strip()).resolve()
+    if common_dir.name != ".git":
+        return None
+    return common_dir.parent
+
+
+def _stale_worktree_detail(project: Path, settings: Path, runner: Runner) -> str | None:
+    """Return a failure detail when `settings` lags the main checkout's copy."""
+
+    main = _main_checkout(project, runner)
+    if main is None or main == project.resolve():
+        return None
+    canonical = main / ".claude" / "settings.json"
+    if not canonical.is_file() or canonical.read_bytes() == settings.read_bytes():
+        return None
+    return f"stale relative to {main}; run: ./shanks dev sync {project}"
+
+
+def _check_claude_hooks(project: Path, runner: Runner | None = None) -> DoctorCheck:
     """Report `hooks/*.sh` scripts the gitignored hook wiring never references.
 
     `hooks/` is tracked but `.claude/settings.json` is not, so a hook can be
     committed, documented, and CI-tested while firing nowhere. Only `*.sh` is
     checked: `post-merge`/`post-checkout`/`pre-push` are real Git hooks, wired
     by `core.hooksPath` above rather than by this file.
+
+    Also flags a worktree whose `.claude/settings.json` has fallen behind the
+    main checkout's - `./shanks dev sync` only runs on demand, so nothing else
+    notices a hook change that never made it into an existing worktree.
     """
 
+    runner = subprocess.run if runner is None else runner
     settings = project / ".claude" / "settings.json"
     scripts = sorted(path.name for path in (project / "hooks").glob("*.sh"))
     if not settings.is_file():
@@ -381,6 +425,9 @@ def _check_claude_hooks(project: Path) -> DoctorCheck:
             False,
             "never referenced by .claude/settings.json: " + ", ".join(unwired),
         )
+    stale = _stale_worktree_detail(project, settings, runner)
+    if stale:
+        return DoctorCheck("claude-hooks", False, stale)
     return DoctorCheck(
         "claude-hooks", True, f"{len(scripts)} hook scripts wired: {', '.join(scripts)}"
     )
