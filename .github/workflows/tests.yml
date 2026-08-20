@@ -55,6 +55,7 @@ jobs:
           bash hooks/test.hooks/test-run-impacted-tests.sh
           bash hooks/test.hooks/test-format-touched.sh
           bash hooks/test.hooks/test-post-merge-checkout.sh
+          bash hooks/test.hooks/test-prompt-repo-state.sh
 
       - name: Run quality gates
         run: python scripts/quality_gates.py --diff-base origin/main

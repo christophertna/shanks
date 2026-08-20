@@ -29,6 +29,13 @@ bypassable via `SHANKS_ALLOW_DEPENDENCY_EDIT=1`, so failing open on a missing
 unless you can name why this hook is more like `guard-dependency-files.sh`
 than `deny-dangerous.sh`.
 
+`prompt-repo-state.sh` is the third, and the least ambiguous: it blocks
+nothing by design, so there is no guarantee to lose. It also has a sharper
+reason than the others - a non-zero `UserPromptSubmit` hook blocks the prompt
+itself, so a missing `gh` or a directory that is not a repository would stop
+the user from talking to the agent at all. Every path in it exits 0, and
+`test-prompt-repo-state.sh` asserts that for each one.
+
 `guard-worktree.sh` is the second fail-open example, for the same reason: it
 is a collision nudge between concurrent agents, not a safety backstop, and it
 is already bypassable via `SHANKS_ALLOW_BRANCH_SWITCH=1`. What it prevents is
@@ -48,13 +55,15 @@ every branch switch on a machine that lacks them.
 | `graphify hook-guard read` | PreToolUse | `Read\|Glob` | Injects a reminder to run `graphify query`/`explain` before reading raw source | Advisory only, never blocks |
 | `graphify-update.sh` | PostToolUse | `Write\|Edit` | Refreshes the graphify graph in the background (AST-only, no LLM cost) | No-op if graphify isn't installed |
 | `format-touched.sh` | PostToolUse | `Write\|Edit` | Applies `black` to the touched `.py` file and reports `ruff check` (plus `mypy`, for files matched by the parsed `[tool.mypy] files` TOML value) failures, so a quality-gate failure surfaces at the edit rather than at the next `--diff-base origin/main` run. Blocking feedback on failure — including on a reformat, since the file on disk no longer matches what was written Both this hook and `run-impacted-tests.sh` resolve the project root from the touched file's own Git tree (`git rev-parse --show-toplevel`), not the session's `.cwd`, so an edit into a sibling worktree is checked against that worktree; the payload's `.cwd` is the fallback | Skips silently if `jq` or `.venv/bin/python` are missing |
+| `prompt-repo-state.sh` | UserPromptSubmit | n/a | Prints the repository's current state - branch, ahead/behind its upstream as of the last fetch, uncommitted changes (truncated, flagged as possibly another agent's), the last few commits, and whether this branch has an open PR - which Claude Code adds to that turn's context, so a session never starts blind about what it is sitting on. Everything but the `gh pr list` call is local Git; that one network call is cached per branch for 5 minutes (`SHANKS_PROMPT_STATE_CACHE_MINUTES`). The test suite is deliberately left out - ~15s would be paid on every prompt | Fails open (prints nothing, exits 0) if `git`/`jq`/`gh` are missing or fail |
 | `run-impacted-tests.sh` | PostToolUse | `Write\|Edit` | Runs the check matching the touched file: `<name>.py` -> `tests/test_<name>.py` (a touched `tests/test_*.py` runs itself); `hooks/<name>.sh` -> `hooks/test.hooks/test-<name>.sh` (a touched `hooks/test.hooks/test-*.sh` runs itself). Blocking feedback on failure | Skips silently if `jq`, the matching test/harness, or `.venv/bin/python` (Python case only) are missing |
 
 Pattern files: `dangerous-patterns.txt` (for `deny-dangerous.sh`),
 `guarded-paths.txt` (for `guard-dependency-files.sh`). Regression harnesses
 live in `hooks/test.hooks/`: `test-deny-dangerous.sh`, `test-secret-scan.sh`,
 `test-guard-worktree.sh`, `test-pre-push.sh`, `test-run-impacted-tests.sh`,
-`test-format-touched.sh`, `test-post-merge-checkout.sh`. Every one of them has
+`test-format-touched.sh`, `test-post-merge-checkout.sh`,
+`test-prompt-repo-state.sh`. Every one of them has
 a row in `tests/tests.md` and a line in `.github/workflows/tests.yml`;
 `test_every_shell_harness_is_documented_and_run_in_ci` (`tests/test_cli.py`)
 fails if a new harness is missing from either.
@@ -89,11 +98,14 @@ and see no Claude Code hooks at all.
 An interactive Claude Code session isn't tool-scoped by `--tools`, so every
 hook in the table is live: `deny-dangerous.sh`, `hook-guard search`,
 `hook-guard read`, `guard-dependency-files.sh`, `secret-scan.sh`,
-`graphify-update.sh`, `run-impacted-tests.sh`, and `format-touched.sh`. Test
+`graphify-update.sh`, `run-impacted-tests.sh`, and `format-touched.sh`.
+`prompt-repo-state.sh` is live here too, and effectively only here: it fires on
+`UserPromptSubmit`, which a `--print` build or critic run never reaches. Test
 them with `bash hooks/test.hooks/test-deny-dangerous.sh`,
 `bash hooks/test.hooks/test-secret-scan.sh`,
-`bash hooks/test.hooks/test-run-impacted-tests.sh`, and
-`bash hooks/test.hooks/test-format-touched.sh`.
+`bash hooks/test.hooks/test-run-impacted-tests.sh`,
+`bash hooks/test.hooks/test-format-touched.sh`, and
+`bash hooks/test.hooks/test-prompt-repo-state.sh`.
 
 A `PreToolUse`/`PostToolUse` hook on `gh pr create` (nudging toward the
 `github-commit-pr` skill's `AskUserQuestion` checkpoints) was tried and
