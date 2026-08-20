@@ -707,6 +707,41 @@ class NodeContractTests(unittest.TestCase):
                 self.assertFalse(result.validation_passed)
                 self.assertIn("Invalid validation command", result.error or "")
 
+    def test_local_test_adapter_accepts_module_and_script_options_after_boundary(
+        self,
+    ) -> None:
+        adapter = LocalTestAdapter(Path("/tmp/shanks"))
+        accepted = (
+            (
+                f"{sys.executable} -m pytest -c pytest.ini",
+                (sys.executable, "-m", "pytest", "-c", "pytest.ini"),
+            ),
+            (
+                f"{sys.executable} tests/run.py -c config.ini",
+                (sys.executable, "tests/run.py", "-c", "config.ini"),
+            ),
+        )
+
+        for command, expected in accepted:
+            with self.subTest(command=command):
+                completed = subprocess.CompletedProcess(
+                    args=(),
+                    returncode=0,
+                    stdout="item tests passed",
+                    stderr="",
+                )
+                with patch(
+                    "workflow.adapters._run_subprocess",
+                    return_value=completed,
+                ) as run:
+                    result = adapter.run(
+                        AgentRequest(task="validate", validation_command=command)
+                    )
+
+                self.assertEqual(result.status, "validated")
+                self.assertTrue(result.validation_passed)
+                self.assertEqual(run.call_args.args[0], expected)
+
     def test_debugger_adapter_maps_structured_failure_analysis(self) -> None:
         adapter = DebuggerAdapter(Path("/tmp/shanks"))
         completed = subprocess.CompletedProcess(

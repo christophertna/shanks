@@ -43,7 +43,8 @@ UNCERTAINTIES_MARKER = "RALPH_UNCERTAINTIES:"
 ALLOWED_AGENT_EXECUTABLES = frozenset({"bash", "claude", "codex", "python", "python3"})
 # Per-item validation runs a test command, never an agent, so it gets a
 # narrower policy than the shared agent allowlist above: no shell interpreter
-# and no inline-code flag, both of which would re-open arbitrary execution.
+# and no interpreter-position inline-code flag, both of which would re-open
+# arbitrary execution.
 VALIDATION_EXECUTABLES = frozenset({"python", "python3"})
 _VERSIONED_PYTHON_EXECUTABLE = re.compile(r"python3\.\d+\Z")
 AGENT_ALLOWED_ENVIRONMENT_KEYS = frozenset(
@@ -506,10 +507,13 @@ class LocalTestAdapter(SubprocessAgentAdapter):
                 f"{executable!r} is not an allowed validation executable ({allowed})."
             )
         for argument in parsed[1:]:
+            # After -m or a script path, remaining flags belong to the module
+            # or script rather than the interpreter.
+            if argument == "-m" or not argument.startswith("-"):
+                break
             # Short-flag clusters, so -c, -Ic and -uc are all rejected.
-            if argument.startswith("-") and not argument.startswith("--"):
-                if "c" in argument[1:]:
-                    raise ValueError(f"inline-code flag {argument!r} is not allowed.")
+            if not argument.startswith("--") and "c" in argument[1:]:
+                raise ValueError(f"inline-code flag {argument!r} is not allowed.")
         return parsed
 
 
