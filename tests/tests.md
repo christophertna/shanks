@@ -1,7 +1,7 @@
 # Test coverage
 
 This document summarizes the behavior covered by the repository's tracked test
-files. The Python suite contains **217 unittest methods** across twelve
+files. The Python suite contains **218 unittest methods** across twelve
 modules; every `hooks/test.hooks/test-*.sh` file is a separate shell
 regression harness, run in CI alongside the Python suite (see
 [`.github/workflows/tests.yml`](../.github/workflows/tests.yml)). The harness
@@ -50,7 +50,7 @@ Run the repository quality gates from a feature branch with:
 | [`test_state_schema.py`](test_state_schema.py) | 10 | State migration, one-step migration chains, retry metadata, versioned checkpoints, and legacy resume behavior |
 | [`test_lifecycle.py`](test_lifecycle.py) | 8 | Run leases, stale recovery, recovery-state reconciliation, interruption/resume, terminal release, and checkpoint cleanup |
 | [`test_workspaces.py`](test_workspaces.py) | 14 | Run identity, Git worktree creation/reuse, syncing the gitignored Claude Code hook guard and `.venv` symlink into new worktrees, local/remote branch listing and deletion, workspace context, and workspace state migration |
-| [`test_viewer.py`](test_viewer.py) | 10 | Viewer HTML, execution-state data including pending interrupts and repository drift, checkpoint sharing, the live-reload module path, curated-constant node coverage, and Mermaid output |
+| [`test_viewer.py`](test_viewer.py) | 11 | Viewer HTML, execution-state data including pending interrupts and repository drift, checkpoint sharing, the live-reload module path, curated-constant node coverage, and Mermaid output |
 | [`test_quality_gates.py`](test_quality_gates.py) | 10 | Quality command definitions, typing-gate module coverage, safe diff refs, numstat parsing, generated-output handling, diff limits, and gate failure reporting |
 | [`test_fault_injection.py`](test_fault_injection.py) | 7 | Injected Git, GitHub, validation, checkpoint, and agent process failures |
 | [`test_git_integration.py`](test_git_integration.py) | 4 | Real temporary Git repositories, worktrees, commits, pushes, PR creation/reuse, fake-`gh` recovery, dry-run preview behavior, and upstream/worktree drift reporting |

@@ -150,6 +150,17 @@ VIEW_RECOVERY_EDGES = (
     ("preflight", "__end__"),
     ("stop_run", "__end__"),
 )
+# Edges between two VIEW_RECOVERY_NODES, i.e. within the recovery subgraph
+# itself - route_after_debugger and route_after_retry_backoff are the only
+# routers with recovery-to-recovery targets.
+VIEW_RECOVERY_INTERNAL_EDGES = (
+    ("debugger", "retry_backoff", "-->"),
+    ("debugger", "failed_run", "-->"),
+    ("debugger", "stop_run", "-->"),
+    ("retry_backoff", "debugger", "-.->"),
+    ("retry_backoff", "failed_run", "-->"),
+    ("retry_backoff", "stop_run", "-->"),
+)
 VIEW_NODE_DECLARATION = re.compile(
     r"^\s*([A-Za-z0-9_]+)(?=\(|\[|\{)",
     re.MULTILINE,
@@ -450,6 +461,9 @@ def structured_mermaid(
         for node_id in VIEW_RECOVERY_NODES:
             if node_id in node_ids:
                 lines.append(_view_node(node_id, decision_node_ids))
+        for source, target, arrow in VIEW_RECOVERY_INTERNAL_EDGES:
+            if (source, target) in edges:
+                lines.append(f"    {source} {arrow} {target}")
         lines.append("  end")
 
         if any((source, target) in edges for source, target in VIEW_RECOVERY_EDGES):

@@ -14,6 +14,7 @@ from serve_graph import (
     VIEW_MAIN_NODES,
     VIEW_NODE_CLASSES,
     VIEW_NODE_LABELS,
+    VIEW_RECOVERY_INTERNAL_EDGES,
     VIEW_RECOVERY_NODES,
     execution_state,
     load_graph_module,
@@ -324,6 +325,28 @@ class GraphViewerTests(unittest.TestCase):
         recovery_section = detailed.split("subgraph recovery", 1)[1]
         self.assertIn("retry_backoff", recovery_section)
         self.assertIn("failed_run", recovery_section)
+
+    def test_structured_view_draws_edges_inside_the_recovery_subgraph(self) -> None:
+        drawable_graph = build_graph().get_graph()
+        decision_nodes = {
+            node.id
+            for node in drawable_graph.nodes.values()
+            if (node.metadata or {}).get("kind") == "decision"
+        }
+
+        detailed = structured_mermaid(
+            drawable_graph.draw_mermaid(),
+            decision_nodes,
+            detailed=True,
+        )
+
+        main_section, recovery_section = detailed.split("subgraph recovery", 1)
+        for source, target, arrow in VIEW_RECOVERY_INTERNAL_EDGES:
+            with self.subTest(edge=(source, target)):
+                self.assertIn(f"{source} {arrow} {target}", recovery_section)
+                # These are recovery-to-recovery edges; they belong inside the
+                # recovery subgraph, not duplicated into the main workflow one.
+                self.assertNotIn(f"{source} {arrow} {target}", main_section)
 
     def test_structured_view_labels_and_critic_loop(self) -> None:
         drawable_graph = build_graph().get_graph()
