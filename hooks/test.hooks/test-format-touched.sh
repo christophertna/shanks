@@ -16,9 +16,7 @@ mkdir -p "$TMP/workflow" "$TMP/tests"
 
 cat > "$TMP/pyproject.toml" <<'EOF'
 [tool.mypy]
-files = [
-    "workflow/nodes.py",
-]
+files = ["workflow/nodes.py"]
 EOF
 
 # A sibling checkout: its own Git tree, with its own `[tool.mypy] files` list.
@@ -30,16 +28,21 @@ git -C "$SIBLING" init -q 2>/dev/null
 : > "$SIBLING/workflow/sibling.py"
 cat > "$SIBLING/pyproject.toml" <<'EOF'
 [tool.mypy]
-files = [
-    "workflow/sibling.py",
-]
+files = ["workflow/sibling.py"]
 EOF
 
-# Stub interpreters: $1=-m, $2=tool, rest are that tool's arguments.
+# Stub interpreters: $1=-m, $2=tool, rest are that tool's arguments. The hook's
+# TOML probe uses $1=-c, $3=pyproject.toml, and $4=the touched relative path.
 # $TMP/fail-<tool> makes the matching tool exit non-zero; "black --check"
 # fails via $TMP/fail-black-check so the reformat pass can still succeed.
 cat > "$TMP/python" <<EOF
 #!/bin/bash
+if [ "\$1" = "-c" ]; then
+  case "\$4" in
+    workflow/nodes.py|workflow/sibling.py) exit 0 ;;
+    *) exit 1 ;;
+  esac
+fi
 TOOL="\$2"
 if [ "\$TOOL" = "black" ] && [ "\$3" = "--check" ]; then
   [ -f "$TMP/fail-black-check" ] && exit 1
