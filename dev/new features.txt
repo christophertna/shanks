@@ -29,8 +29,37 @@ Priority 1 - Reliability and contributor experience
    to keep working in that state, which it does: `git config --get` is one of
    the few commands a bare-flagged repository still answers.
 
+3- Guard README's command table against the CLI parser.
+   `./shanks dev worktree` shipped and stayed missing from README's `Commands`
+   table until #103 added the row by hand - `git log -S` confirms the table
+   never mentioned it before then - and `dev sync` would have been the second
+   miss the same day. Nothing ties the table to `_build_parser()`
+   (`workflow/cli.py`), even though this repo already runs the identical guard
+   shape twice: `tests/tests.md`'s counts and
+   `test_every_shell_harness_is_documented_and_run_in_ci`
+   (`tests/test_cli.py`). Shape: walk the parser's subparsers (including the
+   `dev` and `runs` sub-subparsers) and assert each `./shanks <command>`
+   appears in `README.md`. The ceiling is presence, not accuracy - a stale
+   description still passes - which is the same ceiling the harness guard
+   accepts.
+
 Suggestions
 
+- `sync_local_guardrails()` copies `.claude/skills/` over a worktree's copy but
+  never prunes it, so a skill deleted or renamed in the project lingers there
+  until the tree is recreated (carries a `ponytail:` comment naming the
+  ceiling). A stale extra skill is a much smaller problem than a missing one,
+  which is why the copy is one-way; switch to a mirroring copy only if a
+  removed skill ever actually misleads an agent in a worktree.
+- Skills are triplicated across `.claude/skills/`, `.agents/skills/`, and
+  top-level `skills/`, and the copies have already drifted:
+  `roadmap-review/agents/openai.yaml` exists only under `.claude/`,
+  `decisions/agents/` is missing there but present in the other two, and
+  `.agents/` alone carries `domain-modeling` and `grilling`. CLAUDE.md's
+  "check which copy is canonical before editing one" rule exists only because
+  nothing enforces one. No runtime impact today - each tool reads its own
+  path - so this is consolidation (one canonical tree plus symlinks, or a
+  drift test), worth doing when an edit lands in the wrong copy and gets lost.
 - `./shanks dev sync` refreshes worktrees on demand, so a hook change still
   needs someone to remember to run it - nothing detects a stale worktree by
   itself. `./shanks doctor`'s `claude-hooks` check is the natural place to
