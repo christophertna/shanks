@@ -29,6 +29,7 @@ from workflow.cli import (
     _REQUIRED_TOOLS,
     CliError,
     _check_claude_hooks,
+    dev_sync,
     dev_worktree,
     main,
 )
@@ -108,6 +109,46 @@ class DevWorktreeTests(unittest.TestCase):
 
             with self.assertRaises(CliError):
                 dev_worktree("feat/x", project_directory=project, directory=target)
+
+    def test_dev_sync_refreshes_settings_in_worktrees_that_already_exist(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = self._project(Path(directory))
+            with redirect_stdout(io.StringIO()):
+                created = dev_worktree("feat/stale", project_directory=project)
+            # A hook change lands in the project after the worktree was made.
+            settings = project / ".claude" / "settings.json"
+            settings.write_text('{"hooks": {}}\n', encoding="utf-8")
+            (created / ".venv").unlink()
+
+            with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                synced = dev_sync(project_directory=project)
+
+            self.assertEqual(synced, [created])
+            self.assertEqual(
+                (created / ".claude" / "settings.json").read_text(encoding="utf-8"),
+                settings.read_text(encoding="utf-8"),
+            )
+            self.assertTrue((created / ".venv").is_symlink())
+
+    def test_dev_sync_skips_directories_that_do_not_exist(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = self._project(Path(directory))
+            missing = Path(directory) / "gone"
+
+            errors = io.StringIO()
+            with redirect_stdout(io.StringIO()), redirect_stderr(errors):
+                synced = dev_sync([missing], project_directory=project)
+
+            self.assertEqual(synced, [])
+            self.assertIn("does not exist", errors.getvalue())
+
+    def test_dev_sync_requires_project_hook_settings(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = self._project(Path(directory))
+            (project / ".claude" / "settings.json").unlink()
+
+            with self.assertRaises(CliError):
+                dev_sync(project_directory=project)
 
     def test_dev_worktree_warns_when_the_project_has_no_hook_settings(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

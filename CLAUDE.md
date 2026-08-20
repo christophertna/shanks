@@ -34,6 +34,9 @@ assembles the graph; `serve_graph.py` serves a live Mermaid viewer at
 - Isolate a second agent: `./shanks dev worktree <branch>` — creates a sibling
   worktree with `.claude/settings.json` copied and `.venv` symlinked, so two
   agents can work on different branches at once without sharing a tree.
+- Refresh existing worktrees after a hook change: `./shanks dev sync [dir...]`
+  — re-copies `.claude/settings.json` (and relinks `.venv`) into every worktree
+  of this checkout, since `dev worktree` only copies them at creation time.
 - Manage runs: `./shanks runs list|status RUN_ID|resume RUN_ID|cancel RUN_ID|
   recover|cleanup|remove RUN_ID|prune` — see `dev/commands.md` for the full
   option reference.
