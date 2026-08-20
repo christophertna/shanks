@@ -187,6 +187,36 @@ class DevWorktreeTests(unittest.TestCase):
             self.assertFalse((created / ".claude" / "settings.json").exists())
             self.assertIn("no hooks", errors.getvalue())
 
+    def test_doctor_flags_a_stale_worktree_and_dev_sync_clears_it(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = self._project(Path(directory))
+            with redirect_stdout(io.StringIO()):
+                created = dev_worktree("feat/stale-doctor", project_directory=project)
+
+            fresh = _check_claude_hooks(created)
+            self.assertTrue(fresh.passed, fresh.detail)
+
+            # A hook change lands in the project after the worktree was made;
+            # dev_sync is the only thing that would carry it over.
+            (project / ".claude" / "settings.json").write_text(
+                '{"hooks": {}}\n', encoding="utf-8"
+            )
+
+            stale = _check_claude_hooks(created)
+            self.assertFalse(stale.passed)
+            self.assertIn("stale", stale.detail)
+            self.assertIn("dev sync", stale.detail)
+
+            # The main checkout is never "stale" against itself.
+            self_check = _check_claude_hooks(project)
+            self.assertTrue(self_check.passed, self_check.detail)
+
+            with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                dev_sync(project_directory=project)
+
+            synced = _check_claude_hooks(created)
+            self.assertTrue(synced.passed, synced.detail)
+
 
 class ShanksCliTests(unittest.TestCase):
     def test_mode_reports_safe_runtime(self) -> None:
