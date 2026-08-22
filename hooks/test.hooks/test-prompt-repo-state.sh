@@ -142,24 +142,43 @@ expect_contains "broken gh reports no open PR" "No open PR for this branch"
 expect_missing "broken gh reports no CI line" "main CI"
 expect_contains "broken gh still reports the branch" "- Branch: main"
 
-# Upstream drift and fetch freshness need a remote. `push -u` sets the upstream
-# without writing FETCH_HEAD, so the first look is a genuine "never fetched".
+# Upstream drift and fetch freshness get their own repository: the runs above
+# launched background fetches against a remoteless `$REPO`, and one of those
+# can still be in flight (or land a stamp) once a remote appears, which is
+# exactly the kind of straggler these checks must not see. `push -u` sets the
+# upstream without writing FETCH_HEAD, so the first look is a genuine
+# "never fetched".
+UP="$TMP/upstream"
 REMOTE="$TMP/remote.git"
+mkdir -p "$UP"
 git init -q --bare -b main "$REMOTE" 2>/dev/null
-git -C "$REPO" remote add origin "$REMOTE"
-git -C "$REPO" push -q -u origin main
+git -C "$UP" init -q -b main 2>/dev/null
+git -C "$UP" config user.email "tests@example.com"
+git -C "$UP" config user.name "Tests"
+echo "one" > "$UP/README.md"
+git -C "$UP" add README.md
+git -C "$UP" commit -qm "add readme"
+git -C "$UP" remote add origin "$REMOTE"
+git -C "$UP" push -q -u origin main
 
 # FETCH_MINUTES=0 disables the background fetch, so these read a fixed state.
-rm -f "$REPO/.git/FETCH_HEAD"
-run "$REPO" SHANKS_PROMPT_STATE_FETCH_MINUTES=0
+run "$UP" SHANKS_PROMPT_STATE_FETCH_MINUTES=0
 expect_contains "reports zero drift instead of staying silent" \
   "- 0 ahead, 0 behind origin/main"
 expect_contains "reports a never-fetched checkout" \
   "(no successful fetch on record)"
 
-git -C "$REPO" fetch -q origin
-run "$REPO" SHANKS_PROMPT_STATE_FETCH_MINUTES=0
+git -C "$UP" fetch -q origin
+run "$UP" SHANKS_PROMPT_STATE_FETCH_MINUTES=0
 expect_contains "reports a fresh fetch age" "(last fetch: just now)"
+
+# A failed fetch truncates FETCH_HEAD, which must not read as a fresh fetch -
+# and no stamp from a successful fetch of our own exists yet to fall back to.
+: > "$UP/.git/FETCH_HEAD"
+run "$UP" SHANKS_PROMPT_STATE_FETCH_MINUTES=0
+expect_contains "a failed fetch is not reported as fresh" \
+  "(no successful fetch on record)"
+git -C "$UP" fetch -q origin
 
 # Both `stat` spellings, pinned on whichever platform this runs on: only one of
 # them is exercised for real here, and the GNU one is a trap - `stat -f` there
@@ -176,49 +195,72 @@ for flavor in gnu bsd; do
       "$NOW" > "$TMP/stat-$flavor/stat"
   fi
   chmod +x "$TMP/stat-$flavor/stat"
-  run "$REPO" SHANKS_PROMPT_STATE_FETCH_MINUTES=0 \
+  run "$UP" SHANKS_PROMPT_STATE_FETCH_MINUTES=0 \
     PATH="$TMP/stat-$flavor:$FAKE_BIN:$PATH"
   expect_contains "reads the fetch age with $flavor stat" "(last fetch: just now)"
 done
 
-# A failed fetch truncates FETCH_HEAD, which must not read as a fresh fetch.
-: > "$REPO/.git/FETCH_HEAD"
-run "$REPO" SHANKS_PROMPT_STATE_FETCH_MINUTES=0
-expect_contains "a failed fetch is not reported as fresh" \
-  "(no successful fetch on record)"
-git -C "$REPO" fetch -q origin
-
-echo "three" >> "$REPO/README.md"
-git -C "$REPO" add README.md
-git -C "$REPO" commit -qm "third commit"
-run "$REPO" SHANKS_PROMPT_STATE_FETCH_MINUTES=0
+echo "two" >> "$UP/README.md"
+git -C "$UP" add README.md
+git -C "$UP" commit -qm "second commit"
+run "$UP" SHANKS_PROMPT_STATE_FETCH_MINUTES=0
 expect_contains "reports the ahead count" "- 1 ahead, 0 behind origin/main"
 
 # The background fetch itself: it must refresh FETCH_HEAD without the hook
 # waiting on it, and must not run again inside the debounce window.
-rm -rf "${CACHE_DIR:?}"/*
-rm -f "$REPO/.git/FETCH_HEAD"
-run "$REPO"
+rm -f "$UP/.git/FETCH_HEAD"
+run "$UP"
 expect_exit_zero "background fetch still exits zero"
 i=0
-while [ ! -f "$REPO/.git/FETCH_HEAD" ] && [ "$i" -lt 100 ]; do
+while [ ! -f "$UP/.git/FETCH_HEAD" ] && [ "$i" -lt 100 ]; do
   sleep 0.1
   i=$((i + 1))
 done
-if [ -f "$REPO/.git/FETCH_HEAD" ]; then
+if [ -f "$UP/.git/FETCH_HEAD" ]; then
   record yes "background fetch refreshes FETCH_HEAD"
 else
   record no "background fetch refreshes FETCH_HEAD"
 fi
 
-rm -f "$REPO/.git/FETCH_HEAD"
-run "$REPO"
+rm -f "$UP/.git/FETCH_HEAD"
+run "$UP"
 sleep 0.5
-if [ -f "$REPO/.git/FETCH_HEAD" ]; then
+if [ -f "$UP/.git/FETCH_HEAD" ]; then
   record no "debounce skips the second fetch"
 else
   record yes "debounce skips the second fetch"
 fi
+
+# FETCH_HEAD is gone, as it effectively is mid-fetch while git has truncated it
+# but not yet rewritten it, so the age has to come from the stamp the earlier
+# successful background fetch left behind.
+run "$UP" SHANKS_PROMPT_STATE_FETCH_MINUTES=0
+expect_contains "falls back to the fetch stamp" "(last fetch: just now)"
+
+# The prompt that launches a fetch must report the age from before it started,
+# not the FETCH_HEAD its own fetch truncates on the way out. A real fetch of
+# this local remote finishes too fast to leave that window open, so `git fetch`
+# is stubbed to truncate and then hang the way a network fetch does; it also
+# fails, so no stamp is written and only the pre-launch read can save the line.
+REAL_GIT="$(command -v git)"
+mkdir -p "$TMP/slow-git"
+cat > "$TMP/slow-git/git" <<EOF
+#!/bin/bash
+for a in "\$@"; do
+  if [ "\$a" = fetch ]; then
+    : > "$UP/.git/FETCH_HEAD"
+    sleep 2
+    exit 1
+  fi
+done
+exec "$REAL_GIT" "\$@"
+EOF
+chmod +x "$TMP/slow-git/git"
+git -C "$UP" fetch -q origin
+rm -f "$CACHE_DIR"/*-fetch-* "$CACHE_DIR"/*-fetched-*
+run "$UP" PATH="$TMP/slow-git:$FAKE_BIN:$PATH"
+expect_missing "launching a fetch does not erase the age it reports" \
+  "no successful fetch on record"
 
 run "$PLAIN"
 expect_exit_zero "non-repository directory exits zero"
