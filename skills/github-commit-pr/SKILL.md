@@ -77,7 +77,14 @@ is not a "yes" to merge it.
    Before opening, state the exact title, description, and test command for
    auditability. Pass the title separately from the description when using
    GitHub CLI or an API.
-2. **After the PR is open.** Ask a second, distinct question: whether to
+2. **After the PR is open.** First check whether its checks are already
+   failing: `gh pr checks <number>`. Red checks make the merge question
+   premature — report the failure, fix it (a new commit on the same branch
+   re-runs them), and only then ask. The merge poll below will not catch this
+   on its own: `state` stays `OPEN` and `mergeStateStatus` stays `UNSTABLE`
+   rather than `DIRTY` while checks fail, so it would poll out its full three
+   minutes on a PR that cannot land.
+   Then ask a second, distinct question: whether to
    merge it now or wait for more changes to land on the branch first — don't
    ask in prose; it costs the user a typed reply instead of a click.
    - If they choose to wait, stop here — do not poll for merge status.
