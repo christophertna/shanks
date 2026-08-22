@@ -85,6 +85,7 @@ def doctor_checks(
         _check_authentication(project, environment, runner),
         _check_environment(environment),
         _check_checkpoint(project, environment),
+        _check_bare_repository(project, runner),
         _check_hooks_path(project, runner),
         _check_claude_hooks(project, runner),
     ]
@@ -322,6 +323,39 @@ def _check_checkpoint(
             "checkpoint", False, f"SQLite database is not usable: {error}"
         )
     return DoctorCheck("checkpoint", True, f"SQLite database is ready: {path}")
+
+
+def _check_bare_repository(project: Path, runner: Runner) -> DoctorCheck:
+    """Detect `core.bare=true` on a checkout that has a working tree.
+
+    Seen live: every Git command died with "this operation must be run in a
+    work tree" - status, worktree list, rev-parse - with nothing naming the
+    cause, while the tree, index, and HEAD were all intact. The cause was
+    never found, so this is detection, not prevention. `git config --get` is
+    one of the few commands a bare-flagged repository still answers, which is
+    what lets doctor keep working in that state.
+    """
+
+    try:
+        result = runner(
+            ("git", "config", "--get", "core.bare"),
+            cwd=project,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        return DoctorCheck("worktree", False, f"git config check failed: {error}")
+    configured = result.stdout.strip()
+    if configured.lower() == "true":
+        return DoctorCheck(
+            "worktree",
+            False,
+            "core.bare is true, so every Git command fails with 'this operation "
+            "must be run in a work tree'; run: git config core.bare false",
+        )
+    return DoctorCheck("worktree", True, f"core.bare={configured or 'unset'}")
 
 
 def _check_hooks_path(project: Path, runner: Runner) -> DoctorCheck:

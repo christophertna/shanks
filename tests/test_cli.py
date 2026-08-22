@@ -451,6 +451,57 @@ class ShanksCliTests(unittest.TestCase):
         self.assertIn("[FAIL] hooks", output.getvalue())
         self.assertIn("git config core.hooksPath hooks", output.getvalue())
 
+    def test_doctor_fails_when_the_repository_is_flagged_bare(self) -> None:
+        output = io.StringIO()
+
+        def fake_run(
+            command: tuple[str, ...], **kwargs: object
+        ) -> subprocess.CompletedProcess[str]:
+            if command[:4] == ("git", "config", "--get", "core.bare"):
+                return subprocess.CompletedProcess(command, 0, "true", "")
+            if command[:2] == ("git", "config"):
+                return subprocess.CompletedProcess(command, 0, "hooks", "")
+            return subprocess.CompletedProcess(command, 0, "authenticated", "")
+
+        with tempfile.TemporaryDirectory() as directory:
+            with (
+                patch.dict(
+                    "os.environ",
+                    {
+                        "SHANKS_MODE": "runtime",
+                        "SHANKS_CHECKPOINT_DB": str(
+                            Path(directory) / "checkpoints.sqlite"
+                        ),
+                        "SHANKS_RUN_LEASE_SECONDS": "3600",
+                        "SHANKS_CHECKPOINT_RETENTION": "100",
+                        "HOME": "/tmp",
+                        "PATH": "/usr/bin",
+                    },
+                    clear=True,
+                ),
+                patch("workflow.cli.shutil.which", return_value="/usr/bin/tool"),
+                patch(
+                    "workflow.cli.importlib_metadata.version",
+                    side_effect=lambda name: {
+                        "langgraph": "1.2.10",
+                        "langgraph-checkpoint-sqlite": "3.1.1",
+                        "black": "26.5.1",
+                        "mypy": "1.20.2",
+                        "pip-audit": "2.10.1",
+                        "ruff": "0.16.1",
+                    }[name],
+                ),
+                patch("workflow.cli.subprocess.run", side_effect=fake_run),
+                redirect_stdout(output),
+            ):
+                self.assertEqual(main(["doctor"]), 1)
+
+        self.assertIn("[FAIL] worktree", output.getvalue())
+        self.assertIn("git config core.bare false", output.getvalue())
+        # The rest of doctor still reports, which is the point: `git config
+        # --get` answers in the state where every other Git command does not.
+        self.assertIn("[OK] hooks", output.getvalue())
+
     def test_doctor_and_github_preflight_tool_lists_match(self) -> None:
         self.assertEqual(set(_REQUIRED_TOOLS), set(GitHubAdapter.REQUIRED_TOOLS))
 
