@@ -57,15 +57,22 @@ assembles the graph; `serve_graph.py` serves a live Mermaid viewer at
 - Skills live in three trees: `skills/` is the canonical source, `.agents/`
   is Codex's entrypoint and `.claude/` is Claude Code's, and
   `scripts/ralph/ralph.sh` searches all three. Consolidation onto `skills/` is
-  partly done: `decisions` and `github-commit-pr` are already tracked symlinks
-  (git mode `120000`) into it, so editing those once is enough. The rest
-  (`ponytail`, `grill-with-docs`, `grilling`) are still real copies and must be
-  edited in every tree that carries them -
+  partly done: `.claude/`'s `decisions` and `github-commit-pr` are tracked
+  symlinks (git mode `120000`) into it. But `.agents/` still holds a real copy
+  of *every* skill, so nothing is single-source yet - editing
+  `skills/decisions/SKILL.md` updates `.claude/` through its symlink and leaves
+  `.agents/` stale. Edit a skill in every tree that carries it as a real file -
   `test_skills_shared_between_trees_have_identical_content`
   (`tests/test_cli.py`) fails if one of those writes silently does not apply.
   The trees hold deliberately different *sets* of skills, and per-tool sidecars
   like `agents/openai.yaml` mean nothing under `.claude/`, so only SKILL.md
   content is compared.
+- Never make a file under `.agents/skills/` a symlink. Codex silently ignores a
+  symlinked `SKILL.md` - the skill simply stops existing for it, with no error,
+  even though the link resolves fine to the shell (verified with
+  `codex debug prompt-input`, which renders the model-visible prompt offline and
+  is the cheap way to re-check). Claude Code does follow them, which is why
+  `.claude/` may symlink into `.agents/` or `skills/` but never the reverse.
 - The build agent (`RalphAdapter` / `scripts/ralph/ralph.sh`,
   `ClaudeAdapter(read_only=False)`) runs Claude with `--permission-mode
   acceptEdits --tools Read,Write,Edit,Bash,Grep,Glob` rather than
