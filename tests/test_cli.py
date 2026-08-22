@@ -43,6 +43,13 @@ from workflow.workspaces import RunWorkspaceManager
 # (`expected=allow got=block`) rather than an unset-up machine.
 _SHELL_HARNESS_TOOLS = ("bash", "jq", "gitleaks")
 
+# The three skill trees, in `scripts/ralph/ralph.sh`'s resolution order.
+# `.agents/` is Codex's entrypoint and `.claude/` is Claude Code's; `skills/`
+# is the shared source ralph falls back to. They deliberately hold different
+# *sets* of skills - and per-tool sidecars like `agents/openai.yaml` mean
+# nothing under `.claude/` - so only SKILL.md content is compared.
+_SKILL_TREES = (".agents/skills", ".claude/skills", "skills")
+
 
 def _cli_command_paths(
     parser: argparse.ArgumentParser, prefix: tuple[str, ...] = ()
@@ -739,6 +746,34 @@ class ShanksCliTests(unittest.TestCase):
                 f"`./shanks {command}` is missing from README's Commands table; "
                 "`dev worktree` shipped undocumented for exactly this reason",
             )
+
+    def test_skills_shared_between_trees_have_identical_content(self) -> None:
+        repo_root = Path(__file__).parents[1]
+        copies: dict[str, dict[str, str]] = {}
+        for tree in _SKILL_TREES:
+            for skill in sorted((repo_root / tree).glob("*/SKILL.md")):
+                copies.setdefault(skill.parent.name, {})[tree] = skill.read_text(
+                    encoding="utf-8"
+                )
+
+        shared = {name: found for name, found in copies.items() if len(found) > 1}
+        self.assertIn(
+            "github-commit-pr",
+            shared,
+            "no skill was found in more than one tree, so this guard is inert - "
+            "check _SKILL_TREES still names the real directories",
+        )
+        for name, found in sorted(shared.items()):
+            trees = sorted(found)
+            for other in trees[1:]:
+                self.assertEqual(
+                    found[trees[0]],
+                    found[other],
+                    f"{trees[0]}/{name}/SKILL.md and {other}/{name}/SKILL.md have "
+                    "drifted; editing a skill means writing the same change into "
+                    "every tree that carries it, and one of those writes silently "
+                    "not applying is what this guard exists to catch",
+                )
 
     def test_runs_list_and_status_support_json_output(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

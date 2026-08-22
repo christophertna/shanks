@@ -1,7 +1,7 @@
 # Test coverage
 
 This document summarizes the behavior covered by the repository's tracked test
-files. The Python suite contains **224 unittest methods** across twelve
+files. The Python suite contains **225 unittest methods** across twelve
 modules; every `hooks/test.hooks/test-*.sh` file is a separate shell
 regression harness, run in CI alongside the Python suite on both
 `ubuntu-latest` and `macos-latest` (see
@@ -47,7 +47,7 @@ Run the repository quality gates from a feature branch with:
 
 | File | Tests | Main areas |
 | --- | ---: | --- |
-| [`test_cli.py`](test_cli.py) | 34 | Execution-mode reporting, dev worktree creation and refresh (carrying `.claude/settings.json` and `.claude/skills/` in, leaving `settings.local.json` out) with ignored `.venv` symlinks, doctor diagnostics (including Git/gh/gitleaks version floors, a `core.bare=true` checkout, `core.hooksPath`, unwired Claude Code hooks, and stale worktree hook settings), documentation-count guards for the Python and shell test suites (including the shared count derivation and its fail-closed harness runner), hook-harness coverage in this file and in CI, README's `Commands` table covering every subcommand the CLI parser exposes, and run listing, status (including pending interrupts, drift, and recent events), resume, cancellation, recovery, cleanup, pruning, and safety checks |
+| [`test_cli.py`](test_cli.py) | 35 | Execution-mode reporting, dev worktree creation and refresh (carrying `.claude/settings.json` and `.claude/skills/` in, leaving `settings.local.json` out) with ignored `.venv` symlinks, doctor diagnostics (including Git/gh/gitleaks version floors, a `core.bare=true` checkout, `core.hooksPath`, unwired Claude Code hooks, and stale worktree hook settings), documentation-count guards for the Python and shell test suites (including the shared count derivation and its fail-closed harness runner), hook-harness coverage in this file and in CI, README's `Commands` table covering every subcommand the CLI parser exposes, SKILL.md agreement across the three skill trees, and run listing, status (including pending interrupts, drift, and recent events), resume, cancellation, recovery, cleanup, pruning, and safety checks |
 | [`test_graph.py`](test_graph.py) | 46 | Workflow orchestration, item metadata, repository drift injection, append-only run-manifest behavior, targeted retries, budgets, approvals, dry-run previews, and GitHub handoff |
 | [`test_node_contracts.py`](test_node_contracts.py) | 71 | Agent, failure-classification, subprocess, versioned interpreter allowlists, Ralph, local-test, critic, quality-gate, pre-commit policy gate, recovery reconciliation, repository-protocol conformance, preview-protocol narrowing, subprocess timeout budgets, and GitHub adapter contracts |
 | [`test_state_schema.py`](test_state_schema.py) | 10 | State migration, one-step migration chains, retry metadata, versioned checkpoints, and legacy resume behavior |
