@@ -54,9 +54,18 @@ assembles the graph; `serve_graph.py` serves a live Mermaid viewer at
   driving it.
 - The final step of an `implement` run pushes the current non-`main` branch and
   reconciles or opens its PR via `gh` — `gh` must be pre-authenticated.
-- Skills are split across three locations with overlapping content:
-  `.claude/skills/`, `.agents/skills/`, and top-level `skills/`. Check which
-  copy is canonical before editing one.
+- Skills live in three trees: `skills/` is the canonical source, `.agents/`
+  is Codex's entrypoint and `.claude/` is Claude Code's, and
+  `scripts/ralph/ralph.sh` searches all three. Consolidation onto `skills/` is
+  partly done: `decisions` and `github-commit-pr` are already tracked symlinks
+  (git mode `120000`) into it, so editing those once is enough. The rest
+  (`ponytail`, `grill-with-docs`, `grilling`) are still real copies and must be
+  edited in every tree that carries them -
+  `test_skills_shared_between_trees_have_identical_content`
+  (`tests/test_cli.py`) fails if one of those writes silently does not apply.
+  The trees hold deliberately different *sets* of skills, and per-tool sidecars
+  like `agents/openai.yaml` mean nothing under `.claude/`, so only SKILL.md
+  content is compared.
 - The build agent (`RalphAdapter` / `scripts/ralph/ralph.sh`,
   `ClaudeAdapter(read_only=False)`) runs Claude with `--permission-mode
   acceptEdits --tools Read,Write,Edit,Bash,Grep,Glob` rather than
