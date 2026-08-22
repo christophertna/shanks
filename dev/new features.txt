@@ -2,21 +2,7 @@ Shanks feature roadmap
 
 Priority 1 - Reliability and contributor experience
 
-1- Finish what #100 started: fetch freshness and `main`'s CI status.
-   `hooks/prompt-repo-state.sh` reports ahead/behind against `@{upstream}`
-   from local refs and never fetches, so it prints nothing at all while
-   `origin/main` has moved - which is exactly the state this checkout was in
-   while #100 was being reviewed. It also says nothing about whether `main` is
-   green, so the red-`main` incident that motivated the item in the first place
-   is still undetected; #98 removed that incident's *cause*, not the blind spot.
-   `gh run list --branch main --limit 1 --json conclusion` is one more call
-   through the per-branch cache the hook already has. Fetch freshness is the
-   other half: either a debounced background `git fetch` or printing the age of
-   `FETCH_HEAD` so "0 behind" is never mistaken for "up to date". Keep the
-   suite out of it and keep every path exiting 0 - a non-zero
-   `UserPromptSubmit` hook blocks the prompt.
-
-2- `./shanks doctor`: fail when `core.bare` is true.
+1- `./shanks doctor`: fail when `core.bare` is true.
    Live incident this session: `core.bare` was set to `true` on this checkout
    and every Git command died with `fatal: this operation must be run in a work
    tree` - `status`, `worktree list`, `rev-parse`, all of it - with nothing
@@ -29,7 +15,7 @@ Priority 1 - Reliability and contributor experience
    to keep working in that state, which it does: `git config --get` is one of
    the few commands a bare-flagged repository still answers.
 
-3- Guard README's command table against the CLI parser.
+2- Guard README's command table against the CLI parser.
    `./shanks dev worktree` shipped and stayed missing from README's `Commands`
    table until #103 added the row by hand - `git log -S` confirms the table
    never mentioned it before then - and `dev sync` would have been the second

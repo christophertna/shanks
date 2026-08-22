@@ -85,12 +85,16 @@ assembles the graph; `serve_graph.py` serves a live Mermaid viewer at
 ## Session context
 
 `hooks/prompt-repo-state.sh` (`UserPromptSubmit`) prints branch, upstream
-drift, uncommitted changes, recent commits, and the branch's open PR into each
+drift (with the age of the last successful fetch), uncommitted changes, recent
+commits, the branch's open PR, and `main`'s latest CI conclusion into each
 turn's context, so a session never starts blind — particularly about another
-agent's uncommitted work in this shared checkout. It is advisory and always
-exits 0 (a non-zero `UserPromptSubmit` hook would block the prompt). The `gh`
-lookup is cached per branch for five minutes; set
-`SHANKS_PROMPT_STATE_CACHE_MINUTES` to change that.
+agent's uncommitted work in this shared checkout, or about branching off a red
+`main`. It is advisory and always exits 0 (a non-zero `UserPromptSubmit` hook
+would block the prompt). The `gh` lookups are cached per branch for five
+minutes (`SHANKS_PROMPT_STATE_CACHE_MINUTES`), and a `git fetch` runs detached
+in the background at most that often too (`SHANKS_PROMPT_STATE_FETCH_MINUTES`,
+`0` disables) — so the drift counts come from a fetch minutes old rather than
+from whenever someone last fetched by hand.
 
 ## Shared checkout
 
