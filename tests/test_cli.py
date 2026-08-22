@@ -1,3 +1,4 @@
+import argparse
 import json
 import io
 import re
@@ -28,6 +29,7 @@ from workflow.cli import (
     _MIN_TOOL_VERSIONS,
     _REQUIRED_TOOLS,
     CliError,
+    _build_parser,
     _check_claude_hooks,
     dev_sync,
     dev_worktree,
@@ -40,6 +42,46 @@ from workflow.workspaces import RunWorkspaceManager
 # fails closed without these, so a missing one looks like a guard regression
 # (`expected=allow got=block`) rather than an unset-up machine.
 _SHELL_HARNESS_TOOLS = ("bash", "jq", "gitleaks")
+
+
+def _cli_command_paths(
+    parser: argparse.ArgumentParser, prefix: tuple[str, ...] = ()
+) -> list[str]:
+    """Every invocable `shanks` command, as space-joined subcommand paths.
+
+    Walks `_SubParsersAction.choices` because argparse exposes no public way to
+    enumerate subcommands. Aliases map to the same parser object as their real
+    name, so deduping on parser identity keeps `runs` and drops `run`. Only
+    leaves are returned: `dev` and `runs` are prefixes of their own children,
+    so requiring them separately would document nothing extra.
+    """
+
+    paths = []
+    for action in parser._actions:
+        if not isinstance(action, argparse._SubParsersAction):
+            continue
+        seen: set[int] = set()
+        for name, subparser in action.choices.items():
+            if id(subparser) in seen:
+                continue
+            seen.add(id(subparser))
+            children = _cli_command_paths(subparser, prefix + (name,))
+            paths.extend(children or [" ".join(prefix + (name,))])
+    return paths
+
+
+def _readme_commands_table(readme: str) -> str:
+    """The `## Commands` table's rows, so no mention elsewhere stands in for one.
+
+    Rows only, not the whole section: that section's closing prose walks through
+    `resume`, `cancel`, and `recover` in passing, which would let a command pass
+    this guard with no row of its own.
+    """
+
+    start = readme.index("\n## Commands\n")
+    end = readme.find("\n## ", start + 1)
+    section = readme[start : end if end != -1 else len(readme)]
+    return "\n".join(line for line in section.splitlines() if line.startswith("| "))
 
 
 class DevWorktreeTests(unittest.TestCase):
@@ -677,6 +719,25 @@ class ShanksCliTests(unittest.TestCase):
                 f"bash hooks/test.hooks/{name}",
                 workflow,
                 f"{name} is not run by .github/workflows/tests.yml",
+            )
+
+    def test_every_cli_command_is_documented_in_readme(self) -> None:
+        readme = (Path(__file__).parents[1] / "README.md").read_text(encoding="utf-8")
+        table = _readme_commands_table(readme)
+        commands = _cli_command_paths(_build_parser())
+
+        self.assertIn("dev worktree", commands, "the parser walk found no subcommands")
+        for command in commands:
+            # Substring, not a whole row: `runs remove`'s row leads with
+            # `SHANKS_MODE=development`, so anchoring on a backtick would fail
+            # on a correctly documented command. The ceiling is presence - a
+            # stale description still passes - matching the shell-harness guard.
+            # assertTrue, not assertIn: assertIn dumps the whole table into the
+            # failure, burying the one command that is actually missing.
+            self.assertTrue(
+                f"./shanks {command}" in table,
+                f"`./shanks {command}` is missing from README's Commands table; "
+                "`dev worktree` shipped undocumented for exactly this reason",
             )
 
     def test_runs_list_and_status_support_json_output(self) -> None:
