@@ -38,6 +38,50 @@ BRANCH="$(git -C "$ROOT" branch --show-current 2>/dev/null)"
 
 CACHE_BASE="${TMPDIR:-/tmp}/shanks-prompt-state-$(id -u)"
 REPO_KEY="$(printf '%s' "$ROOT" | tr -c 'A-Za-z0-9' '-')"
+STAMP="$CACHE_BASE-fetched-$REPO_KEY"
+
+# `stat` spells mtime differently on BSD (`-f %m`) and GNU (`-c %Y`), and the
+# two are not safely ordered by exit status: GNU's `-f` means "filesystem
+# status", so `stat -f %m` *succeeds* on Linux and prints the mount point.
+# Hence re-trying on anything that is not an epoch, rather than on failure.
+mtime_of() {
+  local m
+  m="$(stat -c %Y "$1" 2>/dev/null)"
+  case "$m" in ''|*[!0-9]*) m="$(stat -f %m "$1" 2>/dev/null)" ;; esac
+  case "$m" in ''|*[!0-9]*) return 1 ;; esac
+  printf '%s' "$m"
+}
+
+# Age of the last fetch, so a "0 behind" line is never mistaken for "up to
+# date". `git fetch` truncates FETCH_HEAD when it starts and leaves it empty
+# when it fails, so an empty one means "in flight or failed" - including the
+# fetch this hook itself launches below, which would otherwise make every
+# fifth-minute prompt claim nothing had ever been fetched. `$STAMP`, written
+# only after our own fetch succeeds, covers that window; FETCH_HEAD stays the
+# first choice because it also sees fetches made outside this hook, and
+# whenever it is non-empty it is at least as new as the stamp.
+fetch_age() {
+  local head mtime secs
+  head="$(git -C "$ROOT" rev-parse --absolute-git-dir 2>/dev/null)/FETCH_HEAD"
+  mtime=""
+  [ -s "$head" ] && mtime="$(mtime_of "$head")"
+  [ -n "$mtime" ] || mtime="$(mtime_of "$STAMP")"
+  if [ -z "$mtime" ]; then
+    printf 'no successful fetch on record'
+    return
+  fi
+  secs=$(( $(date +%s) - mtime ))
+  printf 'last fetch: '
+  if [ "$secs" -lt 120 ]; then printf 'just now'
+  elif [ "$secs" -lt 7200 ]; then printf '%sm ago' "$(( secs / 60 ))"
+  elif [ "$secs" -lt 172800 ]; then printf '%sh ago' "$(( secs / 3600 ))"
+  else printf '%sd ago' "$(( secs / 86400 ))"
+  fi
+}
+
+# Read before launching the fetch below, so this prompt never reads the
+# FETCH_HEAD its own fetch just truncated.
+FETCH_AGE="$(fetch_age)"
 
 # One debounced background fetch, so the counts below reflect a fetch from a
 # few minutes ago rather than whenever someone last fetched by hand. Detached
@@ -49,40 +93,10 @@ if [ "$FETCH_MINUTES" -gt 0 ] 2>/dev/null; then
   if [ ! -f "$MARKER" ] ||
      [ -z "$(find "$MARKER" -mmin "-$FETCH_MINUTES" 2>/dev/null)" ]; then
     : > "$MARKER" 2>/dev/null
-    ( git -C "$ROOT" fetch --quiet --no-tags >/dev/null 2>&1 </dev/null & )
+    ( git -C "$ROOT" fetch --quiet --no-tags >/dev/null 2>&1 </dev/null &&
+      : > "$STAMP" 2>/dev/null & )
   fi
 fi
-
-# Age of the last fetch, so a "0 behind" line is never mistaken for "up to
-# date". A *failed* fetch truncates FETCH_HEAD to zero bytes rather than
-# leaving it alone, so `-s` is what separates "fetched" from "tried and
-# couldn't" - and reporting the latter as no fetch at all errs toward "you may
-# be stale", which is the safe direction here. `stat` spells mtime differently
-# on BSD (`-f %m`) and GNU (`-c %Y`), and the two are not safely ordered by
-# exit status: GNU's `-f` means "filesystem status", so `stat -f %m` *succeeds*
-# on Linux and prints the mount point. Hence trying one and re-trying on
-# anything that is not an epoch, rather than on failure.
-fetch_age() {
-  local head mtime secs
-  head="$(git -C "$ROOT" rev-parse --absolute-git-dir 2>/dev/null)/FETCH_HEAD"
-  mtime=""
-  if [ -s "$head" ]; then
-    mtime="$(stat -c %Y "$head" 2>/dev/null)"
-    case "$mtime" in
-      ''|*[!0-9]*) mtime="$(stat -f %m "$head" 2>/dev/null)" ;;
-    esac
-  fi
-  case "$mtime" in
-    ''|*[!0-9]*) printf 'no successful fetch on record'; return ;;
-  esac
-  secs=$(( $(date +%s) - mtime ))
-  printf 'last fetch: '
-  if [ "$secs" -lt 120 ]; then printf 'just now'
-  elif [ "$secs" -lt 7200 ]; then printf '%sm ago' "$(( secs / 60 ))"
-  elif [ "$secs" -lt 172800 ]; then printf '%sh ago' "$(( secs / 3600 ))"
-  else printf '%sd ago' "$(( secs / 86400 ))"
-  fi
-}
 
 printf 'Repository state (%s):\n' "$(basename "$ROOT")"
 printf -- '- Branch: %s\n' "$BRANCH"
@@ -98,7 +112,7 @@ if [ -n "$UPSTREAM" ]; then
   AHEAD="${COUNTS##*	}"
   if [ -n "$COUNTS" ]; then
     printf -- '- %s ahead, %s behind %s (%s)\n' \
-      "$AHEAD" "$BEHIND" "$UPSTREAM" "$(fetch_age)"
+      "$AHEAD" "$BEHIND" "$UPSTREAM" "$FETCH_AGE"
   fi
 fi
 
