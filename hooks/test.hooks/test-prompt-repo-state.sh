@@ -14,11 +14,15 @@ CACHE_DIR="$TMP/cache"
 FAKE_BIN="$TMP/bin"
 mkdir -p "$CACHE_DIR" "$FAKE_BIN"
 
-# A `gh` that reports one open PR, and one that fails the way an unauthenticated
-# or offline `gh` does. The hook must survive both.
+# A `gh` that reports one open PR and a red `main`, and one that fails the way
+# an unauthenticated or offline `gh` does. The hook must survive both. Each
+# subcommand emits the line the real `--jq` template would have produced.
 cat > "$FAKE_BIN/gh" <<'EOF'
 #!/bin/bash
-echo "- Open PR #123: Sample title (https://example.test/pr/123)"
+case "$1 $2" in
+  "pr list") echo "- Open PR #123: Sample title (https://example.test/pr/123)" ;;
+  "run list") echo "- main CI: failure (Tests)" ;;
+esac
 EOF
 chmod +x "$FAKE_BIN/gh"
 
@@ -105,6 +109,7 @@ expect_contains "reports a clean tree" "- Working tree clean"
 expect_contains "reports recent commits" "extend readme"
 expect_contains "reports the older commit too" "add readme"
 expect_contains "reports the open PR" "Open PR #123"
+expect_contains "reports main's CI status" "- main CI: failure (Tests)"
 
 echo "dirty" >> "$REPO/README.md"
 : > "$REPO/untracked.txt"
@@ -127,13 +132,73 @@ expect_contains "cached PR line survives" "Open PR #123"
 cp "$TMP/gh-broken" "$FAKE_BIN/gh"
 run "$REPO"
 expect_contains "broken gh reuses the cache" "Open PR #123"
+expect_contains "cached CI line survives too" "main CI: failure"
 expect_exit_zero "broken gh still exits zero"
 
 rm -rf "${CACHE_DIR:?}"/*
 run "$REPO"
 expect_exit_zero "broken gh with a cold cache exits zero"
 expect_contains "broken gh reports no open PR" "No open PR for this branch"
+expect_missing "broken gh reports no CI line" "main CI"
 expect_contains "broken gh still reports the branch" "- Branch: main"
+
+# Upstream drift and fetch freshness need a remote. `push -u` sets the upstream
+# without writing FETCH_HEAD, so the first look is a genuine "never fetched".
+REMOTE="$TMP/remote.git"
+git init -q --bare -b main "$REMOTE" 2>/dev/null
+git -C "$REPO" remote add origin "$REMOTE"
+git -C "$REPO" push -q -u origin main
+
+# FETCH_MINUTES=0 disables the background fetch, so these read a fixed state.
+rm -f "$REPO/.git/FETCH_HEAD"
+run "$REPO" SHANKS_PROMPT_STATE_FETCH_MINUTES=0
+expect_contains "reports zero drift instead of staying silent" \
+  "- 0 ahead, 0 behind origin/main"
+expect_contains "reports a never-fetched checkout" \
+  "(no successful fetch on record)"
+
+git -C "$REPO" fetch -q origin
+run "$REPO" SHANKS_PROMPT_STATE_FETCH_MINUTES=0
+expect_contains "reports a fresh fetch age" "(last fetch: just now)"
+
+# A failed fetch truncates FETCH_HEAD, which must not read as a fresh fetch.
+: > "$REPO/.git/FETCH_HEAD"
+run "$REPO" SHANKS_PROMPT_STATE_FETCH_MINUTES=0
+expect_contains "a failed fetch is not reported as fresh" \
+  "(no successful fetch on record)"
+git -C "$REPO" fetch -q origin
+
+echo "three" >> "$REPO/README.md"
+git -C "$REPO" add README.md
+git -C "$REPO" commit -qm "third commit"
+run "$REPO" SHANKS_PROMPT_STATE_FETCH_MINUTES=0
+expect_contains "reports the ahead count" "- 1 ahead, 0 behind origin/main"
+
+# The background fetch itself: it must refresh FETCH_HEAD without the hook
+# waiting on it, and must not run again inside the debounce window.
+rm -rf "${CACHE_DIR:?}"/*
+rm -f "$REPO/.git/FETCH_HEAD"
+run "$REPO"
+expect_exit_zero "background fetch still exits zero"
+i=0
+while [ ! -f "$REPO/.git/FETCH_HEAD" ] && [ "$i" -lt 100 ]; do
+  sleep 0.1
+  i=$((i + 1))
+done
+if [ -f "$REPO/.git/FETCH_HEAD" ]; then
+  record yes "background fetch refreshes FETCH_HEAD"
+else
+  record no "background fetch refreshes FETCH_HEAD"
+fi
+
+rm -f "$REPO/.git/FETCH_HEAD"
+run "$REPO"
+sleep 0.5
+if [ -f "$REPO/.git/FETCH_HEAD" ]; then
+  record no "debounce skips the second fetch"
+else
+  record yes "debounce skips the second fetch"
+fi
 
 run "$PLAIN"
 expect_exit_zero "non-repository directory exits zero"

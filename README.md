@@ -414,10 +414,14 @@ CLI throughout the agent workflow.
   `hooks/test.hooks/test-secret-scan.sh` to test it.
 - **Session context hook:** `hooks/prompt-repo-state.sh` runs on
   `UserPromptSubmit` and prints the repository's current state - branch,
-  ahead/behind its upstream as of the last fetch, uncommitted changes, recent
-  commits, and any open PR for the branch - which Claude Code adds to that
-  turn's context. Only the `gh pr list` call touches the network, and it is
-  cached per branch for five minutes; the test suite is deliberately excluded.
+  ahead/behind its upstream with the age of the last successful fetch,
+  uncommitted changes, recent commits, any open PR for the branch, and the
+  conclusion of `main`'s latest CI run - which Claude Code adds to that turn's
+  context. The two `gh` calls are the only foreground network work and are
+  cached per branch for five minutes; a debounced `git fetch` runs detached in
+  the background (at most every five minutes,
+  `SHANKS_PROMPT_STATE_FETCH_MINUTES=0` disables it) so the counts stay honest
+  without the prompt waiting. The test suite is deliberately excluded.
   It never blocks: every path exits 0, because a non-zero `UserPromptSubmit`
   hook would reject the prompt. Run
   `hooks/test.hooks/test-prompt-repo-state.sh` to test it.
