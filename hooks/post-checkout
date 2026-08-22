@@ -4,4 +4,7 @@
 # when the tree didn't actually change (e.g. `checkout -b` off the current
 # commit) so a fresh branch doesn't trigger a redundant rescan.
 [ "$1" != "$2" ] || exit 0
-exec "$(dirname "$0")/post-merge"
+# `${0%/*}` rather than `$(dirname "$0")`: a Git hook inherits whatever PATH
+# invoked git, which need not contain coreutils - a runner whose git lives in
+# /usr/local/bin has no `dirname` there, and this exec died with 126.
+exec "${0%/*}/post-merge"

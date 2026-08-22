@@ -3,8 +3,11 @@
 This document summarizes the behavior covered by the repository's tracked test
 files. The Python suite contains **223 unittest methods** across twelve
 modules; every `hooks/test.hooks/test-*.sh` file is a separate shell
-regression harness, run in CI alongside the Python suite (see
-[`.github/workflows/tests.yml`](../.github/workflows/tests.yml)). The harness
+regression harness, run in CI alongside the Python suite on both
+`ubuntu-latest` and `macos-latest` (see
+[`.github/workflows/tests.yml`](../.github/workflows/tests.yml)) - the
+harnesses lean on tools that differ between BSD and GNU userland, and
+`test_sandbox_claude.py` skips itself off macOS entirely. The harness
 rows in the table below are the list this suite iterates, so
 `test_every_shell_harness_is_documented_and_run_in_ci` asserts they cover the
 directory exactly and that CI runs each one.
@@ -62,7 +65,7 @@ Run the repository quality gates from a feature branch with:
 | [`../hooks/test.hooks/test-pre-push.sh`](../hooks/test.hooks/test-pre-push.sh) | 3 shell checks | `pre-push` gates on quality-gate exit status and fails open when the venv Python is missing |
 | [`../hooks/test.hooks/test-run-impacted-tests.sh`](../hooks/test.hooks/test-run-impacted-tests.sh) | 16 shell checks | Scoped test-module and shell-harness resolution against the touched file's own Git tree, pass/fail feedback, and silent skip on no match, non-Python files, a missing interpreter, extensionless Git hooks, and shell files outside `hooks/` |
 | [`../hooks/test.hooks/test-format-touched.sh`](../hooks/test.hooks/test-format-touched.sh) | 10 shell checks | Black reformat reporting, ruff and mypy failure feedback, `[tool.mypy] files` gating of the mypy run resolved against the touched file's own Git tree, and silent skip on non-Python files, files outside the project, missing files, and a missing interpreter |
-| [`../hooks/test.hooks/test-post-merge-checkout.sh`](../hooks/test.hooks/test-post-merge-checkout.sh) | 3 shell checks | `post-checkout`'s same-SHA no-op skip and different-SHA `graphify update` trigger, and `post-merge`'s no-op fallback when `graphify` isn't on PATH |
+| [`../hooks/test.hooks/test-post-merge-checkout.sh`](../hooks/test.hooks/test-post-merge-checkout.sh) | 3 shell checks | `post-checkout`'s same-SHA no-op skip and different-SHA `graphify update` trigger, and `post-merge`'s no-op fallback when `graphify` isn't on PATH - all three under a PATH holding git and nothing else, so a hook that shells out to coreutils fails here rather than on whichever platform ships git outside `/usr/bin` |
 | [`../hooks/test.hooks/test-prompt-repo-state.sh`](../hooks/test.hooks/test-prompt-repo-state.sh) | 41 shell checks | `UserPromptSubmit` repository-state injection: branch, upstream drift (printed even at zero, with the last successful fetch's age under both BSD and GNU `stat`, and the truncated-`FETCH_HEAD` case), the no-upstream substitute (commits ahead of `origin/main`, at zero and non-zero, and its degraded form in a remoteless checkout), the debounced background fetch, its skip inside the debounce window, and the in-flight-fetch cases that must not read as never-fetched, uncommitted changes (with truncation), recent commits, and the cached open-PR and `main`-CI lines, plus the fail-open paths - non-repository directory, missing `git`, broken `gh`, and detached HEAD - each of which must still exit zero |
 
 ### CLI diagnostics

@@ -2,24 +2,7 @@ Shanks feature roadmap
 
 Priority 1 - Reliability and contributor experience
 
-1- Run the test workflow on macOS as well as Linux.
-   `.github/workflows/tests.yml` is `runs-on: ubuntu-latest` only, and it runs
-   all eight `hooks/test.hooks/*.sh` harnesses - so every hook, this repo's
-   whole guardrail layer, is exercised on exactly one platform while the only
-   development machine is the other one. #106 shipped a Linux-only bug for that
-   reason: `stat -f %m` reads mtime on BSD but means "filesystem status" on GNU,
-   where it *succeeds* and prints a mount point, so the fallback never fired and
-   every fetch age on Linux read as "no successful fetch on record". It passed
-   locally on macOS and was caught only because CI happened to be the opposite
-   platform; a macOS-only regression has nothing watching it at all. Shape: a
-   `runs-on: ${{ matrix.os }}` matrix over `ubuntu-latest` and `macos-latest`.
-   The gitleaks install step is the only Linux-specific piece (`linux_x64`
-   asset name, `sha256sum` where macOS has `shasum -a 256`), so it needs an OS
-   branch or `brew install gitleaks`. Keep the matrix to this workflow -
-   `agent-smoke-tests.yml` burns real agent time, and macOS runners bill at a
-   multiple of Linux ones.
-
-2- Consolidate the three skill trees, then guard them.
+1- Consolidate the three skill trees, then guard them.
    Promoted from Suggestions after a live near-miss: editing
    `github-commit-pr/SKILL.md` this session meant hand-writing the same change
    into `.claude/skills/`, `.agents/skills/`, and `skills/`, and one of the
@@ -38,7 +21,7 @@ Priority 1 - Reliability and contributor experience
    that test would catch file drift, not the session-cache trap in the
    Suggestions bullet below - the two are separate failures.
 
-3- Guard README's command table against the CLI parser.
+2- Guard README's command table against the CLI parser.
    `./shanks dev worktree` shipped and stayed missing from README's `Commands`
    table until #103 added the row by hand - `git log -S` confirms the table
    never mentioned it before then - and `dev sync` would have been the second

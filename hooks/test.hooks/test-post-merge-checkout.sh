@@ -19,7 +19,14 @@ chmod +x "$TMP/bin/graphify"
 GRAPHIFY_LOG="$TMP/graphify.log"
 export GRAPHIFY_LOG
 
-GIT_ONLY_PATH="$(dirname "$(command -v git)")"
+# A PATH holding git and nothing else, symlinked rather than "whatever
+# directory git happens to live in": where git sits in /usr/bin that directory
+# smuggles in all of coreutils, so a hook shelling out to `dirname` passes here
+# and dies on a runner whose git is in /usr/local/bin. That is exactly how
+# post-checkout's `dirname` call survived to CI.
+mkdir -p "$TMP/gitonly"
+ln -s "$(command -v git)" "$TMP/gitonly/git"
+GIT_ONLY_PATH="$TMP/gitonly"
 WITH_GRAPHIFY_PATH="$TMP/bin:$GIT_ONLY_PATH"
 
 passed=0
