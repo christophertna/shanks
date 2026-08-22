@@ -2,24 +2,28 @@ Shanks feature roadmap
 
 Priority 1 - Reliability and contributor experience
 
-1- Consolidate the three skill trees, then guard them.
-   Promoted from Suggestions after a live near-miss: editing
-   `github-commit-pr/SKILL.md` this session meant hand-writing the same change
-   into `.claude/skills/`, `.agents/skills/`, and `skills/`, and one of the
-   three writes silently did not apply - caught only because the edit script
-   asserted on its own match count. That is precisely the "an edit lands in the
-   wrong copy and gets lost" condition the old suggestion named as its trigger.
-   Note the order matters: a strict identity test fails on day one, because the
-   copies have already drifted. Verified inventory: `.claude/` is missing
-   `decisions/agents/openai.yaml`; `skills/` is missing `grill-with-docs/` and
-   `ponytail/` entirely; `.agents/` alone carries `domain-modeling/` and
-   `grilling/` and is missing `roadmap-review/agents/openai.yaml`. So this is
-   consolidate first - one canonical tree with the other two as symlinks,
-   resolving each existing difference deliberately - and only then a test
-   asserting they agree. CLAUDE.md's "check which copy is canonical before
-   editing one" rule can be deleted once there is a canonical copy. Scope note:
-   that test would catch file drift, not the session-cache trap in the
-   Suggestions bullet below - the two are separate failures.
+1- Decide whether to flip the canonical skill tree to `.agents/`.
+   Blocked on a decision, not on work, and the work it originally asked for is
+   now proven harmful. Codex does not resolve a symlinked `SKILL.md`: with
+   `.agents/skills/<name>/SKILL.md` as a real file the skill appears in
+   `codex debug prompt-input`, and as a symlink it vanishes - reproduced 4/4
+   alternating rounds on codex-cli 0.148.0, with `test -f` confirming the link
+   resolved every time. So "convert `.agents/`'s real files to symlinks", which
+   was this item's core action, would silently remove every skill from Codex.
+   Claude Code has the opposite behavior (`.claude/skills/github-commit-pr/
+   SKILL.md` is a symlink and loads fine), so the two agents cannot share one
+   mechanism.
+   That constraint caps the payoff. `.agents/` must hold a real file for every
+   skill Codex uses, so no arrangement gets below one real copy there, and
+   today's second real copy lives in `skills/`. The only end state with exactly
+   one real file per skill is to make `.agents/` canonical and symlink
+   `.claude/` into it - which is what #114 did for `domain-modeling` - leaving
+   `skills/` redundant and up for deletion. That trades a tracked "shared
+   sources" tree, which `scripts/ralph/ralph.sh` still searches and README still
+   documents, for removing a duplicate the drift guard
+   (`test_skills_shared_between_trees_have_identical_content`) already makes
+   safe. Worth doing only if the duplication actually bites again; the guard
+   means a missed write now fails the suite rather than shipping.
 
 Suggestions
 
