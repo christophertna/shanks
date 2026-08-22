@@ -161,6 +161,26 @@ git -C "$REPO" fetch -q origin
 run "$REPO" SHANKS_PROMPT_STATE_FETCH_MINUTES=0
 expect_contains "reports a fresh fetch age" "(last fetch: just now)"
 
+# Both `stat` spellings, pinned on whichever platform this runs on: only one of
+# them is exercised for real here, and the GNU one is a trap - `stat -f` there
+# means "filesystem status" and succeeds, printing a mount point instead of
+# failing the way BSD-first fallback ordering assumes.
+NOW="$(date +%s)"
+for flavor in gnu bsd; do
+  mkdir -p "$TMP/stat-$flavor"
+  if [ "$flavor" = gnu ]; then
+    printf '#!/bin/bash\ncase "$1" in\n  -c) echo %s ;;\n  -f) echo / ;;\nesac\n' \
+      "$NOW" > "$TMP/stat-$flavor/stat"
+  else
+    printf '#!/bin/bash\ncase "$1" in\n  -c) exit 1 ;;\n  -f) echo %s ;;\nesac\n' \
+      "$NOW" > "$TMP/stat-$flavor/stat"
+  fi
+  chmod +x "$TMP/stat-$flavor/stat"
+  run "$REPO" SHANKS_PROMPT_STATE_FETCH_MINUTES=0 \
+    PATH="$TMP/stat-$flavor:$FAKE_BIN:$PATH"
+  expect_contains "reads the fetch age with $flavor stat" "(last fetch: just now)"
+done
+
 # A failed fetch truncates FETCH_HEAD, which must not read as a fresh fetch.
 : > "$REPO/.git/FETCH_HEAD"
 run "$REPO" SHANKS_PROMPT_STATE_FETCH_MINUTES=0

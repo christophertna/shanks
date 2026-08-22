@@ -58,13 +58,20 @@ fi
 # leaving it alone, so `-s` is what separates "fetched" from "tried and
 # couldn't" - and reporting the latter as no fetch at all errs toward "you may
 # be stale", which is the safe direction here. `stat` spells mtime differently
-# on BSD and GNU; try both rather than parse `ls`.
+# on BSD (`-f %m`) and GNU (`-c %Y`), and the two are not safely ordered by
+# exit status: GNU's `-f` means "filesystem status", so `stat -f %m` *succeeds*
+# on Linux and prints the mount point. Hence trying one and re-trying on
+# anything that is not an epoch, rather than on failure.
 fetch_age() {
   local head mtime secs
   head="$(git -C "$ROOT" rev-parse --absolute-git-dir 2>/dev/null)/FETCH_HEAD"
   mtime=""
-  [ -s "$head" ] &&
-    mtime="$(stat -f %m "$head" 2>/dev/null || stat -c %Y "$head" 2>/dev/null)"
+  if [ -s "$head" ]; then
+    mtime="$(stat -c %Y "$head" 2>/dev/null)"
+    case "$mtime" in
+      ''|*[!0-9]*) mtime="$(stat -f %m "$head" 2>/dev/null)" ;;
+    esac
+  fi
   case "$mtime" in
     ''|*[!0-9]*) printf 'no successful fetch on record'; return ;;
   esac
