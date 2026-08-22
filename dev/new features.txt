@@ -2,20 +2,40 @@ Shanks feature roadmap
 
 Priority 1 - Reliability and contributor experience
 
-1- `./shanks doctor`: fail when `core.bare` is true.
-   Live incident this session: `core.bare` was set to `true` on this checkout
-   and every Git command died with `fatal: this operation must be run in a work
-   tree` - `status`, `worktree list`, `rev-parse`, all of it - with nothing
-   naming the cause. The working tree, index, and HEAD were intact; `git config
-   core.bare false` restored everything. The cause was never identified, so
-   this is detection rather than prevention, and detection is nearly free:
-   `_check_hooks_path()` (`workflow/cli.py`) is the template - one `git config
-   --get core.bare` read, a failing `DoctorCheck` naming the repair command,
-   and a test beside the existing `core.hooksPath` ones. Note doctor itself has
-   to keep working in that state, which it does: `git config --get` is one of
-   the few commands a bare-flagged repository still answers.
+1- Run the test workflow on macOS as well as Linux.
+   `.github/workflows/tests.yml` is `runs-on: ubuntu-latest` only, and it runs
+   all eight `hooks/test.hooks/*.sh` harnesses - so every hook, this repo's
+   whole guardrail layer, is exercised on exactly one platform while the only
+   development machine is the other one. #106 shipped a Linux-only bug for that
+   reason: `stat -f %m` reads mtime on BSD but means "filesystem status" on GNU,
+   where it *succeeds* and prints a mount point, so the fallback never fired and
+   every fetch age on Linux read as "no successful fetch on record". It passed
+   locally on macOS and was caught only because CI happened to be the opposite
+   platform; a macOS-only regression has nothing watching it at all. Shape: a
+   `runs-on: ${{ matrix.os }}` matrix over `ubuntu-latest` and `macos-latest`.
+   The gitleaks install step is the only Linux-specific piece (`linux_x64`
+   asset name, `sha256sum` where macOS has `shasum -a 256`), so it needs an OS
+   branch or `brew install gitleaks`. Keep the matrix to this workflow -
+   `agent-smoke-tests.yml` burns real agent time, and macOS runners bill at a
+   multiple of Linux ones.
 
-2- Guard README's command table against the CLI parser.
+2- Consolidate the three skill trees, then guard them.
+   Promoted from Suggestions after a live near-miss: editing
+   `github-commit-pr/SKILL.md` this session meant hand-writing the same change
+   into `.claude/skills/`, `.agents/skills/`, and `skills/`, and one of the
+   three writes silently did not apply - caught only because the edit script
+   asserted on its own match count. That is precisely the "an edit lands in the
+   wrong copy and gets lost" condition the old suggestion named as its trigger.
+   Note the order matters: a strict identity test fails on day one, because the
+   copies have already drifted (`roadmap-review/agents/openai.yaml` only under
+   `.claude/`, `decisions/agents/` missing there, `domain-modeling` and
+   `grilling` only under `.agents/`). So this is consolidate first - one
+   canonical tree with the other two as symlinks, resolving each existing
+   difference deliberately - and only then a test asserting they agree.
+   CLAUDE.md's "check which copy is canonical before editing one" rule can be
+   deleted once there is a canonical copy.
+
+3- Guard README's command table against the CLI parser.
    `./shanks dev worktree` shipped and stayed missing from README's `Commands`
    table until #103 added the row by hand - `git log -S` confirms the table
    never mentioned it before then - and `dev sync` would have been the second
@@ -31,21 +51,24 @@ Priority 1 - Reliability and contributor experience
 
 Suggestions
 
+- `hooks/prompt-repo-state.sh`'s background-fetch debounce marker is keyed by
+  the worktree root (`REPO_KEY`), so every worktree of one checkout keeps its
+  own five-minute timer and fetches the same remote independently - N worktrees
+  means N fetches per window. Keying it by `git rev-parse --git-common-dir`
+  instead would share one fetch across a checkout and its worktrees. Harmless
+  today (a fetch is cheap and they are backgrounded), worth doing if a session
+  ever runs many worktrees at once.
+- `hooks/prompt-repo-state.sh` hardcodes `gh run list --branch main`, so the CI
+  line reports nothing on a fork or on any repository whose default branch is
+  not `main`. `gh repo view --json defaultBranchRef` (inside the same per-branch
+  cache) or `git symbolic-ref refs/remotes/origin/HEAD` would resolve it; not
+  worth the extra call while this repo is the only consumer.
 - `sync_local_guardrails()` copies `.claude/skills/` over a worktree's copy but
   never prunes it, so a skill deleted or renamed in the project lingers there
   until the tree is recreated (carries a `ponytail:` comment naming the
   ceiling). A stale extra skill is a much smaller problem than a missing one,
   which is why the copy is one-way; switch to a mirroring copy only if a
   removed skill ever actually misleads an agent in a worktree.
-- Skills are triplicated across `.claude/skills/`, `.agents/skills/`, and
-  top-level `skills/`, and the copies have already drifted:
-  `roadmap-review/agents/openai.yaml` exists only under `.claude/`,
-  `decisions/agents/` is missing there but present in the other two, and
-  `.agents/` alone carries `domain-modeling` and `grilling`. CLAUDE.md's
-  "check which copy is canonical before editing one" rule exists only because
-  nothing enforces one. No runtime impact today - each tool reads its own
-  path - so this is consolidation (one canonical tree plus symlinks, or a
-  drift test), worth doing when an edit lands in the wrong copy and gets lost.
 - `_reconcile_recovered_state`'s `_RECONCILE_TIMEOUT_SECONDS = 15`
   (`workflow/nodes.py`) and `RunWorkspaceManager`'s Git subprocesses
   (`workflow/workspaces.py`) are the two external subprocess paths still on a
