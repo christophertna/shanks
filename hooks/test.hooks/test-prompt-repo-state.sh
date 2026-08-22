@@ -206,6 +206,33 @@ git -C "$UP" commit -qm "second commit"
 run "$UP" SHANKS_PROMPT_STATE_FETCH_MINUTES=0
 expect_contains "reports the ahead count" "- 1 ahead, 0 behind origin/main"
 
+# A branch that was never pushed has no upstream, so the block above prints
+# nothing - which is how the branch carrying #107's only copy was mistaken for
+# a stale leftover. The count against `origin/main` is what separates unpushed
+# work from a branch with genuinely nothing on it.
+# `--no-track` because branching off a remote-tracking ref sets an upstream by
+# default, which is the case these two are specifically not about.
+git -C "$UP" checkout -q --no-track -b unpushed origin/main
+echo "three" >> "$UP/README.md"
+git -C "$UP" add README.md
+git -C "$UP" commit -qm "unpushed work"
+run "$UP" SHANKS_PROMPT_STATE_FETCH_MINUTES=0
+expect_contains "reports unpushed work on a branch with no upstream" \
+  "- No upstream; 1 ahead of origin/main"
+
+git -C "$UP" checkout -q --no-track -b nothing-here origin/main
+run "$UP" SHANKS_PROMPT_STATE_FETCH_MINUTES=0
+expect_contains "a never-pushed branch with nothing on it says so" \
+  "- No upstream; 0 ahead of origin/main"
+
+# No remote at all: `origin/main` does not resolve, so the count is impossible
+# and the line has to degrade rather than vanish.
+run "$REPO" SHANKS_PROMPT_STATE_FETCH_MINUTES=0
+expect_contains "a remoteless checkout still reports having no upstream" \
+  "- No upstream branch (never pushed)"
+
+git -C "$UP" checkout -q main
+
 # The background fetch itself: it must refresh FETCH_HEAD without the hook
 # waiting on it, and must not run again inside the debounce window.
 rm -f "$UP/.git/FETCH_HEAD"
