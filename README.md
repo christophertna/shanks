@@ -414,7 +414,9 @@ CLI throughout the agent workflow.
   `hooks/test.hooks/test-secret-scan.sh` to test it.
 - **Session context hook:** `hooks/prompt-repo-state.sh` runs on
   `UserPromptSubmit` and prints the repository's current state - branch,
-  ahead/behind its upstream with the age of the last successful fetch,
+  ahead/behind its upstream with the age of the last successful fetch (or, on
+  a branch with no upstream, how far ahead of `origin/main` it is, so unpushed
+  work is not mistaken for an empty branch),
   uncommitted changes, recent commits, any open PR for the branch, and the
   conclusion of `main`'s latest CI run - which Claude Code adds to that turn's
   context. The two `gh` calls are the only foreground network work and are

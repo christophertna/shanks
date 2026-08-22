@@ -27,13 +27,16 @@ Priority 1 - Reliability and contributor experience
    asserted on its own match count. That is precisely the "an edit lands in the
    wrong copy and gets lost" condition the old suggestion named as its trigger.
    Note the order matters: a strict identity test fails on day one, because the
-   copies have already drifted (`roadmap-review/agents/openai.yaml` only under
-   `.claude/`, `decisions/agents/` missing there, `domain-modeling` and
-   `grilling` only under `.agents/`). So this is consolidate first - one
-   canonical tree with the other two as symlinks, resolving each existing
-   difference deliberately - and only then a test asserting they agree.
-   CLAUDE.md's "check which copy is canonical before editing one" rule can be
-   deleted once there is a canonical copy.
+   copies have already drifted. Verified inventory: `.claude/` is missing
+   `decisions/agents/openai.yaml`; `skills/` is missing `grill-with-docs/` and
+   `ponytail/` entirely; `.agents/` alone carries `domain-modeling/` and
+   `grilling/` and is missing `roadmap-review/agents/openai.yaml`. So this is
+   consolidate first - one canonical tree with the other two as symlinks,
+   resolving each existing difference deliberately - and only then a test
+   asserting they agree. CLAUDE.md's "check which copy is canonical before
+   editing one" rule can be deleted once there is a canonical copy. Scope note:
+   that test would catch file drift, not the session-cache trap in the
+   Suggestions bullet below - the two are separate failures.
 
 3- Guard README's command table against the CLI parser.
    `./shanks dev worktree` shipped and stayed missing from README's `Commands`
@@ -51,6 +54,14 @@ Priority 1 - Reliability and contributor experience
 
 Suggestions
 
+- A running session serves the SKILL.md it loaded, not the file on disk:
+  invoking `/github-commit-pr` this session returned text without the
+  `gh pr checks` paragraph, while all three on-disk copies contain it and are
+  byte-identical. So editing a skill mid-session leaves the old behavior in
+  play until a restart, and no drift test can see it - it is a load-time cache,
+  not a file difference. Cheapest mitigation is a line in CLAUDE.md (restart
+  after editing a SKILL.md you intend to use in the same session) rather than
+  any code; revisit if a stale skill ever actually changes an outcome.
 - `hooks/prompt-repo-state.sh`'s background-fetch debounce marker is keyed by
   the worktree root (`REPO_KEY`), so every worktree of one checkout keeps its
   own five-minute timer and fetches the same remote independently - N worktrees

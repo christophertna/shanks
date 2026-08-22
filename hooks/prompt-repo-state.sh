@@ -114,6 +114,19 @@ if [ -n "$UPSTREAM" ]; then
     printf -- '- %s ahead, %s behind %s (%s)\n' \
       "$AHEAD" "$BEHIND" "$UPSTREAM" "$FETCH_AGE"
   fi
+else
+  # A never-pushed branch has no upstream, so the block above printed nothing
+  # at all - indistinguishable from a branch with nothing on it. That is how a
+  # branch holding the only copy of real work gets read as a stale leftover and
+  # deleted. Count against `origin/main` instead, which separates the two: a
+  # non-zero count is unpushed work, a zero is genuinely nothing to lose.
+  AHEAD="$(git -C "$ROOT" rev-list --count origin/main..HEAD 2>/dev/null)"
+  if [ -n "$AHEAD" ]; then
+    printf -- '- No upstream; %s ahead of origin/main (%s)\n' \
+      "$AHEAD" "$FETCH_AGE"
+  else
+    printf -- '- No upstream branch (never pushed)\n'
+  fi
 fi
 
 DIRTY="$(git -C "$ROOT" status --porcelain 2>/dev/null)"
