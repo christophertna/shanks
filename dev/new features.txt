@@ -21,20 +21,6 @@ Priority 1 - Reliability and contributor experience
    that test would catch file drift, not the session-cache trap in the
    Suggestions bullet below - the two are separate failures.
 
-2- Guard README's command table against the CLI parser.
-   `./shanks dev worktree` shipped and stayed missing from README's `Commands`
-   table until #103 added the row by hand - `git log -S` confirms the table
-   never mentioned it before then - and `dev sync` would have been the second
-   miss the same day. Nothing ties the table to `_build_parser()`
-   (`workflow/cli.py`), even though this repo already runs the identical guard
-   shape twice: `tests/tests.md`'s counts and
-   `test_every_shell_harness_is_documented_and_run_in_ci`
-   (`tests/test_cli.py`). Shape: walk the parser's subparsers (including the
-   `dev` and `runs` sub-subparsers) and assert each `./shanks <command>`
-   appears in `README.md`. The ceiling is presence, not accuracy - a stale
-   description still passes - which is the same ceiling the harness guard
-   accepts.
-
 Suggestions
 
 - Lesson from the `hooks/post-checkout` bug #110 caught: a fixture PATH derived
