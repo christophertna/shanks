@@ -1,7 +1,14 @@
 name: Tests
 
 on:
+  # `push` is filtered to `main` so a branch with an open PR does not run this
+  # workflow twice for one push - an unfiltered `push` plus `pull_request` fires
+  # both, which cost four jobs per push once the macOS half of the matrix landed.
+  # `main` still gets covered here (that is where merges land), every PR branch
+  # by `pull_request`. The trade is no CI on a branch pushed without a PR.
   push:
+    branches:
+      - main
   pull_request:
     branches:
       - main
