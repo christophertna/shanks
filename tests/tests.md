@@ -3,8 +3,11 @@
 This document summarizes the behavior covered by the repository's tracked test
 files. The Python suite contains **223 unittest methods** across twelve
 modules; every `hooks/test.hooks/test-*.sh` file is a separate shell
-regression harness, run in CI alongside the Python suite (see
-[`.github/workflows/tests.yml`](../.github/workflows/tests.yml)). The harness
+regression harness, run in CI alongside the Python suite on both
+`ubuntu-latest` and `macos-latest` (see
+[`.github/workflows/tests.yml`](../.github/workflows/tests.yml)) - the
+harnesses lean on tools that differ between BSD and GNU userland, and
+`test_sandbox_claude.py` skips itself off macOS entirely. The harness
 rows in the table below are the list this suite iterates, so
 `test_every_shell_harness_is_documented_and_run_in_ci` asserts they cover the
 directory exactly and that CI runs each one.

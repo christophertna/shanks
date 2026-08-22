@@ -67,7 +67,10 @@ and its recovery paths, with semantic node colors and a legend for every node ty
   `hooks/test.hooks/` guard harnesses (every `test-*.sh` there, kept in sync
   with `tests/tests.md` and this workflow by
   `test_every_shell_harness_is_documented_and_run_in_ci`)
-  on pushes and pull requests.
+  on pushes and pull requests, on both `ubuntu-latest` and `macos-latest`
+  (`fail-fast: false`) - the guard layer is shell, so it has to be proven
+  against both BSD and GNU userland. The quality gates run on Linux only;
+  they are pure Python, and macOS runner minutes bill at a multiple.
 - `.github/workflows/agent-smoke-tests.yml` is an opt-in, manually-triggered
   (`workflow_dispatch`) job that runs `tests/test_agent_integration.py` against
   the real `claude`/`codex` CLIs. It needs the `ANTHROPIC_API_KEY` and

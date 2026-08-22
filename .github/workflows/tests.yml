@@ -11,7 +11,20 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # Both platforms, because the guardrail layer is shell: the eight
+    # `hooks/test.hooks/*.sh` harnesses lean on tools that differ between BSD
+    # and GNU userland, and #106 shipped a Linux-only `stat` bug that passed
+    # locally on macOS and was caught only because CI happened to be the other
+    # platform. A macOS-only regression had nothing watching it at all - and
+    # `tests/test_sandbox_claude.py` skips itself off macOS, so its four
+    # containment checks never ran in CI before this.
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # One platform failing must not cancel the other: which platforms fail is
+      # the whole diagnostic here.
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -35,11 +48,24 @@ jobs:
           GITLEAKS_VERSION: 8.18.4
         run: |
           set -euo pipefail
-          asset="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          # Pinned and checksum-verified on both platforms rather than
+          # `brew install` on macOS: `workflow/cli.py`'s `_MIN_TOOL_VERSIONS`
+          # floor tracks this single version, and
+          # `test_doctor_gitleaks_floor_matches_the_ci_pin` reads it back out
+          # of this file expecting exactly one pin.
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            asset="gitleaks_${GITLEAKS_VERSION}_darwin_arm64.tar.gz"
+            verify="shasum -a 256 -c -"
+          else
+            asset="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+            verify="sha256sum -c -"
+          fi
           base_url="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
           curl -sSL -o "$asset" "${base_url}/${asset}"
           curl -sSL -o checksums.txt "${base_url}/gitleaks_${GITLEAKS_VERSION}_checksums.txt"
-          grep " ${asset}\$" checksums.txt | sha256sum -c -
+          grep " ${asset}\$" checksums.txt | $verify
+          # /usr/local/bin is not guaranteed to exist on the arm64 macOS runner.
+          sudo mkdir -p /usr/local/bin
           sudo tar -xz -C /usr/local/bin -f "$asset" gitleaks
           gitleaks version
 
@@ -58,4 +84,8 @@ jobs:
           bash hooks/test.hooks/test-prompt-repo-state.sh
 
       - name: Run quality gates
+        # Linux only: black/ruff/mypy/pip-audit are pure Python with nothing
+        # platform-dependent to catch, and macOS runner minutes bill at a
+        # multiple of Linux ones.
+        if: runner.os == 'Linux'
         run: python scripts/quality_gates.py --diff-base origin/main
