@@ -2,28 +2,7 @@ Shanks feature roadmap
 
 Priority 1 - Reliability and contributor experience
 
-1- Decide whether to flip the canonical skill tree to `.agents/`.
-   Blocked on a decision, not on work, and the work it originally asked for is
-   now proven harmful. Codex does not resolve a symlinked `SKILL.md`: with
-   `.agents/skills/<name>/SKILL.md` as a real file the skill appears in
-   `codex debug prompt-input`, and as a symlink it vanishes - reproduced 4/4
-   alternating rounds on codex-cli 0.148.0, with `test -f` confirming the link
-   resolved every time. So "convert `.agents/`'s real files to symlinks", which
-   was this item's core action, would silently remove every skill from Codex.
-   Claude Code has the opposite behavior (`.claude/skills/github-commit-pr/
-   SKILL.md` is a symlink and loads fine), so the two agents cannot share one
-   mechanism.
-   That constraint caps the payoff. `.agents/` must hold a real file for every
-   skill Codex uses, so no arrangement gets below one real copy there, and
-   today's second real copy lives in `skills/`. The only end state with exactly
-   one real file per skill is to make `.agents/` canonical and symlink
-   `.claude/` into it - which is what #114 did for `domain-modeling` - leaving
-   `skills/` redundant and up for deletion. That trades a tracked "shared
-   sources" tree, which `scripts/ralph/ralph.sh` still searches and README still
-   documents, for removing a duplicate the drift guard
-   (`test_skills_shared_between_trees_have_identical_content`) already makes
-   safe. Worth doing only if the duplication actually bites again; the guard
-   means a missed write now fails the suite rather than shipping.
+(No open items.)
 
 Suggestions
 
@@ -288,6 +267,22 @@ Big tasks (ordered by priority)
   faster to prototype.
 
 Deferred
+
+- Flipping the canonical skill tree to `.agents/` - decided no. Codex does not
+  resolve a symlinked `SKILL.md` (reproduced 4/4 alternating rounds on codex-cli
+  0.148.0, with `test -f` confirming the link resolved every time), so `.agents/`
+  must hold a real file for every skill Codex uses and no arrangement gets below
+  one real copy there. The only single-copy end state is `.agents/` canonical
+  with `skills/` deleted, which costs `scripts/ralph/ralph.sh`'s search path, two
+  README sections, and `_SKILL_TREES` in `tests/test_cli.py` - and quietly guts
+  the drift guard, since `test_skills_shared_between_trees_have_identical_content`
+  compares file contents and symlinked copies are the same inode. Post-flip it
+  would stay green forever while catching nothing, and its own anti-inertness
+  assertion (`github-commit-pr` in `shared`) would still pass, so nothing would
+  report that it had gone hollow. The half that needed no decision is done
+  instead: `.claude/`'s `grilling`, `grill-with-docs`, and `ponytail` are now
+  symlinks into `.agents/`, halving the real-copy duplication without touching
+  any tree's role. Revisit only if a missed write ever actually ships.
 
 - Additional agent roles. Revisit after isolation, recovery, and pull-request
   lifecycle behavior are reliable.
