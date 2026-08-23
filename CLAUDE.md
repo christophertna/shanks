@@ -56,17 +56,19 @@ assembles the graph; `serve_graph.py` serves a live Mermaid viewer at
   reconciles or opens its PR via `gh` — `gh` must be pre-authenticated.
 - Skills live in three trees: `skills/` is the canonical source, `.agents/`
   is Codex's entrypoint and `.claude/` is Claude Code's, and
-  `scripts/ralph/ralph.sh` searches all three. Consolidation onto `skills/` is
-  partly done: `.claude/`'s `decisions` and `github-commit-pr` are tracked
-  symlinks (git mode `120000`) into it. But `.agents/` still holds a real copy
-  of *every* skill, so nothing is single-source yet - editing
-  `skills/decisions/SKILL.md` updates `.claude/` through its symlink and leaves
-  `.agents/` stale. Edit a skill in every tree that carries it as a real file -
-  `test_skills_shared_between_trees_have_identical_content`
-  (`tests/test_cli.py`) fails if one of those writes silently does not apply.
-  The trees hold deliberately different *sets* of skills, and per-tool sidecars
-  like `agents/openai.yaml` mean nothing under `.claude/`, so only SKILL.md
-  content is compared.
+  `scripts/ralph/ralph.sh` searches all three. Every file under `.claude/` is
+  now a tracked symlink (git mode `120000`) into one of the other two, so it
+  never needs editing. `.agents/` holds a real copy of every skill because
+  Codex will not resolve a symlink (see below), which leaves exactly one tree pair
+  to keep in sync by hand: `decisions`, `github-commit-pr`, and
+  `roadmap-review` are real in both `skills/` and `.agents/`. Edit those in
+  both - `test_skills_shared_between_trees_have_identical_content`
+  (`tests/test_cli.py`) fails if one of the two writes silently does not
+  apply. Note that guard compares file *contents*, so a symlinked copy is
+  trivially equal to its target and proves nothing; those three pairs are the
+  only thing it actually checks. The trees hold deliberately different *sets*
+  of skills, and per-tool sidecars like `agents/openai.yaml` mean nothing under
+  `.claude/`, so only SKILL.md content is compared.
 - Never make a file under `.agents/skills/` a symlink. Codex silently ignores a
   symlinked `SKILL.md` - the skill simply stops existing for it, with no error,
   even though the link resolves fine to the shell (verified with

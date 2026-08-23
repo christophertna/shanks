@@ -1,1 +1,2 @@
-../../../../skills/decisions/agents/openai.yaml
+policy:
+  allow_implicit_invocation: false
