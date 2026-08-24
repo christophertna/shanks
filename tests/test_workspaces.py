@@ -128,6 +128,37 @@ class WorkspaceTests(unittest.TestCase):
                 copied.read_text(encoding="utf-8"), '{"hooks": {"new": true}}\n'
             )
 
+    def test_ensure_skips_a_dangling_skill_symlink(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._git(root, "init", "-b", "main")
+            self._git(root, "config", "user.email", "tests@example.com")
+            self._git(root, "config", "user.name", "Tests")
+            (root / "README.md").write_text("initial\n", encoding="utf-8")
+            self._git(root, "add", "README.md")
+            self._git(root, "commit", "-m", "initial")
+
+            # Every file under `.claude/skills/` is a symlink into another
+            # tree, so a skill removed there leaves a broken link behind. The
+            # copy dereferences them, and a raise here would fail every
+            # ensure() for the run - not just this one skill.
+            skills = root / ".claude" / "skills"
+            (skills / "kept").mkdir(parents=True)
+            (skills / "kept" / "SKILL.md").write_text("kept\n", encoding="utf-8")
+            (skills / "removed").mkdir()
+            (skills / "removed" / "SKILL.md").symlink_to("../../../gone/SKILL.md")
+
+            manager = RunWorkspaceManager(root)
+            workspace = manager.ensure("thread/dangling")
+
+            copied = workspace.directory / ".claude" / "skills"
+            self.assertEqual(
+                (copied / "kept" / "SKILL.md").read_text(encoding="utf-8"), "kept\n"
+            )
+            self.assertFalse((copied / "removed" / "SKILL.md").exists())
+            # A reused worktree takes the same path on every later node call.
+            manager.ensure("thread/dangling")
+
     def test_ensure_tolerates_missing_claude_settings(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

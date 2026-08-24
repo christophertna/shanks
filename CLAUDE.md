@@ -95,7 +95,10 @@ assembles the graph; `serve_graph.py` serves a live Mermaid viewer at
   loads no project hooks (e.g. `hooks/deny-dangerous.sh`, the dangerous-shell-
   command guard) in that worktree. `_sync_local_guardrails()` copies it in
   right after `git worktree add`, copies `.claude/skills/` so an agent there
-  still has this project's skills, and symlinks `.venv` the same way — the
+  still has this project's skills (every entry there is a symlink and the copy
+  dereferences it, so one whose target is gone is skipped - that skill is
+  missing in the worktree rather than failing the whole sync), and symlinks
+  `.venv` the same way — the
   `PostToolUse` hooks resolve `$ROOT/.venv/bin/python` from the touched file's
   own tree, so without the link they load but silently fail open. `hooks/`
   itself is tracked, so it's already checked out normally.
