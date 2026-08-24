@@ -64,7 +64,17 @@ def sync_local_guardrails(project_directory: Path, directory: Path) -> bool:
     if skills.is_dir():
         # ponytail: copies over, never prunes - a skill deleted in the project
         # lingers in worktrees until the tree is recreated.
-        shutil.copytree(skills, directory / ".claude" / "skills", dirs_exist_ok=True)
+        # Every file under `.claude/skills/` is a symlink into `.agents/` or
+        # `skills/`, and copytree dereferences them; without
+        # ignore_dangling_symlinks a single broken link raises shutil.Error and
+        # takes down every ensure(), not just this copy. Skipping it costs one
+        # skill, which is degraded rather than unsafe.
+        shutil.copytree(
+            skills,
+            directory / ".claude" / "skills",
+            dirs_exist_ok=True,
+            ignore_dangling_symlinks=True,
+        )
 
     settings = project_directory / ".claude" / "settings.json"
     if not settings.is_file():

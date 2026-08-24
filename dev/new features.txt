@@ -2,7 +2,29 @@ Shanks feature roadmap
 
 Priority 1 - Reliability and contributor experience
 
-(No open items.)
+1- Enforce the skill-tree symlink direction in the suite.
+   CLAUDE.md states an absolute rule - never make a file under
+   `.agents/skills/` a symlink, because Codex silently drops the skill with no
+   error - and nothing checks it. `.agents/skills/decisions/agents/openai.yaml`
+   was a symlink into `skills/` until #115, and no test, hook, or doctor check
+   noticed. Assert the two halves: every file under `.agents/skills/` is a real
+   file, and every file under `.claude/skills/` is a symlink that resolves.
+   The second half catches a broken `.claude/` link before
+   `sync_local_guardrails()` has to skip it (#116), and stops a real copy
+   being re-added to `.claude/` where it could drift again -
+   `test_skills_shared_between_trees_have_identical_content` cannot see that,
+   since it compares contents and a symlinked copy is trivially equal to its
+   target.
+
+2- Make the command reference reachable from a clone.
+   `dev/*` is gitignored except this roadmap, so `dev/commands.md`'s 289 lines
+   are the project's only full command reference and exist on one machine.
+   Two tracked files point at it: `AGENTS.md`'s "Finishing a parallel feature"
+   block and `README.md`'s "See the local `dev/commands.md` reference for
+   detailed command capabilities and options" - the second is user-facing, so a
+   new contributor is sent to a file their clone does not have. Either track
+   the file (move it out of `dev/`, or extend the `!dev/new features.txt`
+   exception) or fold what it documents into README and drop both pointers.
 
 Suggestions
 
@@ -16,6 +38,13 @@ Suggestions
   question before trusting the next fixture that claims to restrict an
   environment: does it restrict it, or does it just look restricted on this
   machine?
+- `codex debug prompt-input` does not list a skill whose front matter sets
+  `disable-model-invocation: true` - it only renders the model-visible prompt,
+  and those skills are manual `/` invocations. `decisions` and
+  `grill-with-docs` are absent from this repo's listing for that reason alone,
+  while the other five `.agents/` skills appear. CLAUDE.md calls that command
+  the cheap way to re-check the symlink rule, so without this caveat a correct
+  listing reads as a regression. Worth one clarifying clause there.
 - A running session serves the SKILL.md it loaded, not the file on disk:
   invoking `/github-commit-pr` this session returned text without the
   `gh pr checks` paragraph, while all three on-disk copies contain it and are
@@ -87,11 +116,6 @@ Suggestions
   is never actually exercised there. Pinning
   old Git/gh versions in CI to prove the floor works is real setup effort for
   a small payoff — defer unless a real floor-version bug shows up.
-- `AGENTS.md`'s "Finishing a parallel feature" block (#95) points at
-  "`dev/commands.md`'s Parallel agents examples", but `git ls-files dev/`
-  returns only `dev/new features.txt` - the rest of `dev/` is gitignored, so
-  that pointer resolves to nothing on any machine but this one. Either move
-  the worktree examples somewhere tracked (README) or drop the reference.
 - `./shanks doctor`'s `claude-hooks` check (#93) only looks scripts ->
   settings. The reverse - `.claude/settings.json` referencing a `hooks/*.sh`
   that no longer exists, which is exactly what a removal like
