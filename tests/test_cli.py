@@ -775,6 +775,54 @@ class ShanksCliTests(unittest.TestCase):
                     "not applying is what this guard exists to catch",
                 )
 
+    def test_skill_trees_record_the_supported_symlink_direction(self) -> None:
+        # `.claude/` may symlink into `.agents/` or `skills/`, never the
+        # reverse: Codex silently drops a symlinked skill file - no error, the
+        # skill just stops existing for it - while Claude Code follows one.
+        # Both halves are checked against the *recorded* mode rather than the
+        # working tree, because that is what a fresh clone gets.
+        repo_root = Path(__file__).parents[1]
+        listing = subprocess.run(
+            ("git", "ls-files", "-s", "--", ".agents/skills", ".claude/skills"),
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        modes: dict[str, str] = {}
+        for line in listing.stdout.splitlines():
+            attributes, path = line.split("\t", 1)
+            modes[path] = attributes.split()[0]
+
+        agents = {path: mode for path, mode in modes.items() if ".agents/" in path}
+        claude = {path: mode for path, mode in modes.items() if ".claude/" in path}
+        self.assertTrue(
+            agents and claude,
+            "no tracked skill files were listed, so this guard is inert - "
+            "check the tree paths still exist",
+        )
+        for path, mode in sorted(agents.items()):
+            self.assertNotEqual(
+                mode,
+                "120000",
+                f"{path} is tracked as a symlink; Codex ignores a symlinked "
+                "skill file without reporting anything, so the skill would "
+                "silently stop existing for it",
+            )
+        for path, mode in sorted(claude.items()):
+            self.assertEqual(
+                mode,
+                "120000",
+                f"{path} is tracked as a real file; a second real copy is free "
+                "to drift from the tree it duplicates, which is what pointing "
+                "`.claude/` at `.agents/` or `skills/` avoids",
+            )
+            self.assertTrue(
+                (repo_root / path).is_file(),
+                f"{path} is a symlink that does not resolve; the worktree sync "
+                "skips it, so an agent there would silently lack that skill",
+            )
+
     def test_runs_list_and_status_support_json_output(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             database = Path(directory) / "checkpoints.sqlite"

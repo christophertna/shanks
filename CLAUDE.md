@@ -73,8 +73,13 @@ assembles the graph; `serve_graph.py` serves a live Mermaid viewer at
   symlinked `SKILL.md` - the skill simply stops existing for it, with no error,
   even though the link resolves fine to the shell (verified with
   `codex debug prompt-input`, which renders the model-visible prompt offline and
-  is the cheap way to re-check). Claude Code does follow them, which is why
+  is the cheap way to re-check - note it lists no skill setting
+  `disable-model-invocation: true`, so `decisions` and `grill-with-docs` are
+  absent from a correct listing). Claude Code does follow them, which is why
   `.claude/` may symlink into `.agents/` or `skills/` but never the reverse.
+  `test_skill_trees_record_the_supported_symlink_direction`
+  (`tests/test_cli.py`) enforces both halves against the mode Git records, so
+  the check holds for a fresh clone rather than just this working tree.
 - The build agent (`RalphAdapter` / `scripts/ralph/ralph.sh`,
   `ClaudeAdapter(read_only=False)`) runs Claude with `--permission-mode
   acceptEdits --tools Read,Write,Edit,Bash,Grep,Glob` rather than

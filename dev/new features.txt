@@ -2,21 +2,7 @@ Shanks feature roadmap
 
 Priority 1 - Reliability and contributor experience
 
-1- Enforce the skill-tree symlink direction in the suite.
-   CLAUDE.md states an absolute rule - never make a file under
-   `.agents/skills/` a symlink, because Codex silently drops the skill with no
-   error - and nothing checks it. `.agents/skills/decisions/agents/openai.yaml`
-   was a symlink into `skills/` until #115, and no test, hook, or doctor check
-   noticed. Assert the two halves: every file under `.agents/skills/` is a real
-   file, and every file under `.claude/skills/` is a symlink that resolves.
-   The second half catches a broken `.claude/` link before
-   `sync_local_guardrails()` has to skip it (#116), and stops a real copy
-   being re-added to `.claude/` where it could drift again -
-   `test_skills_shared_between_trees_have_identical_content` cannot see that,
-   since it compares contents and a symlinked copy is trivially equal to its
-   target.
-
-2- Make the command reference reachable from a clone.
+1- Make the command reference reachable from a clone.
    `dev/*` is gitignored except this roadmap, so `dev/commands.md`'s 289 lines
    are the project's only full command reference and exist on one machine.
    Two tracked files point at it: `AGENTS.md`'s "Finishing a parallel feature"
@@ -38,13 +24,6 @@ Suggestions
   question before trusting the next fixture that claims to restrict an
   environment: does it restrict it, or does it just look restricted on this
   machine?
-- `codex debug prompt-input` does not list a skill whose front matter sets
-  `disable-model-invocation: true` - it only renders the model-visible prompt,
-  and those skills are manual `/` invocations. `decisions` and
-  `grill-with-docs` are absent from this repo's listing for that reason alone,
-  while the other five `.agents/` skills appear. CLAUDE.md calls that command
-  the cheap way to re-check the symlink rule, so without this caveat a correct
-  listing reads as a regression. Worth one clarifying clause there.
 - A running session serves the SKILL.md it loaded, not the file on disk:
   invoking `/github-commit-pr` this session returned text without the
   `gh pr checks` paragraph, while all three on-disk copies contain it and are
