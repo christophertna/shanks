@@ -58,7 +58,11 @@ assembles the graph; `serve_graph.py` serves a live Mermaid viewer at
   is Codex's entrypoint and `.claude/` is Claude Code's, and
   `scripts/ralph/ralph.sh` searches all three. Every file under `.claude/` is
   now a tracked symlink (git mode `120000`) into one of the other two, so it
-  never needs editing. `.agents/` holds a real copy of every skill because
+  never needs editing - but `.claude/` is gitignored, so a new one is tracked
+  only by an explicit `git add -f`, and forgetting that leaves the skill
+  working here and absent from every clone.
+  `test_every_codex_skill_is_tracked_for_claude_code` (`tests/test_cli.py`)
+  fails when a skill Codex has is missing from `.claude/`. `.agents/` holds a real copy of every skill because
   Codex will not resolve a symlink (see below), which leaves exactly one tree pair
   to keep in sync by hand: `decisions`, `github-commit-pr`, and
   `roadmap-review` are real in both `skills/` and `.agents/`. Edit those in

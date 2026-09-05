@@ -12,6 +12,19 @@ Priority 1 - Reliability and contributor experience
    the file (move it out of `dev/`, or extend the `!dev/new features.txt`
    exception) or fold what it documents into README and drop both pointers.
 
+2- Point `guard-worktree.sh`'s block message at `--`.
+   A single-file restore (`git checkout <path>`) is blocked as if it were a
+   branch switch. That over-block is deliberate: a bare path is
+   indistinguishable from a ref without resolving it, and the hook carries a
+   `ponytail:` comment saying over-blocking a destructive restore is the safe
+   direction. `git checkout -- <path>` is already allowed and skips the guard.
+   The gap is only the message: it offers commit, stash, or
+   `SHANKS_ALLOW_BRANCH_SWITCH=1` - three heavyweight remedies - and never
+   mentions `--`, so the natural response to a blocked path restore is to reach
+   for the override, which disables the guard for the whole call. Hit while
+   restoring one file during #117. Two lines in the message; the matching logic
+   does not change. `hooks/test.hooks/test-guard-worktree.sh` is the harness.
+
 Suggestions
 
 - Lesson from the `hooks/post-checkout` bug #110 caught: a fixture PATH derived
@@ -50,6 +63,12 @@ Suggestions
   ceiling). A stale extra skill is a much smaller problem than a missing one,
   which is why the copy is one-way; switch to a mirroring copy only if a
   removed skill ever actually misleads an agent in a worktree.
+- `sync_local_guardrails()` skips a `.claude/skills/` symlink whose target is
+  gone (#116) and says nothing, so a worktree can be missing a skill with no
+  signal - the agent there just never has it. #117 catches a broken *tracked*
+  link in CI, which covers the realistic case; a `./shanks doctor` line
+  reporting dangling entries would close the rest. Pairs with the never-prunes
+  ceiling above.
 - `_reconcile_recovered_state`'s `_RECONCILE_TIMEOUT_SECONDS = 15`
   (`workflow/nodes.py`) and `RunWorkspaceManager`'s Git subprocesses
   (`workflow/workspaces.py`) are the two external subprocess paths still on a

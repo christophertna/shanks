@@ -775,6 +775,46 @@ class ShanksCliTests(unittest.TestCase):
                     "not applying is what this guard exists to catch",
                 )
 
+    def test_every_codex_skill_is_tracked_for_claude_code(self) -> None:
+        # `.claude/` is gitignored, so each skill there is tracked only by an
+        # explicit `git add -f`. Forgetting one leaves the skill working on the
+        # machine that made it and missing from every clone - Claude Code reads
+        # `.claude/` alone, so the tracked `skills/`|`.agents/` copies do not
+        # stand in for it. Only `scripts/ralph/ralph.sh` searches those.
+        # The direction guard below cannot see this: it reads `git ls-files`,
+        # and a file that was never added is simply absent from the listing.
+        repo_root = Path(__file__).parents[1]
+        listing = subprocess.run(
+            ("git", "ls-files", "--", ".agents/skills", ".claude/skills"),
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        tracked = set(listing.stdout.splitlines())
+        codex_skills = {
+            path.split("/")[2]
+            for path in tracked
+            if path.startswith(".agents/skills/") and path.endswith("/SKILL.md")
+        }
+        self.assertIn(
+            "roadmap-review",
+            codex_skills,
+            "no skills were listed under .agents/, so this guard is inert - "
+            "check the tree path still exists",
+        )
+        # One-way on purpose: a skill only Claude Code should have can live in
+        # `.claude/` alone, but one Codex has must not be missing there.
+        for name in sorted(codex_skills):
+            self.assertIn(
+                f".claude/skills/{name}/SKILL.md",
+                tracked,
+                f"{name} is tracked for Codex but not for Claude Code; "
+                "`.claude/` is gitignored, so it needs `git add -f "
+                f".claude/skills/{name}/SKILL.md` or the skill exists only on "
+                "the machine that wrote it",
+            )
+
     def test_skill_trees_record_the_supported_symlink_direction(self) -> None:
         # `.claude/` may symlink into `.agents/` or `skills/`, never the
         # reverse: Codex silently drops a symlinked skill file - no error, the
