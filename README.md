@@ -462,3 +462,7 @@ CLI throughout the agent workflow.
 - **Resumability:** Persisted commit and PR IDs make commit and pull-request
   handoff safe to resume without duplicating side effects. Handoff details are
   also added to the run manifest. Authenticate `gh` before starting the run.
+
+  ### Supported AI models
+  - **Claude Code**
+  - **Codex**
