@@ -212,107 +212,157 @@ gh auth refresh -h github.com -s workflow
 
 See the local `dev/commands.md` reference for detailed command capabilities and options.
 
-Workflow checkpoints are stored in `.shanks/checkpoints.sqlite`, so the viewer
-can inspect runs started by another process. Set `SHANKS_CHECKPOINT_DB` in both
-processes to use a different shared database path.
+## Checkpoints & Runs
 
-Each checkpoint also carries a persisted `run_manifest`. Its redacted audit
-events record agent prompts and model names, executed commands, validation/test
-output, staged diffs, commit SHAs, and pull-request URLs/IDs. The manifest is
-available from the viewer's Live execution panel and survives checkpointed
-retries.
+### Checkpoint storage
 
-Checkpoint state carries a `state_schema_version`. Older unversioned checkpoints
-are treated as v0 and migrated to the current schema when loaded; new checkpoints
-are written with the current version. Checkpoints from a newer unsupported version
-fail clearly instead of being interpreted incorrectly.
+Workflow checkpoints are stored in `.shanks/checkpoints.sqlite`, so the viewer can inspect runs started by another process. Set `SHANKS_CHECKPOINT_DB` in both processes to use a different shared database path.
 
-Default graphs derive a run identity from the configured `thread_id`. Each run gets
-an isolated branch and Git worktree under `.shanks/worktrees/`, and the persisted
-state records `run_id`, `run_branch`, and `workspace_directory`. Agent and GitHub
-subprocesses use that worktree for the run, so separate runs do not share a mutable
-project directory.
+Each checkpoint carries a persisted `run_manifest`. Its redacted audit events record:
 
-The shared SQLite checkpoint store also owns a durable run lease. A live lease
-blocks a second owner of the same thread, an interrupted run remains resumable,
-and an expired lease is marked abandoned before a later owner recovers it. Lease
-duration is configurable with `SHANKS_RUN_LEASE_SECONDS`. Terminal checkpoints
-release their lease and use the configured retention limit (default 100); call
-`VersionedSqliteSaver.cleanup(...)` for explicit count/age-based cleanup, or set
-`SHANKS_CHECKPOINT_RETENTION` for the automatic limit.
+- Agent prompts and model names
+- Executed commands
+- Validation/test output
+- Staged diffs
+- Commit SHAs
+- Pull-request URLs/IDs
 
-The `runs` CLI exposes the same lifecycle controls to operators. `list` and
-`status` report persisted lifecycle and latest-checkpoint details; `resume`
-passes an interrupt response such as `implement`, `learn`, `approve`, or
-`reject`; `cancel` writes a safe-boundary cancellation request and lets a live
-owner finish it; `recover` marks expired leases abandoned. Cleanup is
-terminal-only by default. Worktree removal requires a finished terminal run,
-rejects active leases, verifies the persisted path and branch against the
-configured run workspace, and requires `SHANKS_MODE=development` plus
-`--delete-branch` before deleting a local branch.
+The manifest is available from the viewer's **Live execution** panel and survives checkpointed retries.
 
-Agent failures are classified as `transient`, `validation`, `guardrail`,
-`budget`, `cancelled`, or `permanent`. Safe agent and validation nodes retry only
-`transient` failures with bounded exponential backoff (0.5, 1, 2 seconds, capped
-at 8 seconds), recording per-node retry counts in the checkpoint and run manifest.
-Validation failures still go to the debugger. The branch push and pull-request
-handoff also retry `transient` failures (network interruptions, GitHub rate
-limits) the same way: a re-pushed branch is a no-op once the remote already has
-the commits, and a re-run pull-request handoff looks up and reconciles an
-already-created PR instead of opening a duplicate. Commit creation is not
-retried automatically because a partial commit failure needs operator review.
+Checkpoint state carries a `state_schema_version`:
 
-Runs have persisted safety budgets: one hour of wall time, three build attempts
-per item, twenty total build attempts, and an estimated 100,000-token ceiling by
-default. Set `max_runtime_seconds`, `max_attempts`, `max_total_attempts`,
-`max_tokens`, or `max_cost_usd` in the initial state to override them. CLI
-adapters estimate token usage from their prompt and output; custom adapters can
-report exact `input_tokens`, `output_tokens`, and `cost_usd` in `AgentResult`.
+- Older unversioned checkpoints are treated as `v0` and migrated to the current schema when loaded.
+- New checkpoints are written with the current version.
+- Checkpoints from a newer, unsupported version fail clearly instead of being interpreted incorrectly.
 
-Default limits are: `max_runtime_seconds=3600`, `max_attempts=3` per item,
-`max_total_attempts=20`, `max_tokens=100000`, and `max_cost_usd=0.0` (cost
-enforcement disabled until a positive limit is configured). Each CLI and GitHub
-subprocess also has a 3600-second adapter timeout, except the quick read-only
-lookups (`git branch --show-current`, `status --short`, `rev-parse HEAD`,
-`rev-list --count`, `fetch`, `diff`, `ls-files`, plus `gh auth status` and
-`gh pr list`), which use a 60-second `probe_timeout_seconds` budget so a
-stalled remote cannot hold a node for the full hour. The side-effecting
-`gh pr create`/`edit`/`reopen` calls keep the long budget.
+### Run identity & isolation
+
+Default graphs derive a run identity from the configured `thread_id`. Each run gets:
+
+- An isolated branch
+- A Git worktree under `.shanks/worktrees/`
+
+The persisted state records `run_id`, `run_branch`, and `workspace_directory`. Agent and GitHub subprocesses use that worktree for the run, so separate runs do not share a mutable project directory.
+
+### Run leases
+
+The shared SQLite checkpoint store also owns a durable run lease:
+
+- A live lease blocks a second owner of the same thread.
+- An interrupted run remains resumable.
+- An expired lease is marked abandoned before a later owner recovers it.
+
+| Setting | Purpose | Default |
+|---|---|---|
+| `SHANKS_RUN_LEASE_SECONDS` | Lease duration | — |
+| `SHANKS_CHECKPOINT_RETENTION` | Automatic checkpoint retention limit | 100 |
+
+Terminal checkpoints release their lease and use the configured retention limit. Call `VersionedSqliteSaver.cleanup(...)` for explicit count/age-based cleanup.
+
+### `runs` CLI
+
+The `runs` CLI exposes lifecycle controls to operators:
+
+| Command | Description |
+|---|---|
+| `list` / `status` | Report persisted lifecycle and latest-checkpoint details |
+| `resume` | Passes an interrupt response: `implement`, `learn`, `approve`, or `reject` |
+| `cancel` | Writes a safe-boundary cancellation request and lets a live owner finish it |
+| `recover` | Marks expired leases abandoned |
+
+Cleanup is terminal-only by default. Worktree removal:
+
+- Requires a finished terminal run
+- Rejects active leases
+- Verifies the persisted path and branch against the configured run workspace
+- Requires `SHANKS_MODE=development` **and** `--delete-branch` before deleting a local branch
+
+### Failure classification & retries
+
+Agent failures are classified as `transient`, `validation`, `guardrail`, `budget`, `cancelled`, or `permanent`.
+
+- Safe agent and validation nodes retry only `transient` failures, with bounded exponential backoff (0.5s, 1s, 2s, capped at 8s), recording per-node retry counts in the checkpoint and run manifest.
+- Validation failures still go to the debugger.
+- The branch push and pull-request handoff also retry `transient` failures (network interruptions, GitHub rate limits) the same way:
+  - A re-pushed branch is a no-op once the remote already has the commits.
+  - A re-run pull-request handoff looks up and reconciles an already-created PR instead of opening a duplicate.
+- Commit creation is **not** retried automatically — a partial commit failure needs operator review.
+
+### Safety budgets
+
+Runs have persisted safety budgets, overridable via the initial state:
+
+| Budget | Config key | Default |
+|---|---|---|
+| Wall time | `max_runtime_seconds` | 3600 |
+| Build attempts per item | `max_attempts` | 3 |
+| Total build attempts | `max_total_attempts` | 20 |
+| Token ceiling (estimated) | `max_tokens` | 100,000 |
+| Cost ceiling | `max_cost_usd` | 0.0 (disabled until set positive) |
+
+CLI adapters estimate token usage from their prompt and output; custom adapters can report exact `input_tokens`, `output_tokens`, and `cost_usd` in `AgentResult`.
+
+Each CLI and GitHub subprocess has a 3600-second adapter timeout, **except** quick read-only lookups, which use a 60-second `probe_timeout_seconds` budget so a stalled remote can't hold a node for the full hour:
+
+- `git branch --show-current`
+- `git status --short`
+- `git rev-parse HEAD`
+- `git rev-list --count`
+- `git fetch`
+- `git diff`
+- `git ls-files`
+- `gh auth status`
+- `gh pr list`
+
+The side-effecting `gh pr create` / `edit` / `reopen` calls keep the long budget.
+
+### Cancelling a run
 
 Stop a checkpointed run cleanly at its next safe boundary:
 
-```python
+\`\`\`python
 from workflow.state import cancel_run
 
 graph.update_state(config, cancel_run("Operator stopped the run."))
 graph.invoke(None, config)
-```
+\`\`\`
 
-The run ends with `status="cancelled"` and records the reason instead of
-starting another backend or side-effecting node.
+The run ends with `status="cancelled"` and records the reason instead of starting another backend or side-effecting node.
 
-The viewer's Live execution panel accepts the workflow's `thread_id` and polls
-the current node, PRD item, attempt count, budget usage, last error, model,
-the prompt a paused run is waiting on, the repository drift note, checkpoint
-history, and run manifest. Expand an audit event to inspect its
-recorded prompt, commands, output, diff, commit, or pull-request details. Use
-the same thread ID when starting the workflow and inspecting it.
+### Live execution panel
 
-For local Shanks development, set `SHANKS_MODE=development`. This enables
-guarded local capabilities such as deletion of local run-scoped branches
-through `RunWorkspaceManager.delete_branch(...)`; it does not approve side
-effects. Human approval is still required separately before each commit, push,
-and pull-request creation. The mode does not disable quality gates,
-project/path checks, secret redaction, base-branch protection, or the
-catastrophic-command hook. Unset the variable or set it to `runtime` to
-restore safe/normal mode.
+The viewer's Live execution panel accepts the workflow's `thread_id` and polls:
 
-Set `SHANKS_MODE=dry-run` to run through delivery while previewing the
-side-effecting handoff. Commit, push, and pull-request operations are skipped;
-the run manifest records the planned commands, changed/new-file diff, commit
-message, push, and PR details. The terminal run status is
-`pull_request_preview`. The workflow still uses its isolated run workspace for
-agent and validation work.
+- The current node, PRD item, attempt count
+- Budget usage, last error, model
+- The prompt a paused run is waiting on
+- The repository drift note
+- Checkpoint history and run manifest
+
+Expand an audit event to inspect its recorded prompt, commands, output, diff, commit, or pull-request details. Use the same thread ID when starting the workflow and inspecting it.
+
+### Local development mode
+
+Set `SHANKS_MODE=development` for local Shanks development. This enables guarded local capabilities such as deletion of local run-scoped branches through `RunWorkspaceManager.delete_branch(...)` — **it does not approve side effects**.
+
+Human approval is still required separately before each commit, push, and pull-request creation. This mode does **not** disable:
+
+- Quality gates
+- Project/path checks
+- Secret redaction
+- Base-branch protection
+- The catastrophic-command hook
+
+Unset the variable, or set it to `runtime`, to restore safe/normal mode.
+
+### Dry-run mode
+
+Set `SHANKS_MODE=dry-run` to run through delivery while previewing the side-effecting handoff:
+
+- Commit, push, and pull-request operations are skipped.
+- The run manifest records the planned commands, changed/new-file diff, commit message, push, and PR details.
+- The terminal run status is `pull_request_preview`.
+- The workflow still uses its isolated run workspace for agent and validation work.
 
 ## Preflight checks
 
