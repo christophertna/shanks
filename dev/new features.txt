@@ -2,17 +2,7 @@ Shanks feature roadmap
 
 Priority 1 - Reliability and contributor experience
 
-1- Make the command reference reachable from a clone.
-   `dev/*` is gitignored except this roadmap, so `dev/commands.md`'s 289 lines
-   are the project's only full command reference and exist on one machine.
-   Two tracked files point at it: `AGENTS.md`'s "Finishing a parallel feature"
-   block and `README.md`'s "See the local `dev/commands.md` reference for
-   detailed command capabilities and options" - the second is user-facing, so a
-   new contributor is sent to a file their clone does not have. Either track
-   the file (move it out of `dev/`, or extend the `!dev/new features.txt`
-   exception) or fold what it documents into README and drop both pointers.
-
-2- Point `guard-worktree.sh`'s block message at `--`.
+1- Point `guard-worktree.sh`'s block message at `--`.
    A single-file restore (`git checkout <path>`) is blocked as if it were a
    branch switch. That over-block is deliberate: a bare path is
    indistinguishable from a ref without resolving it, and the hook carries a
@@ -24,6 +14,14 @@ Priority 1 - Reliability and contributor experience
    for the override, which disables the guard for the whole call. Hit while
    restoring one file during #117. Two lines in the message; the matching logic
    does not change. `hooks/test.hooks/test-guard-worktree.sh` is the harness.
+
+2- Human-in-the-Loop State Injection.
+   Allow an operator responding to a paused run to provide validated guidance
+   so the agent can resume with corrected instructions instead of restarting
+   the chain. Extend the interrupt payload and CLI resume path to carry
+   structured guidance, constrain it to non-safety-critical workflow context,
+   record it in the run manifest, and cover resume/recovery behavior with
+   tests. Do not allow arbitrary patches to safety-critical state.
 
 Suggestions
 
@@ -311,17 +309,14 @@ Deferred
 
 Graph Suggestions (ordered by implementation priority)
 
-1. Human-in-the-Loop State Injection (Next)
-   Instead of simply approving or rejecting operations, allow humans to inject validated guidance during interrupts so the agent can resume with corrected instructions without restarting the chain. Do not allow arbitrary patches to safety-critical state.
-
-2. Context Pruning/Compaction Node (Later)
+1. Context Pruning/Compaction Node (Later)
    After measuring prompt growth, periodically distill past command outputs, test logs, and history into a compressed summary to control context size and token cost during long iteration cycles.
 
-3. Namespaced State Management (Later)
+2. Namespaced State Management (Later)
    Move from the flat dictionary to structured, nested TypedDicts. Add runtime validation or update boundaries if nodes must be prevented from writing outside their namespaces.
 
-4. documentation_sync (Later)
+3. documentation_sync (Later)
    Automate updates for READMEs, OpenAPI specs, and architecture diagrams based on the final code state, subject to an explicit source-of-truth policy.
 
-5. regression_canary (Later)
+4. regression_canary (Later)
     Add deterministic performance benchmarks and thresholds to detect latency or resource regressions after code changes.
