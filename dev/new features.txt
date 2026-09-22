@@ -2,20 +2,7 @@ Shanks feature roadmap
 
 Priority 1 - Reliability and contributor experience
 
-1- Point `guard-worktree.sh`'s block message at `--`.
-   A single-file restore (`git checkout <path>`) is blocked as if it were a
-   branch switch. That over-block is deliberate: a bare path is
-   indistinguishable from a ref without resolving it, and the hook carries a
-   `ponytail:` comment saying over-blocking a destructive restore is the safe
-   direction. `git checkout -- <path>` is already allowed and skips the guard.
-   The gap is only the message: it offers commit, stash, or
-   `SHANKS_ALLOW_BRANCH_SWITCH=1` - three heavyweight remedies - and never
-   mentions `--`, so the natural response to a blocked path restore is to reach
-   for the override, which disables the guard for the whole call. Hit while
-   restoring one file during #117. Two lines in the message; the matching logic
-   does not change. `hooks/test.hooks/test-guard-worktree.sh` is the harness.
-
-2- Human-in-the-Loop State Injection.
+1- Human-in-the-Loop State Injection.
    Allow an operator responding to a paused run to provide validated guidance
    so the agent can resume with corrected instructions instead of restarting
    the chain. Extend the interrupt payload and CLI resume path to carry

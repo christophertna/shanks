@@ -46,6 +46,6 @@ BRANCH="$(git branch --show-current 2>/dev/null || true)"
 printf 'Blocked by Shanks worktree guard: refusing to switch branches with uncommitted changes to tracked files.\n' >&2
 printf 'Another agent may be working in this checkout. Currently on %s with:\n%s\n' \
   "${BRANCH:-a detached HEAD}" "$DIRTY" >&2
-printf 'Commit or stash first, work in your own tree (git worktree add ../shanks-<branch> -b <branch>),\n' >&2
-printf 'or set SHANKS_ALLOW_BRANCH_SWITCH=1 to override for this call.\n' >&2
+printf 'For a path restore, use git checkout -- <path>; otherwise commit or stash,\n' >&2
+printf 'work in your own tree (git worktree add ../shanks-<branch> -b <branch>), or set SHANKS_ALLOW_BRANCH_SWITCH=1 to override.\n' >&2
 exit 2

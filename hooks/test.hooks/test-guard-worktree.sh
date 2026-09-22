@@ -49,10 +49,29 @@ check() {
   fi
 }
 
+check_message() {
+  local expected="$1"
+  local label="$2"
+  local repo="$3"
+  local command="$4"
+  local json output
+
+  json="$(jq -cn --arg cmd "$command" --arg cwd "$repo" \
+    '{tool_input:{command:$cmd},cwd:$cwd}')"
+  output="$(printf '%s' "$json" | "$HOOK" 2>&1 >/dev/null || true)"
+  if printf '%s' "$output" | grep -Fq "$expected"; then
+    passed=$((passed + 1))
+  else
+    failed=$((failed + 1))
+    printf 'FAIL expected message=%s: %s\n' "$expected" "$label"
+  fi
+}
+
 # The incident this guard exists for.
 check block "switch branches with a dirty tree" "$DIRTY" "git checkout main"
 check block "git switch with a dirty tree" "$DIRTY" "git switch main"
 check block "switch buried in a compound command" "$DIRTY" "cd /tmp && git checkout main"
+check_message "git checkout -- <path>" "blocked path restore suggests --" "$DIRTY" "git checkout tracked.txt"
 
 # Creating a branch carries the work deliberately; that is the normal flow.
 check allow "git checkout -b with a dirty tree" "$DIRTY" "git checkout -b feat/x"
