@@ -12,6 +12,7 @@ from workflow.state import (
     StateSchemaError,
     _STATE_MIGRATIONS,
     migrate_state,
+    validate_operator_guidance,
 )
 
 
@@ -88,6 +89,20 @@ class StateSchemaTests(unittest.TestCase):
         self.assertFalse(migrated["pr_stale"])
         self.assertEqual(migrated["pr_reviewers"], [])
         self.assertEqual(migrated["pr_labels"], [])
+
+    def test_v6_state_migrates_operator_guidance(self) -> None:
+        migrated = migrate_state({"state_schema_version": 6})
+
+        self.assertEqual(
+            migrated["state_schema_version"],
+            CURRENT_STATE_SCHEMA_VERSION,
+        )
+        self.assertEqual(migrated["operator_guidance"], [])
+        self.assertEqual(migrated["reconciled_recovery_count"], 0)
+
+    def test_operator_guidance_rejects_workflow_state_patches(self) -> None:
+        with self.assertRaisesRegex(ValueError, "only accepts"):
+            validate_operator_guidance({"instructions": "fix it", "status": "complete"})
 
     def test_state_migrations_advance_one_version_at_a_time(self) -> None:
         state = {"state_schema_version": 0}

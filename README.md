@@ -183,7 +183,7 @@ gh auth refresh -h github.com -s workflow
 | `./shanks dev sync [DIR...]` | Re-copy `.claude/settings.json` and `.claude/skills/` and relink `.venv` into worktrees that already exist; defaults to every worktree of this checkout. Run it after any hook change. |
 | `./shanks runs list` | List checkpointed runs. |
 | `./shanks runs status RUN_ID` | Show a run's persisted lifecycle and checkpoint status, the prompt it is paused on, its repository drift note, and its newest run-manifest events. |
-| `./shanks runs resume RUN_ID RESPONSE` | Resume a run with a response such as `implement`, `learn`, `approve`, or `reject`. |
+| `./shanks runs resume RUN_ID RESPONSE [--guidance JSON]` | Resume a run with a response such as `implement`, `learn`, `approve`, or `reject`; optionally add validated non-safety-critical guidance. |
 | `./shanks runs cancel RUN_ID` | Request cancellation at the next safe boundary. |
 | `./shanks runs recover` | Mark expired leases as abandoned. |
 | `./shanks runs cleanup --keep-latest COUNT` | Prune terminal checkpoint history; add `--delete-records --max-age SECONDS` to prune old lifecycle records too. |
@@ -226,6 +226,7 @@ Each checkpoint carries a persisted `run_manifest`. Its redacted audit events re
 - Staged diffs
 - Commit SHAs
 - Pull-request URLs/IDs
+- Redacted operator guidance supplied while resuming
 
 The manifest is available from the viewer's **Live execution** panel and survives checkpointed retries.
 
@@ -266,7 +267,7 @@ The `runs` CLI exposes lifecycle controls to operators:
 | Command | Description |
 |---|---|
 | `list` / `status` | Report persisted lifecycle and latest-checkpoint details |
-| `resume` | Passes an interrupt response: `implement`, `learn`, `approve`, or `reject` |
+| `resume` | Passes an interrupt response: `implement`, `learn`, `approve`, or `reject`; `--guidance '{"instructions":"...","context":"..."}'` adds validated context for later agents |
 | `cancel` | Writes a safe-boundary cancellation request and lets a live owner finish it |
 | `recover` | Marks expired leases abandoned |
 
@@ -403,6 +404,25 @@ graph.invoke({"task": "Add a feature"}, config=config)
 result = graph.invoke(Command(resume="implement"), config=config)
 ```
 
+An operator can add corrective context without patching checkpoint state:
+
+```python
+result = graph.invoke(
+    Command(
+        resume={
+            "choice": "implement",
+            "guidance": {"instructions": "Keep the change in workflow/ and add tests."},
+        }
+    ),
+    config=config,
+)
+```
+
+Only `instructions` and `context` guidance fields are accepted. They are
+stored as redacted run-manifest events and included in later agent prompts;
+workflow status, approvals, budgets, branches, commits, and pull requests
+remain graph-owned.
+
 Use `"learn"` to run the documentation branch; it returns to intake afterward.
 Choose `tool="codex"` or `tool="claude"` when building the graph to use that
 CLI throughout the agent workflow.
@@ -435,7 +455,8 @@ CLI throughout the agent workflow.
   item, then pause again before pushing the branch and reconciling its pull
   request after the final item passes.
 - **Approval responses:** Resume with `Command(resume="approve")`, or end the
-  run without the side effect with `Command(resume="reject")`.
+  run without the side effect with `Command(resume="reject")`. Either response
+  may be an object carrying a validated `guidance` object.
 - **Dry-run implement runs:** Skip approval pauses and finish with the same
   handoff details in the run manifest without committing, pushing, or changing
   a pull request.

@@ -61,6 +61,7 @@ The command exits non-zero when a check fails.
 ./shanks runs list
 ./shanks runs status RUN_ID
 ./shanks runs resume RUN_ID implement
+./shanks runs resume RUN_ID implement --guidance '{"instructions":"Keep the change scoped.","context":"Add regression coverage."}'
 ./shanks runs cancel RUN_ID --reason "Operator stopped."
 ```
 
@@ -70,7 +71,10 @@ and any extra payload), the current `repo_drift` note, and the newest
 run-manifest events, so a paused run can be diagnosed without reading raw
 checkpoint state. `resume` passes an interrupt response (`implement`, `learn`,
 `approve`, `reject`) to a paused or stale run and prints the next prompt when
-the run pauses again; add `--tool codex` or `--tool claude` to
+the run pauses again. Add `--guidance` with a JSON object containing only
+`instructions` and/or `context` to inject validated, non-safety-critical
+operator context into later agent prompts; it is also recorded in the redacted
+run manifest. Add `--tool codex` or `--tool claude` to
 pick the agent backend. `cancel` writes a safe-boundary stop request that a
 live owner finishes at its next safe boundary.
 

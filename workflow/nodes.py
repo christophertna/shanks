@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import subprocess
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Literal, cast, get_args
@@ -39,11 +40,13 @@ from .state import (
     DEFAULT_MAX_RUNTIME_SECONDS,
     DEFAULT_MAX_TOKENS,
     DEFAULT_MAX_TOTAL_ATTEMPTS,
+    OperatorGuidance,
     PRDItem,
     WorkflowState,
     acceptance_criteria_for_item,
     migrate_state,
     run_manifest_event,
+    validate_operator_guidance,
     validation_command_for_item,
 )
 from .retries import classify_failure, retry_delay, retryable_failure
@@ -89,6 +92,103 @@ Use /grill-with-docs before implementation. Sharpen the requested feature
 against the existing codebase, record useful terminology and decisions, then
 produce an actionable implementation plan for the builder.
 """.strip()
+
+
+OPERATOR_GUIDANCE_PROMPT = {
+    "type": "object",
+    "description": (
+        "Optional non-safety-critical guidance. It is added to later agent "
+        "context; it cannot patch workflow state."
+    ),
+    "properties": {
+        "instructions": {
+            "type": "string",
+            "description": "Corrective instructions for the next agent step.",
+        },
+        "context": {
+            "type": "string",
+            "description": "Additional facts or constraints for the next agent.",
+        },
+    },
+    "additionalProperties": False,
+}
+
+
+def _resume_answer(
+    answer: Any,
+) -> tuple[Any, OperatorGuidance | None]:
+    """Separate a resume response from its validated guidance envelope."""
+
+    if not isinstance(answer, Mapping):
+        return answer, None
+    guidance_key = next(
+        (key for key in ("guidance", "operator_guidance") if key in answer),
+        None,
+    )
+    if guidance_key is None:
+        return answer, None
+
+    guidance = validate_operator_guidance(answer[guidance_key])
+    if "response" in answer:
+        return answer["response"], guidance
+    response = {key: value for key, value in answer.items() if key != guidance_key}
+    return response, guidance
+
+
+def _redact_guidance(guidance: OperatorGuidance) -> OperatorGuidance:
+    """Keep operator-supplied secrets out of state and audit history."""
+
+    return cast(
+        OperatorGuidance,
+        {key: redact_secrets(cast(str, value)) for key, value in guidance.items()},
+    )
+
+
+def _record_guidance(
+    update: WorkflowState,
+    guidance: OperatorGuidance | None,
+    *,
+    source: str,
+    action: str = "",
+) -> WorkflowState:
+    """Persist one validated guidance entry and its redacted audit event."""
+
+    if guidance is None:
+        return update
+    safe_guidance = _redact_guidance(guidance)
+    update["operator_guidance"] = [safe_guidance]
+    _record_events(
+        update,
+        run_manifest_event(
+            "operator_guidance",
+            node=source,
+            source=source,
+            action=action,
+            guidance=safe_guidance,
+        ),
+    )
+    return update
+
+
+def _guidance_context(state: WorkflowState) -> str:
+    """Format only valid guidance entries for agent-facing context."""
+
+    entries = state.get("operator_guidance", [])
+    if not isinstance(entries, list):
+        return ""
+    lines: list[str] = []
+    for entry in entries:
+        try:
+            guidance = validate_operator_guidance(entry)
+        except ValueError:
+            continue
+        for field in ("instructions", "context"):
+            value = guidance.get(field)
+            if value:
+                lines.append(f"{field}: {redact_secrets(cast(str, value))}")
+    if not lines:
+        return ""
+    return "Operator guidance from the run operator:\n" + "\n".join(lines)
 
 
 def default_dependencies(
@@ -300,6 +400,7 @@ def _versioned_node(
         ):
             started_at = time.time()
         current = {**current, "run_started_at": float(started_at)}
+        guidance_update: WorkflowState = {}
 
         try:
             with (
@@ -316,7 +417,16 @@ def _versioned_node(
                     if events:
                         stopped["run_manifest"] = events
                     return stopped
-                if recovered and workspace is not None:
+                recovery_count = current.get("run_recovery_count", 0)
+                reconciled_count = current.get("reconciled_recovery_count", 0)
+                needs_reconciliation = recovered or (
+                    isinstance(recovery_count, int)
+                    and not isinstance(recovery_count, bool)
+                    and isinstance(reconciled_count, int)
+                    and not isinstance(reconciled_count, bool)
+                    and recovery_count > reconciled_count
+                )
+                if workspace is not None and needs_reconciliation:
                     problems = _reconcile_recovered_state(current, workspace)
                     if problems:
                         events.append(
@@ -326,21 +436,54 @@ def _versioned_node(
                                 problems=problems,
                             )
                         )
-                        interrupt(
-                            {
-                                "type": "recovery_reconciliation",
-                                "message": (
-                                    "This recovered run's checkpoint state "
-                                    "disagrees with the actual repository "
-                                    "state. Review before continuing."
-                                ),
-                                "run_id": run_id,
-                                "problems": problems,
+                        recovery_prompt: dict[str, object] = {
+                            "type": "recovery_reconciliation",
+                            "message": (
+                                "This recovered run's checkpoint state "
+                                "disagrees with the actual repository "
+                                "state. Review before continuing."
+                            ),
+                            "run_id": run_id,
+                            "problems": problems,
+                            "guidance": OPERATOR_GUIDANCE_PROMPT,
+                        }
+                        while True:
+                            try:
+                                _, guidance = _resume_answer(interrupt(recovery_prompt))
+                            except ValueError as error:
+                                recovery_prompt = {
+                                    **recovery_prompt,
+                                    "error": str(error),
+                                }
+                                continue
+                            break
+                        if guidance is not None:
+                            safe_guidance = _redact_guidance(guidance)
+                            history = current.get("operator_guidance", [])
+                            current = {
+                                **current,
+                                "operator_guidance": [
+                                    *(history if isinstance(history, list) else []),
+                                    safe_guidance,
+                                ],
                             }
-                        )
+                            guidance_update["operator_guidance"] = [safe_guidance]
+                            events.append(
+                                run_manifest_event(
+                                    "operator_guidance",
+                                    node="recovery_reconciliation",
+                                    source="recovery_reconciliation",
+                                    guidance=safe_guidance,
+                                )
+                            )
+                    if isinstance(recovery_count, int) and not isinstance(
+                        recovery_count, bool
+                    ):
+                        guidance_update["reconciled_recovery_count"] = recovery_count
                 update: WorkflowState = {
                     **workspace_update,
                     **lifecycle_update,
+                    **guidance_update,
                     **node(current),
                 }
         except GraphInterrupt:
@@ -760,9 +903,14 @@ def intake(state: WorkflowState) -> WorkflowState:
             {"value": "learn", "label": "Learn the codebase"},
             {"value": "implement", "label": "Implement something"},
         ],
+        "guidance": OPERATOR_GUIDANCE_PROMPT,
     }
     while True:
-        answer = interrupt(prompt)
+        try:
+            answer, guidance = _resume_answer(interrupt(prompt))
+        except ValueError as error:
+            prompt = {**prompt, "error": str(error)}
+            continue
         if isinstance(answer, dict):
             answer = answer.get("choice", answer.get("mode"))
         if answer in ("learn", "implement"):
@@ -770,6 +918,7 @@ def intake(state: WorkflowState) -> WorkflowState:
                 "workflow_mode": answer,
                 "status": f"intake_{answer}",
             }
+            _record_guidance(update, guidance, source="intake")
             if answer == "implement" and not state.get("prd_items"):
                 task = (
                     state.get("task", "").strip() or "Implement the requested feature"
@@ -1130,7 +1279,7 @@ def commit_item(
         return {"status": "commit_skipped"}
 
     item_id = state.get("current_item_id", "")
-    if not _request_approval(
+    approved, guidance = _request_approval(
         action="commit",
         question="Approve committing this validated item?",
         details={
@@ -1138,8 +1287,14 @@ def commit_item(
             "item_title": state.get("current_item_title", ""),
             "files": list(state.get("files_touched_by_item", {}).get(item_id, [])),
         },
-    ):
-        return _approval_denied("commit")
+    )
+    if not approved:
+        return _record_guidance(
+            _approval_denied("commit"),
+            guidance,
+            source="approval",
+            action="commit",
+        )
 
     item_title = state.get("current_item_title", "")
     files_touched = list(state.get("files_touched_by_item", {}).get(item_id, []))
@@ -1161,6 +1316,7 @@ def commit_item(
     else:
         result = repository.commit_item(item_id, item_title, files_touched)
     update = state_update_from_result(result)
+    _record_guidance(update, guidance, source="approval", action="commit")
     _record_events(update, _audit_result("commit_item", result))
     if result.failure_class:
         update["failure_node"] = "commit_item"
@@ -1182,15 +1338,21 @@ def push_node(
     if repository is None:
         return {"status": "complete"}
 
-    if not _request_approval(
+    approved, guidance = _request_approval(
         action="push",
         question="Approve pushing the branch?",
         details={
             "operations": ["push"],
             "task": redact_secrets(state.get("task", "")),
         },
-    ):
-        return _approval_denied("push")
+    )
+    if not approved:
+        return _record_guidance(
+            _approval_denied("push"),
+            guidance,
+            source="approval",
+            action="push",
+        )
 
     if is_dry_run():
         branch = state.get("run_branch", "") or "<current branch>"
@@ -1206,6 +1368,7 @@ def push_node(
     else:
         result = repository.push_branch()
     update = state_update_from_result(result)
+    _record_guidance(update, guidance, source="approval", action="push")
     _record_events(update, _audit_result("push_node", result))
     return _apply_failure_policy(state, "push_node", result, update)
 
@@ -1225,15 +1388,21 @@ def pull_request_node(
     if repository is None:
         return {"status": "complete"}
 
-    if not _request_approval(
+    approved, guidance = _request_approval(
         action="open_pull_request",
         question="Approve opening the pull request?",
         details={
             "operations": ["open_pull_request"],
             "task": redact_secrets(state.get("task", "")),
         },
-    ):
-        return _approval_denied("opening a pull request")
+    )
+    if not approved:
+        return _record_guidance(
+            _approval_denied("opening a pull request"),
+            guidance,
+            source="approval",
+            action="open_pull_request",
+        )
 
     task = state.get("task", "")
     branch = state.get("run_branch", "")
@@ -1267,6 +1436,12 @@ def pull_request_node(
     else:
         result = repository.open_pull_request(task, branch=branch)
     update = state_update_from_result(result)
+    _record_guidance(
+        update,
+        guidance,
+        source="approval",
+        action="open_pull_request",
+    )
     _record_events(update, _audit_result("pull_request_node", result))
     return _apply_failure_policy(state, "pull_request_node", result, update)
 
@@ -1625,11 +1800,11 @@ def _request_approval(
     action: str,
     question: str,
     details: dict[str, object],
-) -> bool:
+) -> tuple[bool, OperatorGuidance | None]:
     """Pause for human approval before every side effect."""
 
     if is_dry_run():
-        return True
+        return True, None
     if is_development_mode():
         message = (
             "Development mode is enabled, but human approval is still required "
@@ -1651,10 +1826,15 @@ def _request_approval(
             {"value": "approve", "label": "Approve"},
             {"value": "reject", "label": "Reject"},
         ],
+        "guidance": OPERATOR_GUIDANCE_PROMPT,
         **details,
     }
     while True:
-        answer = interrupt(prompt)
+        try:
+            answer, guidance = _resume_answer(interrupt(prompt))
+        except ValueError as error:
+            prompt = {**prompt, "error": str(error)}
+            continue
         if isinstance(answer, dict):
             answer = next(
                 (
@@ -1665,15 +1845,15 @@ def _request_approval(
                 None,
             )
         if answer is True:
-            return True
+            return True, guidance
         if answer is False:
-            return False
+            return False, guidance
         if isinstance(answer, str):
             answer = answer.strip().lower()
             if answer in {"approve", "approved", "yes", "y"}:
-                return True
+                return True, guidance
             if answer in {"reject", "rejected", "deny", "denied", "no", "n"}:
-                return False
+                return False, guidance
         prompt = {**prompt, "error": "Choose approve or reject."}
 
 
@@ -1707,6 +1887,7 @@ def _request_for(
     instructions: str | None = None,
 ) -> AgentRequest:
     drift = state.get("repo_drift", "")
+    guidance = _guidance_context(state)
     return AgentRequest(
         task=state.get("task", ""),
         item_id=item_id,
@@ -1724,6 +1905,7 @@ def _request_for(
             part
             for part in (
                 f"Repository drift since this run started:\n{drift}" if drift else "",
+                guidance,
                 state.get("root_cause", ""),
             )
             if part

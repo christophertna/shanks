@@ -1169,6 +1169,78 @@ class GraphRoutingTests(unittest.TestCase):
         self.assertEqual(result["prd_items"][0]["title"], "Add a feature")
         self.assertTrue(result["prd_items"][0]["passes"])
 
+    def test_intake_guidance_reaches_agents_and_manifest(self) -> None:
+        planner = SequenceAdapter(
+            "planner",
+            [
+                AgentResult(
+                    status="planned",
+                    assigned_model="planner",
+                    plan=["Implement the feature"],
+                    builder_instructions="Build the feature.",
+                )
+            ],
+        )
+        builder = SequenceAdapter(
+            "builder",
+            [AgentResult(status="built", assigned_model="builder", item_built=True)],
+        )
+        dependencies = NodeDependencies(
+            planner=planner,
+            builder=builder,
+            critic=StubAgentAdapter("critic", "critic"),
+            validator=StubAgentAdapter("validator", "validator"),
+            debugger=StubAgentAdapter("debugger", "debugger"),
+        )
+        graph = build_graph(dependencies)
+        config = {"configurable": {"thread_id": "intake-guidance"}}
+        guidance = {
+            "instructions": "Keep the implementation limited to the workflow.",
+            "context": "The existing standard-library test style is intentional.",
+        }
+
+        paused = graph.invoke({"task": "Add a feature"}, config)
+        self.assertEqual(paused["__interrupt__"][0].value["type"], "intake")
+        self.assertFalse(
+            paused["__interrupt__"][0].value["guidance"]["additionalProperties"]
+        )
+
+        result = graph.invoke(
+            Command(resume={"choice": "implement", "guidance": guidance}),
+            config,
+        )
+
+        self.assertEqual(result["operator_guidance"], [guidance])
+        self.assertIn(guidance["instructions"], planner.requests[0].context)
+        self.assertIn(guidance["context"], builder.requests[0].context)
+        events = [
+            event
+            for event in result["run_manifest"]
+            if event.get("type") == "operator_guidance"
+        ]
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["source"], "intake")
+        self.assertEqual(events[0]["guidance"], guidance)
+
+    def test_intake_reprompts_for_unsafe_guidance_fields(self) -> None:
+        graph = build_graph(_stub_dependencies())
+        config = {"configurable": {"thread_id": "unsafe-guidance"}}
+
+        graph.invoke({"task": "Add a feature"}, config)
+        paused = graph.invoke(
+            Command(
+                resume={
+                    "choice": "implement",
+                    "guidance": {"instructions": "fix it", "status": "complete"},
+                }
+            ),
+            config,
+        )
+
+        self.assertIn("__interrupt__", paused)
+        self.assertIn("only accepts", paused["__interrupt__"][0].value["error"])
+        self.assertEqual(graph.get_state(config).values["operator_guidance"], [])
+
     def test_implementation_reuses_learning_notes(self) -> None:
         planner = SequenceAdapter(
             "planner",
@@ -1324,6 +1396,28 @@ class GraphRoutingTests(unittest.TestCase):
             result = graph.invoke(Command(resume="approve"), config)
 
         self.assertEqual(result["status"], "pr_created")
+
+    def test_approval_guidance_is_recorded_before_side_effect(self) -> None:
+        repository = RecordingRepository()
+        graph = build_graph(_stub_dependencies(repository))
+        config = {"configurable": {"thread_id": "approval-guidance"}}
+        guidance = {"instructions": "Keep the handoff scoped to this item."}
+
+        with patch.dict("os.environ", {"SHANKS_MODE": "runtime"}):
+            graph.invoke(_initial_state(), config)
+            paused = graph.invoke(
+                Command(resume={"response": "approve", "guidance": guidance}),
+                config,
+            )
+
+        self.assertEqual(repository.commits, ["item-1"])
+        self.assertEqual(paused["operator_guidance"], [guidance])
+        self.assertTrue(
+            any(
+                event.get("source") == "approval" and event.get("action") == "commit"
+                for event in paused["run_manifest"]
+            )
+        )
 
     def test_development_mode_still_requires_side_effect_approvals(self) -> None:
         repository = RecordingRepository()

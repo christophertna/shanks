@@ -25,7 +25,7 @@ from .lifecycle import (
     TERMINAL_LIFECYCLE_STATUSES,
 )
 from .mode import DEVELOPMENT_MODE, DRY_RUN_MODE, execution_mode, is_development_mode
-from .state import cancel_run
+from .state import OperatorGuidance, cancel_run, validate_operator_guidance
 from .workspaces import RunWorkspaceManager, WorkspaceError, sync_local_guardrails
 
 
@@ -723,6 +723,13 @@ def _build_parser() -> argparse.ArgumentParser:
         dest="response_option",
         help="The interrupt response, such as implement, learn, approve, or reject.",
     )
+    resume.add_argument(
+        "--guidance",
+        help=(
+            "Optional JSON guidance object with instructions and/or context; "
+            "it cannot modify workflow state."
+        ),
+    )
     resume.add_argument("--tool", choices=("claude", "codex"))
     _add_action_options(resume)
 
@@ -966,6 +973,7 @@ def _status_payload(
             "run_lease_expires_at": values.get("run_lease_expires_at", 0.0),
             "run_recovery_count": values.get("run_recovery_count", 0),
             "repo_drift": values.get("repo_drift", ""),
+            "operator_guidance": values.get("operator_guidance", []),
         }
     return {
         "run_id": run_id,
@@ -1049,6 +1057,10 @@ def _resume(args: argparse.Namespace, json_output: bool) -> int:
             response_value = json.loads(response)
         except json.JSONDecodeError:
             pass
+    response_value = _normalize_resume_guidance(response_value)
+    guidance = _parse_guidance_option(getattr(args, "guidance", None))
+    if guidance is not None:
+        response_value = _attach_guidance(response_value, guidance)
 
     with _open_checkpointer(args) as checkpointer:
         latest = _latest_checkpoint(checkpointer, args.run_id)
@@ -1087,6 +1099,49 @@ def _resume(args: argparse.Namespace, json_output: bool) -> int:
             for line in _interrupt_lines(interrupt["value"]):
                 print(f"  {line}")
     return 0
+
+
+def _parse_guidance_option(raw: str | None) -> OperatorGuidance | None:
+    """Parse and validate the CLI's structured guidance option."""
+
+    if raw is None:
+        return None
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError as error:
+        raise CliError("--guidance must be valid JSON") from error
+    try:
+        return validate_operator_guidance(value)
+    except ValueError as error:
+        raise CliError(f"invalid --guidance: {error}") from error
+
+
+def _normalize_resume_guidance(value: Any) -> Any:
+    """Validate guidance embedded in a JSON resume response, if present."""
+
+    if not isinstance(value, Mapping):
+        return value
+    for key in ("guidance", "operator_guidance"):
+        if key not in value:
+            continue
+        try:
+            guidance = validate_operator_guidance(value[key])
+        except ValueError as error:
+            raise CliError(f"invalid resume guidance: {error}") from error
+        normalized = dict(value)
+        normalized[key] = guidance
+        return normalized
+    return value
+
+
+def _attach_guidance(value: Any, guidance: OperatorGuidance) -> Any:
+    """Wrap a response so the graph can apply guidance without state patches."""
+
+    if isinstance(value, Mapping):
+        if "guidance" in value or "operator_guidance" in value:
+            raise CliError("provide guidance either in the response or --guidance")
+        return {**value, "guidance": guidance}
+    return {"response": value, "guidance": guidance}
 
 
 def _cancel(args: argparse.Namespace, json_output: bool) -> int:
@@ -1436,10 +1491,15 @@ def _interrupt_lines(value: Any) -> list[str]:
             )
             for option in options
         )
+    guidance = value.get("guidance")
+    if isinstance(guidance, Mapping):
+        lines.append(
+            "optional guidance: " + json.dumps(guidance, default=str, sort_keys=True)
+        )
     details = {
         key: item
         for key, item in value.items()
-        if key not in {"message", "question", "error", "options", "type"}
+        if key not in {"message", "question", "error", "options", "type", "guidance"}
     }
     if details:
         lines.append(json.dumps(details, default=str, sort_keys=True))
