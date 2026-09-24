@@ -1056,6 +1056,38 @@ class ShanksCliTests(unittest.TestCase):
             self.assertEqual(len(fake_graph.invocations), 1)
             self.assertEqual(fake_graph.invocations[0][0].resume, "approve")
 
+    def test_resume_passes_validated_guidance_to_the_graph(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "checkpoints.sqlite"
+            self._seed_run(database, "run-1", status="interrupted")
+            fake_graph = _FakeGraph()
+            guidance = {
+                "instructions": "Focus on the failing validation path.",
+                "context": "Keep the change within the current item.",
+            }
+            with patch("graph.build_graph", return_value=fake_graph):
+                self.assertEqual(
+                    main(
+                        [
+                            "runs",
+                            "resume",
+                            "run-1",
+                            "approve",
+                            "--guidance",
+                            json.dumps(guidance),
+                            "--checkpoint-db",
+                            str(database),
+                        ]
+                    ),
+                    0,
+                )
+
+            self.assertEqual(len(fake_graph.invocations), 1)
+            self.assertEqual(
+                fake_graph.invocations[0][0].resume,
+                {"response": "approve", "guidance": guidance},
+            )
+
     def test_recover_marks_expired_leases_from_the_cli(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             database = Path(directory) / "checkpoints.sqlite"

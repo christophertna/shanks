@@ -137,6 +137,42 @@ class LifecycleTests(unittest.TestCase):
             )
             connection.close()
 
+    def test_recovered_run_records_operator_guidance_before_continuing(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = _repository(Path(directory))
+            workspace_manager = RunWorkspaceManager(root)
+            connection = sqlite3.connect(":memory:", check_same_thread=False)
+            first = RunLifecycleManager(
+                connection, lease_ttl_seconds=10, owner_id="first"
+            )
+            first.acquire("run-1", now=100)
+            second = RunLifecycleManager(
+                connection, lease_ttl_seconds=10, owner_id="second"
+            )
+            preflight = create_nodes(
+                dependencies(second, workspace_manager=workspace_manager)
+            )["preflight"]
+            state = {
+                "task": "recovered",
+                "state_schema_version": 7,
+                "run_id": "run-1",
+                "commit_sha": "0" * 40,
+            }
+            config = {"configurable": {"thread_id": "run-1"}}
+            guidance = {"instructions": "Review the stale commit before continuing."}
+
+            with patch("workflow.nodes.interrupt", return_value={"guidance": guidance}):
+                result = preflight(state, config)
+
+            self.assertEqual(result["operator_guidance"], [guidance])
+            self.assertTrue(
+                any(
+                    event.get("source") == "recovery_reconciliation"
+                    for event in result["run_manifest"]
+                )
+            )
+            connection.close()
+
     def test_recovered_run_proceeds_when_checkpoint_state_matches_reality(
         self,
     ) -> None:

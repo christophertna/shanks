@@ -2,13 +2,13 @@ Shanks feature roadmap
 
 Priority 1 - Reliability and contributor experience
 
-1- Human-in-the-Loop State Injection.
-   Allow an operator responding to a paused run to provide validated guidance
-   so the agent can resume with corrected instructions instead of restarting
-   the chain. Extend the interrupt payload and CLI resume path to carry
-   structured guidance, constrain it to non-safety-critical workflow context,
-   record it in the run manifest, and cover resume/recovery behavior with
-   tests. Do not allow arbitrary patches to safety-critical state.
+1- Operator-facing run event timeline.
+   Turn the persisted run manifest into a concise, queryable timeline for
+   `runs status` and the graph viewer. Include approvals, operator guidance
+   (source, node, and action), recovery/reconciliation, adapter or tool
+   events, and terminal outcomes. Preserve existing redaction and add bounded
+   retention plus CLI/viewer output and regression coverage so incident review
+   is useful without exposing secrets or growing without limit.
 
 Suggestions
 
@@ -73,12 +73,6 @@ Suggestions
   before the first build. Carries a `ponytail:` comment naming the ceiling;
   moving the refresh into `_versioned_node` would fix it at the cost of one
   `git fetch` per node call.
-- No audit trail of what Ralph actually did inside a session - the run
-  manifest records the launching command and the final `--print` output,
-  not the individual tool calls (files read/written, Bash commands run)
-  during the session. Would help post-incident review; capturing
-  `--output-format stream-json` (or equivalent) into the run manifest is
-  the likely shape.
 - `critic_auditor` runs *before* `validation` in the graph (build -> critic
   -> validate), and `ClaudeOpus48CriticAdapter` has no `Bash` at all, so it
   can never actually run the tests it's judging - only reason from source.
@@ -221,10 +215,11 @@ Big tasks (ordered by priority)
 1- Event-sourced execution history and deterministic replay.
     Replace checkpoint snapshots plus node-level `run_manifest` entries with
     an append-only execution and artifact history. Record adapter responses,
-    approvals, subprocess/tool events, and enough workspace evidence to
-    reproduce a run without repeating non-deterministic or side-effecting
-    operations. Add replay CLI support, mocked side-effect adapters, retention,
-    viewer timeline support, and local evaluation metrics.
+    approvals, operator guidance, recovery transitions, subprocess/tool
+    events, and enough workspace evidence to reproduce a run without
+    repeating non-deterministic or side-effecting operations. Add replay CLI
+    support, mocked side-effect adapters, retention, viewer timeline support,
+    and local evaluation metrics.
 
 2- PR/CI feedback loop.
     Extend the current terminal-after-pull-request flow to consume GitHub check

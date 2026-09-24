@@ -7,12 +7,14 @@ from collections.abc import Callable, Mapping
 from datetime import datetime, timezone
 from typing import Annotated, Any, Literal, TypedDict, cast
 
-CURRENT_STATE_SCHEMA_VERSION = 6
+CURRENT_STATE_SCHEMA_VERSION = 8
 DEFAULT_MAX_RUNTIME_SECONDS = 3600.0
 DEFAULT_MAX_ATTEMPTS = 3
 DEFAULT_MAX_TOTAL_ATTEMPTS = 20
 DEFAULT_MAX_TOKENS = 100_000
 DEFAULT_MAX_COST_USD = 0.0
+OPERATOR_GUIDANCE_FIELDS = ("instructions", "context")
+OPERATOR_GUIDANCE_MAX_CHARS = 4_000
 
 
 class PRDItem(TypedDict, total=False):
@@ -29,6 +31,13 @@ class PRDItem(TypedDict, total=False):
     priority: int
     passes: bool
     validation: bool
+
+
+class OperatorGuidance(TypedDict, total=False):
+    """Validated, non-safety-critical context supplied on resume."""
+
+    instructions: str
+    context: str
 
 
 class WorkflowState(TypedDict, total=False):
@@ -67,6 +76,7 @@ class WorkflowState(TypedDict, total=False):
     # Append-only: nodes return just their new events and the channel reducer
     # concatenates them, so two writes in one node can no longer drop the first.
     run_manifest: Annotated[list[dict[str, Any]], operator.add]
+    operator_guidance: Annotated[list[OperatorGuidance], operator.add]
     build_completed: bool
     last_error: str
     assigned_model: str
@@ -101,6 +111,7 @@ class WorkflowState(TypedDict, total=False):
     run_lease_expires_at: float
     run_last_heartbeat_at: float
     run_recovery_count: int
+    reconciled_recovery_count: int
 
 
 class StateSchemaError(ValueError):
@@ -198,6 +209,22 @@ def _migrate_v5_to_v6(state: dict[str, Any]) -> dict[str, Any]:
     state.setdefault("run_lease_expires_at", 0.0)
     state.setdefault("run_last_heartbeat_at", 0.0)
     state.setdefault("run_recovery_count", 0)
+    state["state_schema_version"] = 6
+    return state
+
+
+def _migrate_v6_to_v7(state: dict[str, Any]) -> dict[str, Any]:
+    """Add the append-only operator guidance channel."""
+
+    state.setdefault("operator_guidance", [])
+    state["state_schema_version"] = 7
+    return state
+
+
+def _migrate_v7_to_v8(state: dict[str, Any]) -> dict[str, Any]:
+    """Track which recovered lease has passed reconciliation."""
+
+    state.setdefault("reconciled_recovery_count", 0)
     state["state_schema_version"] = CURRENT_STATE_SCHEMA_VERSION
     return state
 
@@ -209,7 +236,44 @@ _STATE_MIGRATIONS: dict[int, StateMigration] = {
     3: _migrate_v3_to_v4,
     4: _migrate_v4_to_v5,
     5: _migrate_v5_to_v6,
+    6: _migrate_v6_to_v7,
+    7: _migrate_v7_to_v8,
 }
+
+
+def validate_operator_guidance(value: Any) -> OperatorGuidance:
+    """Validate the small guidance surface that may be injected on resume.
+
+    Guidance is deliberately not a state patch. Only free-form instructions
+    and context are accepted; workflow controls remain graph-owned.
+    """
+
+    if not isinstance(value, Mapping):
+        raise ValueError("operator guidance must be a JSON object")
+
+    unknown = [key for key in value if key not in OPERATOR_GUIDANCE_FIELDS]
+    if unknown:
+        raise ValueError(
+            "operator guidance only accepts: " + ", ".join(OPERATOR_GUIDANCE_FIELDS)
+        )
+
+    guidance: dict[str, str] = {}
+    for field in OPERATOR_GUIDANCE_FIELDS:
+        raw = value.get(field)
+        if raw is None:
+            continue
+        if not isinstance(raw, str) or not raw.strip():
+            raise ValueError(f"operator guidance field {field!r} must be a string")
+        if len(raw) > OPERATOR_GUIDANCE_MAX_CHARS:
+            raise ValueError(
+                f"operator guidance field {field!r} exceeds "
+                f"{OPERATOR_GUIDANCE_MAX_CHARS} characters"
+            )
+        guidance[field] = raw.strip()
+
+    if not guidance:
+        raise ValueError("operator guidance must include instructions or context")
+    return cast(OperatorGuidance, guidance)
 
 
 def run_manifest_event(event_type: str, **details: Any) -> dict[str, Any]:
@@ -268,6 +332,8 @@ def migrate_state(state: Mapping[str, Any]) -> WorkflowState:
         version = next_version
 
     migrated.setdefault("run_manifest", [])
+    migrated.setdefault("operator_guidance", [])
+    migrated.setdefault("reconciled_recovery_count", 0)
     migrated.setdefault("failure_class", "")
     migrated.setdefault("failure_node", "")
     migrated.setdefault("retry_counts", {})
