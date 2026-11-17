@@ -117,9 +117,8 @@ class LifecycleTests(unittest.TestCase):
         stopped = preflight(state, {"configurable": {"thread_id": "run-1"}})
 
         self.assertEqual(stopped["status"], "budget_exceeded")
-        self.assertEqual(
-            stopped["run_lifecycle_status"], lifecycle_status(stopped["status"])
-        )
+        self.assertEqual(stopped["run_lifecycle_status"], "cancelled")
+        self.assertEqual(lifecycle_status(stopped["status"]), "cancelled")
         connection.close()
 
     def test_recovered_run_interrupts_on_a_stale_commit_sha(self) -> None:
