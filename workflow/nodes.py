@@ -55,6 +55,7 @@ from .lifecycle import (
     RunBusyError,
     RunLifecycleManager,
     TERMINAL_RUN_STATUSES,
+    lifecycle_status,
 )
 from .mode import is_development_mode, is_dry_run
 from .workspaces import (
@@ -527,7 +528,7 @@ def _versioned_node(
         if lifecycle_manager is not None and run_id:
             status = update.get("status", "")
             if status in TERMINAL_RUN_STATUSES:
-                update["run_lifecycle_status"] = _run_lifecycle_status(status)
+                update["run_lifecycle_status"] = lifecycle_status(status)
         update["state_schema_version"] = CURRENT_STATE_SCHEMA_VERSION
         if events:
             update["run_manifest"] = events
@@ -625,14 +626,6 @@ def _state_workspace_directory(state: WorkflowState) -> Path | None:
     return Path(directory)
 
 
-def _run_lifecycle_status(status: str) -> str:
-    if status in {"complete", "pr_created", "pull_request_preview"}:
-        return "complete"
-    if status in {"cancelled", "budget_exceeded"}:
-        return "cancelled"
-    return "failed"
-
-
 _STOP_STATUSES = frozenset({"cancelled", "budget_exceeded", "run_locked"})
 
 
@@ -694,11 +687,10 @@ def _invalid_budget(state: WorkflowState) -> str | None:
 def _stop_update(state: WorkflowState, reason: str) -> WorkflowState:
     """Return a terminal state update without invoking another backend."""
 
+    status = "cancelled" if state.get("cancel_requested") else "budget_exceeded"
     return {
-        "status": "cancelled" if state.get("cancel_requested") else "budget_exceeded",
-        "run_lifecycle_status": (
-            "cancelled" if state.get("cancel_requested") else "failed"
-        ),
+        "status": status,
+        "run_lifecycle_status": lifecycle_status(status),
         "last_error": reason,
         "run_started_at": state.get("run_started_at", time.time()),
         "state_schema_version": CURRENT_STATE_SCHEMA_VERSION,
