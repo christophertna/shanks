@@ -252,7 +252,7 @@ class RunLifecycleManager:
         """Release the lease after its terminal checkpoint is persisted."""
 
         now = time.time() if now is None else now
-        lifecycle_status = _lifecycle_status(status)
+        record_status = lifecycle_status(status)
         with self._lock:
             self._setup()
             recovery_count = self._recovery_count(run_id)
@@ -264,7 +264,7 @@ class RunLifecycleManager:
                 return False
             self._upsert_record(
                 run_id,
-                status=lifecycle_status,
+                status=record_status,
                 now=now,
                 recovery_count=recovery_count,
                 finished_at=now,
@@ -435,7 +435,7 @@ class RunLifecycleManager:
         )
 
 
-def _lifecycle_status(status: str) -> str:
+def lifecycle_status(status: str) -> str:
     if status in {"complete", "pr_created", "pull_request_preview"}:
         return "complete"
     if status in {"cancelled", "budget_exceeded"}:
@@ -464,6 +464,7 @@ __all__ = [
     "RunLease",
     "RunLifecycleManager",
     "RunRecord",
+    "lifecycle_status",
     "TERMINAL_LIFECYCLE_STATUSES",
     "TERMINAL_RUN_STATUSES",
 ]

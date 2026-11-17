@@ -8,7 +8,7 @@ from unittest.mock import patch
 from graph import VersionedSqliteSaver, build_graph
 from langgraph.types import Command
 from workflow.adapters import StubAgentAdapter
-from workflow.lifecycle import RunBusyError, RunLifecycleManager
+from workflow.lifecycle import RunBusyError, RunLifecycleManager, lifecycle_status
 from workflow.nodes import NodeDependencies, create_nodes
 from workflow.retries import classify_failure, retry_on_exception
 from workflow.workspaces import RunWorkspaceManager
@@ -101,6 +101,24 @@ class LifecycleTests(unittest.TestCase):
         self.assertEqual(blocked["run_lifecycle_status"], "blocked")
         self.assertEqual(blocked["failure_node"], "lease")
         first_lifecycle.release("run-1", status="failed")
+        connection.close()
+
+    def test_budget_stop_reports_the_same_lifecycle_status_as_the_record(self) -> None:
+        connection = sqlite3.connect(":memory:", check_same_thread=False)
+        lifecycle = RunLifecycleManager(connection, owner_id="owner")
+        preflight = create_nodes(dependencies(lifecycle))["preflight"]
+        state = {
+            "task": "over budget",
+            "state_schema_version": 6,
+            "run_started_at": 1.0,
+            "max_runtime_seconds": 1,
+        }
+
+        stopped = preflight(state, {"configurable": {"thread_id": "run-1"}})
+
+        self.assertEqual(stopped["status"], "budget_exceeded")
+        self.assertEqual(stopped["run_lifecycle_status"], "cancelled")
+        self.assertEqual(lifecycle_status(stopped["status"]), "cancelled")
         connection.close()
 
     def test_recovered_run_interrupts_on_a_stale_commit_sha(self) -> None:
