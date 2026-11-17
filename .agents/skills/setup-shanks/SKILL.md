@@ -7,8 +7,9 @@ description: Load the context a new agent needs before working on Shanks. Use at
 
 Orient before touching anything. Do these in order.
 
-1. Run `git status -sb`. A dirty tree or a branch you did not create means
-   another agent is working here: stop and say so. Start your own work with
+1. Run `git status -sb`. A clean tree on `main` is fine. A dirty tree you did
+   not make, or an unfamiliar non-default branch, means another agent is
+   working here: stop and say so. Start your own work with
    `./shanks dev worktree <branch>` (or `git checkout -b`).
 2. Read `CLAUDE.md` (Claude Code) or `AGENTS.md` (Codex) at the repo root. They
    hold the commands, gotchas, shared-checkout rules, and commit style.
