@@ -1,0 +1,1 @@
+../../../skills/setup-shanks/SKILL.md
