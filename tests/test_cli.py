@@ -316,7 +316,7 @@ class ShanksCliTests(unittest.TestCase):
         versions = {
             "langgraph": "1.2.10",
             "langgraph-checkpoint-sqlite": "3.1.1",
-            "black": "26.5.1",
+            "black": "26.10.1",
             "mypy": "1.20.2",
             "pip-audit": "2.10.1",
             "ruff": "0.16.1",
@@ -439,7 +439,7 @@ class ShanksCliTests(unittest.TestCase):
                     side_effect=lambda name: {
                         "langgraph": "1.2.10",
                         "langgraph-checkpoint-sqlite": "3.1.1",
-                        "black": "26.5.1",
+                        "black": "26.10.1",
                         "mypy": "1.20.2",
                         "pip-audit": "2.10.1",
                         "ruff": "0.16.1",
@@ -486,7 +486,7 @@ class ShanksCliTests(unittest.TestCase):
                     side_effect=lambda name: {
                         "langgraph": "1.2.10",
                         "langgraph-checkpoint-sqlite": "3.1.1",
-                        "black": "26.5.1",
+                        "black": "26.10.1",
                         "mypy": "1.20.2",
                         "pip-audit": "2.10.1",
                         "ruff": "0.16.1",
@@ -534,7 +534,7 @@ class ShanksCliTests(unittest.TestCase):
                     side_effect=lambda name: {
                         "langgraph": "1.2.10",
                         "langgraph-checkpoint-sqlite": "3.1.1",
-                        "black": "26.5.1",
+                        "black": "26.10.1",
                         "mypy": "1.20.2",
                         "pip-audit": "2.10.1",
                         "ruff": "0.16.1",
