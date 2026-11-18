@@ -255,7 +255,7 @@ The shared SQLite checkpoint store also owns a durable run lease:
 
 | Setting | Purpose | Default |
 |---|---|---|
-| `SHANKS_RUN_LEASE_SECONDS` | Lease duration | — |
+| `SHANKS_RUN_LEASE_SECONDS` | Lease duration; keep it above the 3600-second node timeout | 7200 |
 | `SHANKS_CHECKPOINT_RETENTION` | Automatic checkpoint retention limit | 100 |
 
 Terminal checkpoints release their lease and use the configured retention limit. Call `VersionedSqliteSaver.cleanup(...)` for explicit count/age-based cleanup.
