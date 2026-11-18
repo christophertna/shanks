@@ -10,6 +10,10 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any
 
+# The lease is renewed only between nodes, so it must outlast the slowest
+# node: the 3600s adapter timeout plus margin. A shorter lease lets a second
+# process take over a run whose node is still working.
+DEFAULT_LEASE_TTL_SECONDS = 7200.0
 TERMINAL_RUN_STATUSES = frozenset(
     {
         "complete",
@@ -68,7 +72,7 @@ class RunLifecycleManager:
     """Coordinate one active owner and durable status for each run."""
 
     conn: sqlite3.Connection
-    lease_ttl_seconds: float = 3600.0
+    lease_ttl_seconds: float = DEFAULT_LEASE_TTL_SECONDS
     owner_id: str = field(default_factory=lambda: uuid.uuid4().hex)
     _lock: threading.RLock = field(init=False, repr=False)
     _is_setup: bool = field(init=False, default=False, repr=False)
@@ -459,6 +463,7 @@ def _record(row: tuple[Any, ...]) -> RunRecord:
 
 
 __all__ = [
+    "DEFAULT_LEASE_TTL_SECONDS",
     "LeaseLostError",
     "RunBusyError",
     "RunLease",

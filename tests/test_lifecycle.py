@@ -7,8 +7,13 @@ from unittest.mock import patch
 
 from graph import VersionedSqliteSaver, build_graph
 from langgraph.types import Command
-from workflow.adapters import StubAgentAdapter
-from workflow.lifecycle import RunBusyError, RunLifecycleManager, lifecycle_status
+from workflow.adapters import GitHubAdapter, StubAgentAdapter, SubprocessAgentAdapter
+from workflow.lifecycle import (
+    DEFAULT_LEASE_TTL_SECONDS,
+    RunBusyError,
+    RunLifecycleManager,
+    lifecycle_status,
+)
 from workflow.nodes import NodeDependencies, create_nodes
 from workflow.retries import classify_failure, retry_on_exception
 from workflow.workspaces import RunWorkspaceManager
@@ -101,6 +106,16 @@ class LifecycleTests(unittest.TestCase):
         self.assertEqual(blocked["run_lifecycle_status"], "blocked")
         self.assertEqual(blocked["failure_node"], "lease")
         first_lifecycle.release("run-1", status="failed")
+        connection.close()
+
+    def test_default_lease_outlasts_every_node_timeout(self) -> None:
+        longest = max(
+            cls.__dataclass_fields__["timeout_seconds"].default
+            for cls in (SubprocessAgentAdapter, GitHubAdapter)
+        )
+        connection = sqlite3.connect(":memory:", check_same_thread=False)
+        self.assertGreater(RunLifecycleManager(connection).lease_ttl_seconds, longest)
+        self.assertGreater(DEFAULT_LEASE_TTL_SECONDS, longest)
         connection.close()
 
     def test_budget_stop_reports_the_same_lifecycle_status_as_the_record(self) -> None:

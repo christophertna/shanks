@@ -42,6 +42,7 @@ from workflow.retries import (
     retry_on_exception,
 )
 from workflow.lifecycle import (
+    DEFAULT_LEASE_TTL_SECONDS,
     RunLifecycleManager,
     TERMINAL_RUN_STATUSES,
 )
@@ -279,7 +280,9 @@ def shared_checkpointer() -> VersionedSqliteSaver:
     connection = sqlite3.connect(str(checkpoint_path), check_same_thread=False)
     lifecycle = RunLifecycleManager(
         connection,
-        lease_ttl_seconds=_env_float("SHANKS_RUN_LEASE_SECONDS", 3600.0),
+        lease_ttl_seconds=_env_float(
+            "SHANKS_RUN_LEASE_SECONDS", DEFAULT_LEASE_TTL_SECONDS
+        ),
     )
     return VersionedSqliteSaver(
         connection,
