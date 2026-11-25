@@ -2,7 +2,38 @@ Shanks feature roadmap
 
 Priority 1 - Reliability and contributor experience
 
-(No open items.)
+1- Doctor: smoke-test the build sandbox's write allowlist.
+   `scripts/sandbox_claude.sh`'s write allowlist
+   (`~/.claude`/`~/.codex`/`~/.npm`/`~/.cache`) was hand-picked by probing
+   `claude --version`/`codex --version` empirically, not from upstream
+   documentation. A CLI update that writes to a new config/cache path would
+   reintroduce "Operation not permitted" failures that look like flaky runs
+   rather than a sandbox problem. Add a `./shanks doctor` check that runs
+   `claude --version` (and `codex --version`, when installed) through the
+   sandbox wrapper, so the drift shows up before a run instead of mid-run.
+   Run each command unsandboxed first and blame the sandbox only when the
+   plain run passes and the sandboxed one fails; a missing or broken CLI is
+   the `tools` check's business, not allowlist drift. macOS-only, like the sandbox itself:
+   report a skipped/OK line where `sandbox-exec` is unavailable.
+
+2- Budget the synchronous Claude Code hooks.
+   No `hooks/*.sh` entry in `.claude/settings.json` sets a `timeout`, so
+   `hooks/run-impacted-tests.sh` and `hooks/format-touched.sh` - synchronous
+   by design, since they need the exit code for blocking feedback - run under
+   Claude Code's default per-command cap. Since #97 they really execute
+   inside unattended run worktrees, so a hung test or stuck
+   `black`/`ruff`/`mypy` costs that full cap on every Write/Edit with nobody
+   watching. Set a `timeout` field per hook in the settings JSON (not a shell
+   `timeout` wrapper; macOS ships no GNU coreutils `timeout`), and have the
+   doctor `claude-hooks` check warn when either hook lacks one, since that
+   file is gitignored and hand-maintained. That check deliberately lifts the
+   names-only ceiling in the matcher suggestion below for these two entries:
+   read just the `timeout` of the entry whose command names each hook, and
+   tolerate a missing or reshaped structure (warn, never crash). Confirm the
+   current default cap against the Claude Code hook docs before choosing
+   numbers. Not a live incident - all matched modules are fast and none hang
+   (the format hook measures 0.55s on `workflow/nodes.py`) - but it is cheap
+   and the failure mode is unattended, which is why it is promoted.
 
 Suggestions
 
@@ -98,24 +129,8 @@ Suggestions
   should be `Write|Edit`) or inside a block Claude Code ignores still passes.
   Names-only is the deliberate ceiling - reading the matcher structure means
   encoding Claude Code's settings schema, which changes upstream. Revisit if a
-  mis-matched hook ever ships.
-- No `hooks/*.sh` entry in `.claude/settings.json` sets a `timeout`, so every
-  hook runs under Claude Code's default per-command cap rather than a budget
-  this repo chose. `hooks/run-impacted-tests.sh` and `hooks/format-touched.sh`
-  are the two that can actually spend it - both run synchronously by design
-  (they need the exit code for blocking feedback), so a hung test or a stuck
-  `black`/`ruff`/`mypy` costs that full cap on every Write/Edit until it is
-  fixed. This became live in unattended runs with #97: before it, both hooks
-  fell through `command -v "$PYTHON"` and exited 0 inside run worktrees, and
-  now they really execute while the build agent works with nobody watching.
-  The fix is a `timeout` field per hook in the settings JSON, not a portable
-  shell `timeout` wrapper (macOS ships no GNU coreutils `timeout`) - but that
-  file is gitignored and hand-maintained, so `./shanks doctor`'s `claude-hooks`
-  check is the only place that could ever notice a missing one, which folds
-  into the matcher item above. Not urgent: all matched modules are fast and
-  none hang, and the format hook measures 0.55s on `workflow/nodes.py` (mypy
-  incremental is 0.13s of that). Confirm the current default cap against the
-  Claude Code hook docs before writing a number into the file.
+  mis-matched hook ever ships. (Priority 1 item 2 reads one field, `timeout`,
+  for two named hooks - a narrow, tolerant exception, not the full schema.)
 - `hooks/post-merge`/`hooks/post-checkout` (#44) run `graphify update .`
   synchronously, unlike `hooks/graphify-update.sh` (the Claude Code hook),
   which backgrounds the call with a lockdir debounce. Fine today since it's
@@ -180,15 +195,6 @@ OS-specific (macOS-only mechanisms and fixes)
   $TARGET_DIR the same way). No urgency today since Ralph doesn't run in CI
   and local dev here is macOS; revisit if Ralph ever runs on a Linux/WSL dev
   box or in CI.
-- `scripts/sandbox_claude.sh`'s write allowlist
-  (`~/.claude`/`~/.codex`/`~/.npm`/`~/.cache`) was hand-picked by probing
-  `claude --version`/`codex --version` empirically, not from upstream
-  documentation - a future CLI version adding a new config/cache path would
-  silently reintroduce "Operation not permitted" failures that look like
-  flaky runs, not a sandbox problem. Only possible on macOS today since
-  that's the only OS with a sandbox at all. Consider a `./shanks doctor`
-  check that runs `claude --version` (and `codex --version`) through the
-  sandbox wrapper to catch that drift immediately instead of mid-run.
 - No network egress control on Ralph's build agent - the denylist only
   blocks the specific `curl|sh` pattern, nothing stops `pip install
   <package>` or other outbound calls. The gap itself applies on every OS,
