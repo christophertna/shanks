@@ -379,6 +379,32 @@ class GraphRoutingTests(unittest.TestCase):
         self.assertEqual(pull_request_event["pull_request_state"], "open")
         self.assertEqual(result["pr_state"], "open")
 
+    def test_run_manifest_records_approval_decisions_and_terminal_outcome(
+        self,
+    ) -> None:
+        result = invoke_with_approvals(
+            build_graph(_stub_dependencies(RecordingRepository())),
+            _initial_state(),
+            {"configurable": {"thread_id": "run-timeline"}},
+        )
+
+        events = result["run_manifest"]
+        approvals = [
+            (event["action"], event["status"])
+            for event in events
+            if event["type"] == "approval"
+        ]
+        self.assertEqual(
+            approvals,
+            [
+                ("commit", "approved"),
+                ("push", "approved"),
+                ("open_pull_request", "approved"),
+            ],
+        )
+        finished = [event for event in events if event["type"] == "run_finished"]
+        self.assertEqual([event["outcome"] for event in finished], ["pr_created"])
+
     def test_repository_drift_reaches_every_agent_prompt(self) -> None:
         repository = RecordingRepository(
             drift_feedback="This branch is 2 commit(s) behind origin/main.",

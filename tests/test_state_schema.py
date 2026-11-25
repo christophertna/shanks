@@ -9,9 +9,12 @@ from workflow.adapters import StubAgentAdapter
 from workflow.nodes import NodeDependencies
 from workflow.state import (
     CURRENT_STATE_SCHEMA_VERSION,
+    RUN_MANIFEST_MAX_EVENTS,
     StateSchemaError,
     _STATE_MIGRATIONS,
+    append_run_manifest,
     migrate_state,
+    run_timeline,
     validate_operator_guidance,
 )
 
@@ -207,6 +210,46 @@ class StateSchemaTests(unittest.TestCase):
             CURRENT_STATE_SCHEMA_VERSION,
         )
         connection.close()
+
+    def test_run_manifest_keeps_only_the_newest_bounded_window(self) -> None:
+        old = [
+            {"type": "agent", "n": index} for index in range(RUN_MANIFEST_MAX_EVENTS)
+        ]
+        kept = append_run_manifest(old, [{"type": "run_finished", "n": -1}])
+
+        self.assertEqual(len(kept), RUN_MANIFEST_MAX_EVENTS)
+        self.assertEqual(kept[0]["n"], 1)
+        self.assertEqual(kept[-1]["n"], -1)
+
+    def test_run_timeline_drops_payloads_and_redacts_details(self) -> None:
+        token = "ghp_" + "a" * 36
+        timeline = run_timeline(
+            [
+                {
+                    "timestamp": "t0",
+                    "type": "agent",
+                    "node": "building",
+                    "status": "failed",
+                    "prompt": "do the thing",
+                    "diff": "+secret",
+                    "error": f"push failed\nwith {token}",
+                },
+                "not-an-event",
+            ]
+        )
+
+        self.assertEqual(
+            timeline,
+            [
+                {
+                    "timestamp": "t0",
+                    "type": "agent",
+                    "node": "building",
+                    "status": "failed",
+                    "error": "push failed with [REDACTED]",
+                }
+            ],
+        )
 
 
 if __name__ == "__main__":

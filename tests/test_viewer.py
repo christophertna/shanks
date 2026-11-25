@@ -128,6 +128,7 @@ class GraphViewerTests(unittest.TestCase):
             result["checkpoint_history"][0]["checkpoint_id"], "checkpoint-1"
         )
         self.assertEqual(result["run_manifest"][0]["node"], "planning")
+        self.assertEqual(result["timeline"], [{"type": "agent", "node": "planning"}])
 
     def test_execution_state_surfaces_pending_interrupts_and_drift(self) -> None:
         prompt = {

@@ -339,7 +339,10 @@ def _snapshot_summary(snapshot: object, *, include_manifest: bool = True) -> dic
         ],
     }
     if include_manifest:
+        from workflow.state import run_timeline  # fresh after load_graph_module()
+
         summary["run_manifest"] = _json_safe(values.get("run_manifest", []))
+        summary["timeline"] = _json_safe(run_timeline(values.get("run_manifest", [])))
     return summary
 
 

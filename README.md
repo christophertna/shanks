@@ -182,7 +182,7 @@ gh auth refresh -h github.com -s workflow
 | `./shanks dev worktree BRANCH` | Create a sibling worktree for a second agent, carrying in the gitignored `.claude/settings.json`, `.claude/skills/`, and a `.venv` symlink that `git worktree add` leaves out. |
 | `./shanks dev sync [DIR...]` | Re-copy `.claude/settings.json` and `.claude/skills/` and relink `.venv` into worktrees that already exist; defaults to every worktree of this checkout. Run it after any hook change. |
 | `./shanks runs list` | List checkpointed runs. |
-| `./shanks runs status RUN_ID` | Show a run's persisted lifecycle and checkpoint status, the prompt it is paused on, its repository drift note, and its newest run-manifest events. |
+| `./shanks runs status RUN_ID` | Show a run's persisted lifecycle and checkpoint status, the prompt it is paused on, its repository drift note, and its newest timeline events (`--events N`, default 5; `0` shows every retained event). |
 | `./shanks runs resume RUN_ID RESPONSE [--guidance JSON]` | Resume a run with a response such as `implement`, `learn`, `approve`, or `reject`; optionally add validated non-safety-critical guidance. |
 | `./shanks runs cancel RUN_ID` | Request cancellation at the next safe boundary. |
 | `./shanks runs recover` | Mark expired leases as abandoned. |
@@ -227,8 +227,11 @@ Each checkpoint carries a persisted `run_manifest`. Its redacted audit events re
 - Commit SHAs
 - Pull-request URLs/IDs
 - Redacted operator guidance supplied while resuming
+- Human approval decisions (approved/denied, per action)
+- Recovery and reconciliation transitions
+- The run's terminal outcome (`run_finished`)
 
-The manifest is available from the viewer's **Live execution** panel and survives checkpointed retries.
+The manifest keeps only its newest 500 events (`RUN_MANIFEST_MAX_EVENTS` in `workflow/state.py`). `runs status` and the viewer's **Timeline** show a condensed view of it: one line per event with a few redacted scalar details and no prompts, output, diffs, or guidance text. The full manifest is available from the viewer's **Live execution** panel and survives checkpointed retries.
 
 Checkpoint state carries a `state_schema_version`:
 
@@ -338,7 +341,7 @@ The viewer's Live execution panel accepts the workflow's `thread_id` and polls:
 - Budget usage, last error, model
 - The prompt a paused run is waiting on
 - The repository drift note
-- Checkpoint history and run manifest
+- Checkpoint history, run timeline, and run manifest
 
 Expand an audit event to inspect its recorded prompt, commands, output, diff, commit, or pull-request details. Use the same thread ID when starting the workflow and inspecting it.
 

@@ -25,7 +25,12 @@ from .lifecycle import (
     TERMINAL_LIFECYCLE_STATUSES,
 )
 from .mode import DEVELOPMENT_MODE, DRY_RUN_MODE, execution_mode, is_development_mode
-from .state import OperatorGuidance, cancel_run, validate_operator_guidance
+from .state import (
+    OperatorGuidance,
+    cancel_run,
+    run_timeline,
+    validate_operator_guidance,
+)
 from .workspaces import RunWorkspaceManager, WorkspaceError, sync_local_guardrails
 
 
@@ -713,6 +718,15 @@ def _build_parser() -> argparse.ArgumentParser:
 
     status = actions.add_parser("status", help="Inspect one run and its checkpoint.")
     status.add_argument("run_id")
+    status.add_argument(
+        "--events",
+        type=_nonnegative_int,
+        default=RECENT_EVENT_LIMIT,
+        help=(
+            f"How many newest timeline events to show (default {RECENT_EVENT_LIMIT};"
+            " 0 shows every retained event)."
+        ),
+    )
     _add_action_options(status)
 
     resume = actions.add_parser("resume", help="Resume an interrupted or stale run.")
@@ -954,6 +968,7 @@ def _status_payload(
     run_id: str,
     record: Any,
     latest: dict[str, Any] | None,
+    events_limit: int | None = RECENT_EVENT_LIMIT,
 ) -> dict[str, Any]:
     values = latest["values"] if latest else {}
     checkpoint = None
@@ -980,24 +995,8 @@ def _status_payload(
         "lifecycle": asdict(record) if record is not None else None,
         "checkpoint": checkpoint,
         "interrupts": latest["interrupts"] if latest else [],
-        "recent_events": _recent_events(values.get("run_manifest", [])),
+        "recent_events": run_timeline(values.get("run_manifest", []), events_limit),
     }
-
-
-def _recent_events(manifest: Any) -> list[dict[str, Any]]:
-    """Summarize the newest run-manifest events without their bulky payloads."""
-
-    if not isinstance(manifest, list):
-        return []
-    return [
-        {
-            key: event.get(key)
-            for key in ("timestamp", "type", "node", "status", "error")
-            if event.get(key)
-        }
-        for event in manifest[-RECENT_EVENT_LIMIT:]
-        if isinstance(event, dict)
-    ]
 
 
 def _list_runs(args: argparse.Namespace, json_output: bool) -> int:
@@ -1038,7 +1037,7 @@ def _status(args: argparse.Namespace, json_output: bool) -> int:
         latest = _latest_checkpoint(checkpointer, args.run_id)
         if record is None and latest is None:
             raise CliError(f"run not found: {args.run_id}")
-        payload = _status_payload(args.run_id, record, latest)
+        payload = _status_payload(args.run_id, record, latest, args.events or None)
 
     if json_output:
         _print_json(payload)
@@ -1463,12 +1462,14 @@ def _print_human_status(payload: dict[str, Any]) -> None:
             print(f"  {line}")
     events = payload.get("recent_events", [])
     if events:
-        print("Recent events:")
+        print("Timeline:")
         for event in events:
             summary = " ".join(
-                str(event[key]) for key in ("node", "type", "status") if event.get(key)
+                str(event[key])
+                for key in ("node", "type", "status", "summary", "error")
+                if event.get(key)
             )
-            print(f"  {_format_time(event.get('timestamp', ''))} {summary}")
+            print(f"  {event.get('timestamp') or '-'} {summary}")
 
 
 def _interrupt_lines(value: Any) -> list[str]:
@@ -1523,6 +1524,13 @@ def _positive_int(value: str) -> int:
     parsed = int(value)
     if parsed < 1:
         raise argparse.ArgumentTypeError("must be at least one")
+    return parsed
+
+
+def _nonnegative_int(value: str) -> int:
+    parsed = int(value)
+    if parsed < 0:
+        raise argparse.ArgumentTypeError("must be non-negative")
     return parsed
 
 

@@ -75,7 +75,8 @@ class WorkflowState(TypedDict, total=False):
     cancel_reason: str
     # Append-only: nodes return just their new events and the channel reducer
     # concatenates them, so two writes in one node can no longer drop the first.
-    run_manifest: Annotated[list[dict[str, Any]], operator.add]
+    # The reducer also caps retention at RUN_MANIFEST_MAX_EVENTS.
+    run_manifest: Annotated[list[dict[str, Any]], append_run_manifest]
     operator_guidance: Annotated[list[OperatorGuidance], operator.add]
     build_completed: bool
     last_error: str
@@ -274,6 +275,71 @@ def validate_operator_guidance(value: Any) -> OperatorGuidance:
     if not guidance:
         raise ValueError("operator guidance must include instructions or context")
     return cast(OperatorGuidance, guidance)
+
+
+RUN_MANIFEST_MAX_EVENTS = 500
+TIMELINE_ERROR_MAX_CHARS = 200
+_TIMELINE_DETAIL_KEYS = (
+    "outcome",
+    "source",
+    "action",
+    "failure_class",
+    "retry_number",
+    "recovery_count",
+    "previous_owner",
+    "commit_sha",
+    "pull_request_url",
+    "pull_request_state",
+)
+
+
+def append_run_manifest(
+    left: list[dict[str, Any]] | None, right: list[dict[str, Any]] | None
+) -> list[dict[str, Any]]:
+    """Append new manifest events, keeping only the newest bounded window."""
+
+    return [*(left or []), *(right or [])][-RUN_MANIFEST_MAX_EVENTS:]
+
+
+def run_timeline(manifest: Any, limit: int | None = None) -> list[dict[str, Any]]:
+    """Condense run-manifest events into short, redacted operator lines.
+
+    Bulky payloads (prompts, output, diffs, guidance text) are dropped; only a
+    few scalar fields survive, and those are re-redacted before display.
+    """
+
+    from .adapters import redact_secrets  # lazy: adapters imports this module
+
+    if not isinstance(manifest, list):
+        return []
+    events = [event for event in manifest if isinstance(event, Mapping)]
+    if limit:
+        events = events[-limit:]
+    timeline = []
+    for event in events:
+        entry = {
+            key: event[key]
+            for key in ("timestamp", "type", "node", "status")
+            if event.get(key)
+        }
+        if event.get("error"):
+            # Redact before collapsing whitespace: some patterns span lines.
+            error = " ".join(redact_secrets(str(event["error"])).split())
+            if len(error) > TIMELINE_ERROR_MAX_CHARS:
+                error = error[: TIMELINE_ERROR_MAX_CHARS - 1] + "…"
+            entry["error"] = error
+        details = [
+            f"{key}={' '.join(redact_secrets(str(event[key])).split())}"
+            for key in _TIMELINE_DETAIL_KEYS
+            if event.get(key) not in (None, "", [], {})
+        ]
+        problems = event.get("problems")
+        if isinstance(problems, list) and problems:
+            details.append(f"problems={len(problems)}")
+        if details:
+            entry["summary"] = " ".join(details)
+        timeline.append(entry)
+    return timeline
 
 
 def run_manifest_event(event_type: str, **details: Any) -> dict[str, Any]:

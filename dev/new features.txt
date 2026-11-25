@@ -2,13 +2,7 @@ Shanks feature roadmap
 
 Priority 1 - Reliability and contributor experience
 
-1- Operator-facing run event timeline.
-   Turn the persisted run manifest into a concise, queryable timeline for
-   `runs status` and the graph viewer. Include approvals, operator guidance
-   (source, node, and action), recovery/reconciliation, adapter or tool
-   events, and terminal outcomes. Preserve existing redaction and add bounded
-   retention plus CLI/viewer output and regression coverage so incident review
-   is useful without exposing secrets or growing without limit.
+(No open items.)
 
 Suggestions
 
