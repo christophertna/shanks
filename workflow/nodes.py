@@ -151,9 +151,24 @@ def _record_guidance(
     *,
     source: str,
     action: str = "",
+    approved: bool | None = None,
 ) -> WorkflowState:
-    """Persist one validated guidance entry and its redacted audit event."""
+    """Persist one validated guidance entry and its redacted audit event.
 
+    `approved` also records the human approval decision itself, so the
+    timeline shows who-approved-what even when no guidance was given.
+    """
+
+    if approved is not None and not is_dry_run():
+        _record_events(
+            update,
+            run_manifest_event(
+                "approval",
+                node="approval",
+                action=action,
+                status="approved" if approved else "denied",
+            ),
+        )
     if guidance is None:
         return update
     safe_guidance = _redact_guidance(guidance)
@@ -525,8 +540,19 @@ def _versioned_node(
         reason = _stop_reason(merged)
         if reason:
             update.update(_stop_update(merged, reason))
+        status = update.get("status", "")
+        if status in TERMINAL_RUN_STATUSES and status != current.get("status"):
+            events.append(
+                run_manifest_event(
+                    "run_finished",
+                    run_id=run_id,
+                    outcome=status,
+                    error=redact_secrets(
+                        str(update.get("last_error", merged.get("last_error", "")))
+                    ),
+                )
+            )
         if lifecycle_manager is not None and run_id:
-            status = update.get("status", "")
             if status in TERMINAL_RUN_STATUSES:
                 update["run_lifecycle_status"] = lifecycle_status(status)
         update["state_schema_version"] = CURRENT_STATE_SCHEMA_VERSION
@@ -1286,6 +1312,7 @@ def commit_item(
             guidance,
             source="approval",
             action="commit",
+            approved=False,
         )
 
     item_title = state.get("current_item_title", "")
@@ -1308,7 +1335,9 @@ def commit_item(
     else:
         result = repository.commit_item(item_id, item_title, files_touched)
     update = state_update_from_result(result)
-    _record_guidance(update, guidance, source="approval", action="commit")
+    _record_guidance(
+        update, guidance, source="approval", action="commit", approved=True
+    )
     _record_events(update, _audit_result("commit_item", result))
     if result.failure_class:
         update["failure_node"] = "commit_item"
@@ -1344,6 +1373,7 @@ def push_node(
             guidance,
             source="approval",
             action="push",
+            approved=False,
         )
 
     if is_dry_run():
@@ -1360,7 +1390,7 @@ def push_node(
     else:
         result = repository.push_branch()
     update = state_update_from_result(result)
-    _record_guidance(update, guidance, source="approval", action="push")
+    _record_guidance(update, guidance, source="approval", action="push", approved=True)
     _record_events(update, _audit_result("push_node", result))
     return _apply_failure_policy(state, "push_node", result, update)
 
@@ -1394,6 +1424,7 @@ def pull_request_node(
             guidance,
             source="approval",
             action="open_pull_request",
+            approved=False,
         )
 
     task = state.get("task", "")
@@ -1433,6 +1464,7 @@ def pull_request_node(
         guidance,
         source="approval",
         action="open_pull_request",
+        approved=True,
     )
     _record_events(update, _audit_result("pull_request_node", result))
     return _apply_failure_policy(state, "pull_request_node", result, update)

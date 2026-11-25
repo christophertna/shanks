@@ -962,6 +962,51 @@ class ShanksCliTests(unittest.TestCase):
         self.assertIn("2 commit(s) behind origin/main", human.getvalue())
         self.assertIn("drift_check", human.getvalue())
 
+    def test_runs_status_events_option_bounds_the_timeline(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "checkpoints.sqlite"
+            self._seed_run(
+                database,
+                "run-long",
+                status="complete",
+                values={
+                    "run_manifest": [
+                        {"timestamp": f"t{index}", "type": "agent", "node": "building"}
+                        for index in range(8)
+                    ]
+                    + [
+                        {
+                            "timestamp": "t8",
+                            "type": "operator_guidance",
+                            "node": "approval",
+                            "source": "approval",
+                            "action": "push",
+                            "guidance": {"instructions": "secret plan"},
+                        },
+                    ],
+                },
+            )
+            base = ["runs", "status", "run-long", "--checkpoint-db", str(database)]
+
+            def timeline(*extra: str) -> list[dict]:
+                output = io.StringIO()
+                with redirect_stdout(output):
+                    self.assertEqual(main([*base, *extra, "--json"]), 0)
+                return json.loads(output.getvalue())["recent_events"]
+
+            human = io.StringIO()
+            with redirect_stdout(human):
+                self.assertEqual(main(base), 0)
+
+            self.assertEqual(len(timeline()), 5)
+            self.assertEqual(len(timeline("--events", "2")), 2)
+            everything = timeline("--events", "0")
+
+        self.assertEqual(len(everything), 9)
+        self.assertEqual(everything[-1]["summary"], "source=approval action=push")
+        self.assertNotIn("secret plan", json.dumps(everything))
+        self.assertIn("source=approval action=push", human.getvalue())
+
     def test_runs_cleanup_removes_old_checkpoint_history(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             database = Path(directory) / "checkpoints.sqlite"

@@ -59,7 +59,7 @@ The command exits non-zero when a check fails.
 
 ```bash
 ./shanks runs list
-./shanks runs status RUN_ID
+./shanks runs status RUN_ID            # --events N (default 5, 0 = all retained)
 ./shanks runs resume RUN_ID implement
 ./shanks runs resume RUN_ID implement --guidance '{"instructions":"Keep the change scoped.","context":"Add regression coverage."}'
 ./shanks runs cancel RUN_ID --reason "Operator stopped."
