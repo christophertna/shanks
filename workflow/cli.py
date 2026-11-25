@@ -93,7 +93,7 @@ def doctor_checks(
         _check_bare_repository(project, runner),
         _check_hooks_path(project, runner),
         _check_claude_hooks(project, runner),
-        _check_claude_skills(project),
+        _check_claude_skills(project, runner),
     ]
 
 
@@ -458,45 +458,58 @@ def _check_claude_hooks(project: Path, runner: Runner | None = None) -> DoctorCh
         return DoctorCheck(
             "claude-hooks", False, f".claude/settings.json is unusable: {error}"
         )
+    problems = []
     unwired = [name for name in scripts if name not in wiring]
     if unwired:
-        return DoctorCheck(
-            "claude-hooks",
-            False,
-            "never referenced by .claude/settings.json: " + ", ".join(unwired),
+        problems.append(
+            "never referenced by .claude/settings.json: " + ", ".join(unwired)
         )
     # The reverse direction: a removed hook leaves its wiring behind, and
-    # Claude Code then fails that hook on every matching tool call.
-    missing = sorted(set(re.findall(r"hooks/([\w.-]+\.sh)", wiring)) - set(scripts))
+    # Claude Code then fails that hook on every matching tool call. Only a
+    # project-relative `hooks/` (or `$CLAUDE_PROJECT_DIR/hooks/`) counts, so
+    # `~/.claude/hooks/x.sh` or `hooks/test.hooks/y.sh` are not misread.
+    referenced = re.findall(
+        r'(?:(?<![\w./~$-])|\$CLAUDE_PROJECT_DIR(?:\\?")?/)hooks/([\w.-]+\.sh)\b',
+        wiring,
+    )
+    missing = sorted(set(referenced) - set(scripts))
     if missing:
-        return DoctorCheck(
-            "claude-hooks",
-            False,
+        problems.append(
             ".claude/settings.json references missing hook scripts: "
-            + ", ".join(missing),
+            + ", ".join(missing)
         )
     stale = _stale_worktree_detail(project, settings, runner)
     if stale:
-        return DoctorCheck("claude-hooks", False, stale)
+        problems.append(stale)
+    if problems:
+        return DoctorCheck("claude-hooks", False, "; ".join(problems))
     return DoctorCheck(
         "claude-hooks", True, f"{len(scripts)} hook scripts wired: {', '.join(scripts)}"
     )
 
 
-def _check_claude_skills(project: Path) -> DoctorCheck:
+def _check_claude_skills(project: Path, runner: Runner | None = None) -> DoctorCheck:
     """Report `.claude/skills/` symlinks whose target no longer exists.
 
     `sync_local_guardrails()` skips such a link when it copies skills into a
-    worktree, so without this the skill is just silently absent there.
+    worktree, so the worktree itself never holds the broken link - the skill
+    is just absent. Run from a worktree, this therefore also checks the main
+    checkout's `.claude/skills/`, where the dangling link actually lives.
     """
 
-    skills = project / ".claude" / "skills"
-    if not skills.is_dir():
-        return DoctorCheck("claude-skills", True, "no .claude/skills/ directory")
+    runner = subprocess.run if runner is None else runner
+    roots = [project]
+    main = _main_checkout(project, runner)
+    if main is not None and main != project.resolve():
+        roots.append(main)
     dangling = sorted(
-        str(path.relative_to(skills))
-        for path in skills.rglob("*")
-        if path.is_symlink() and not path.exists()
+        {
+            str(path.relative_to(root / ".claude" / "skills"))
+            for root in roots
+            if (root / ".claude" / "skills").is_dir()
+            for path in (root / ".claude" / "skills").rglob("*")
+            if path.is_symlink() and not path.exists()
+        }
     )
     if dangling:
         return DoctorCheck(

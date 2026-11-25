@@ -267,6 +267,24 @@ class DevWorktreeTests(unittest.TestCase):
             synced = _check_claude_hooks(created)
             self.assertTrue(synced.passed, synced.detail)
 
+    def test_doctor_in_a_worktree_sees_the_main_checkouts_dangling_skill(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = self._project(Path(directory))
+            skill = project / ".claude" / "skills" / "gone"
+            skill.mkdir(parents=True)
+            (skill / "SKILL.md").symlink_to(project / "deleted.md")
+            with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                created = dev_worktree("feat/skills-doctor", project_directory=project)
+
+            # The sync skipped the broken link, so the worktree never has it.
+            self.assertFalse((created / ".claude/skills/gone/SKILL.md").is_symlink())
+            check = _check_claude_skills(created)
+
+        self.assertFalse(check.passed)
+        self.assertIn("gone/SKILL.md", check.detail)
+
 
 class ShanksCliTests(unittest.TestCase):
     def test_mode_reports_safe_runtime(self) -> None:
@@ -604,14 +622,19 @@ class ShanksCliTests(unittest.TestCase):
     def test_doctor_flags_wiring_that_references_a_missing_hook(self) -> None:
         wired = (
             '{"hooks": {"PreToolUse": [{"command": "bash hooks/guard.sh"},'
-            ' {"command": "bash hooks/removed.sh"}]}}'
+            ' {"command": "bash hooks/removed.sh"},'
+            ' {"command": "bash ~/.claude/hooks/personal.sh"},'
+            ' {"command": "bash hooks/test.hooks/test-guard.sh"},'
+            ' {"command": "bash \\"$CLAUDE_PROJECT_DIR\\"/hooks/gone.sh"}]}}'
         )
         with tempfile.TemporaryDirectory() as directory:
             check = _check_claude_hooks(self._hooks_project(Path(directory), wired))
 
         self.assertFalse(check.passed)
-        self.assertIn("removed.sh", check.detail)
-        self.assertNotIn("guard.sh", check.detail)
+        self.assertIn("missing hook scripts: gone.sh, removed.sh", check.detail)
+        # Paths outside the project's top-level hooks/ are not its business.
+        self.assertNotIn("personal.sh", check.detail)
+        self.assertNotIn("test-guard.sh", check.detail)
 
     def test_doctor_flags_dangling_skill_symlinks(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
