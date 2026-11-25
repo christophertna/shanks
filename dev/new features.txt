@@ -10,8 +10,10 @@ Priority 1 - Reliability and contributor experience
    reintroduce "Operation not permitted" failures that look like flaky runs
    rather than a sandbox problem. Add a `./shanks doctor` check that runs
    `claude --version` (and `codex --version`, when installed) through the
-   sandbox wrapper and fails on a non-zero exit, so the drift shows up
-   before a run instead of mid-run. macOS-only, like the sandbox itself:
+   sandbox wrapper, so the drift shows up before a run instead of mid-run.
+   Run each command unsandboxed first and blame the sandbox only when the
+   plain run passes and the sandboxed one fails; a missing or broken CLI is
+   the `tools` check's business, not allowlist drift. macOS-only, like the sandbox itself:
    report a skipped/OK line where `sandbox-exec` is unavailable.
 
 2- Budget the synchronous Claude Code hooks.
@@ -24,9 +26,14 @@ Priority 1 - Reliability and contributor experience
    watching. Set a `timeout` field per hook in the settings JSON (not a shell
    `timeout` wrapper; macOS ships no GNU coreutils `timeout`), and have the
    doctor `claude-hooks` check warn when either hook lacks one, since that
-   file is gitignored and hand-maintained. Confirm the current default cap
-   against the Claude Code hook docs before choosing numbers; today the
-   format hook measures 0.55s on `workflow/nodes.py`.
+   file is gitignored and hand-maintained. That check deliberately lifts the
+   names-only ceiling in the matcher suggestion below for these two entries:
+   read just the `timeout` of the entry whose command names each hook, and
+   tolerate a missing or reshaped structure (warn, never crash). Confirm the
+   current default cap against the Claude Code hook docs before choosing
+   numbers. Not a live incident - all matched modules are fast and none hang
+   (the format hook measures 0.55s on `workflow/nodes.py`) - but it is cheap
+   and the failure mode is unattended, which is why it is promoted.
 
 Suggestions
 
@@ -122,7 +129,8 @@ Suggestions
   should be `Write|Edit`) or inside a block Claude Code ignores still passes.
   Names-only is the deliberate ceiling - reading the matcher structure means
   encoding Claude Code's settings schema, which changes upstream. Revisit if a
-  mis-matched hook ever ships.
+  mis-matched hook ever ships. (Priority 1 item 2 reads one field, `timeout`,
+  for two named hooks - a narrow, tolerant exception, not the full schema.)
 - `hooks/post-merge`/`hooks/post-checkout` (#44) run `graphify update .`
   synchronously, unlike `hooks/graphify-update.sh` (the Claude Code hook),
   which backgrounds the call with a lockdir debounce. Fine today since it's
