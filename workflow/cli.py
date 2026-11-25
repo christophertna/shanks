@@ -93,6 +93,7 @@ def doctor_checks(
         _check_bare_repository(project, runner),
         _check_hooks_path(project, runner),
         _check_claude_hooks(project, runner),
+        _check_claude_skills(project),
     ]
 
 
@@ -464,12 +465,46 @@ def _check_claude_hooks(project: Path, runner: Runner | None = None) -> DoctorCh
             False,
             "never referenced by .claude/settings.json: " + ", ".join(unwired),
         )
+    # The reverse direction: a removed hook leaves its wiring behind, and
+    # Claude Code then fails that hook on every matching tool call.
+    missing = sorted(set(re.findall(r"hooks/([\w.-]+\.sh)", wiring)) - set(scripts))
+    if missing:
+        return DoctorCheck(
+            "claude-hooks",
+            False,
+            ".claude/settings.json references missing hook scripts: "
+            + ", ".join(missing),
+        )
     stale = _stale_worktree_detail(project, settings, runner)
     if stale:
         return DoctorCheck("claude-hooks", False, stale)
     return DoctorCheck(
         "claude-hooks", True, f"{len(scripts)} hook scripts wired: {', '.join(scripts)}"
     )
+
+
+def _check_claude_skills(project: Path) -> DoctorCheck:
+    """Report `.claude/skills/` symlinks whose target no longer exists.
+
+    `sync_local_guardrails()` skips such a link when it copies skills into a
+    worktree, so without this the skill is just silently absent there.
+    """
+
+    skills = project / ".claude" / "skills"
+    if not skills.is_dir():
+        return DoctorCheck("claude-skills", True, "no .claude/skills/ directory")
+    dangling = sorted(
+        str(path.relative_to(skills))
+        for path in skills.rglob("*")
+        if path.is_symlink() and not path.exists()
+    )
+    if dangling:
+        return DoctorCheck(
+            "claude-skills",
+            False,
+            "symlinks with a missing target: " + ", ".join(dangling),
+        )
+    return DoctorCheck("claude-skills", True, "every .claude/skills/ link resolves")
 
 
 def _github_environment(environment: Mapping[str, str]) -> dict[str, str]:

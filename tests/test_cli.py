@@ -31,6 +31,7 @@ from workflow.cli import (
     CliError,
     _build_parser,
     _check_claude_hooks,
+    _check_claude_skills,
     dev_sync,
     dev_worktree,
     main,
@@ -599,6 +600,38 @@ class ShanksCliTests(unittest.TestCase):
         self.assertIn("unwired.sh", check.detail)
         # The extensionless Git hook is not this check's business.
         self.assertNotIn("post-merge", check.detail)
+
+    def test_doctor_flags_wiring_that_references_a_missing_hook(self) -> None:
+        wired = (
+            '{"hooks": {"PreToolUse": [{"command": "bash hooks/guard.sh"},'
+            ' {"command": "bash hooks/removed.sh"}]}}'
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            check = _check_claude_hooks(self._hooks_project(Path(directory), wired))
+
+        self.assertFalse(check.passed)
+        self.assertIn("removed.sh", check.detail)
+        self.assertNotIn("guard.sh", check.detail)
+
+    def test_doctor_flags_dangling_skill_symlinks(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            absent = _check_claude_skills(project)
+            skill = project / ".claude" / "skills" / "kept"
+            skill.mkdir(parents=True)
+            (project / "SKILL.md").write_text("", encoding="utf-8")
+            (skill / "SKILL.md").symlink_to(project / "SKILL.md")
+            healthy = _check_claude_skills(project)
+            gone = project / ".claude" / "skills" / "gone"
+            gone.mkdir()
+            (gone / "SKILL.md").symlink_to(project / "deleted.md")
+            broken = _check_claude_skills(project)
+
+        self.assertTrue(absent.passed)
+        self.assertTrue(healthy.passed, healthy.detail)
+        self.assertFalse(broken.passed)
+        self.assertIn("gone/SKILL.md", broken.detail)
+        self.assertNotIn("kept", broken.detail)
 
     def test_doctor_warns_without_settings_and_fails_on_broken_settings(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

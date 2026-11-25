@@ -101,7 +101,8 @@ git config core.hooksPath hooks
 diagnostic instead of silently disabling local push gating. Its `claude-hooks`
 check covers the other half: `hooks/` is tracked but the Claude Code wiring
 lives in the gitignored `.claude/settings.json`, so it reports any `hooks/*.sh`
-that file never references, and warns when the file is absent entirely (a
+that file never references, any `hooks/*.sh` it references that no longer
+exists, and warns when the file is absent entirely (a
 fresh clone has no Claude Code hooks at all). Run from a `./shanks dev
 worktree`, it also flags a `.claude/settings.json` that has fallen behind the
 main checkout's - the fix nothing else catches automatically - and points at
@@ -178,7 +179,7 @@ gh auth refresh -h github.com -s workflow
 | `./shanks --mode` | Show the current mode. `-mode` and `mode` are aliases. |
 | `./shanks -mode` | Show the current mode. |
 | `./shanks mode` | Show the current mode. |
-| `./shanks doctor` | Check tools and versions, pinned dependencies, GitHub authentication, environment variables, SQLite setup, `core.bare`, `core.hooksPath`, and whether every `hooks/*.sh` script is wired into `.claude/settings.json`. |
+| `./shanks doctor` | Check tools and versions, pinned dependencies, GitHub authentication, environment variables, SQLite setup, `core.bare`, `core.hooksPath`, whether every `hooks/*.sh` script is wired into `.claude/settings.json` (and every reference there resolves), and whether every `.claude/skills/` symlink resolves. |
 | `./shanks dev worktree BRANCH` | Create a sibling worktree for a second agent, carrying in the gitignored `.claude/settings.json`, `.claude/skills/`, and a `.venv` symlink that `git worktree add` leaves out. |
 | `./shanks dev sync [DIR...]` | Re-copy `.claude/settings.json` and `.claude/skills/` and relink `.venv` into worktrees that already exist; defaults to every worktree of this checkout. Run it after any hook change. |
 | `./shanks runs list` | List checkpointed runs. |
