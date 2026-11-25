@@ -232,7 +232,7 @@ class StateSchemaTests(unittest.TestCase):
                     "status": "failed",
                     "prompt": "do the thing",
                     "diff": "+secret",
-                    "error": f"push failed with {token}",
+                    "error": f"push failed\nwith {token}",
                 },
                 "not-an-event",
             ]
@@ -246,7 +246,7 @@ class StateSchemaTests(unittest.TestCase):
                     "type": "agent",
                     "node": "building",
                     "status": "failed",
-                    "summary": "error=push failed with [REDACTED]",
+                    "error": "push failed with [REDACTED]",
                 }
             ],
         )

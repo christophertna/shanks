@@ -1466,7 +1466,7 @@ def _print_human_status(payload: dict[str, Any]) -> None:
         for event in events:
             summary = " ".join(
                 str(event[key])
-                for key in ("node", "type", "status", "summary")
+                for key in ("node", "type", "status", "summary", "error")
                 if event.get(key)
             )
             print(f"  {event.get('timestamp') or '-'} {summary}")

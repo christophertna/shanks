@@ -290,7 +290,6 @@ _TIMELINE_DETAIL_KEYS = (
     "commit_sha",
     "pull_request_url",
     "pull_request_state",
-    "error",
 )
 
 
@@ -323,15 +322,17 @@ def run_timeline(manifest: Any, limit: int | None = None) -> list[dict[str, Any]
             for key in ("timestamp", "type", "node", "status")
             if event.get(key)
         }
-        details = []
-        for key in _TIMELINE_DETAIL_KEYS:
-            value = event.get(key)
-            if value in (None, "", [], {}):
-                continue
-            text = redact_secrets(" ".join(str(value).split()))
-            if len(text) > TIMELINE_ERROR_MAX_CHARS:
-                text = text[: TIMELINE_ERROR_MAX_CHARS - 1] + "…"
-            details.append(f"{key}={text}")
+        if event.get("error"):
+            # Redact before collapsing whitespace: some patterns span lines.
+            error = " ".join(redact_secrets(str(event["error"])).split())
+            if len(error) > TIMELINE_ERROR_MAX_CHARS:
+                error = error[: TIMELINE_ERROR_MAX_CHARS - 1] + "…"
+            entry["error"] = error
+        details = [
+            f"{key}={' '.join(redact_secrets(str(event[key])).split())}"
+            for key in _TIMELINE_DETAIL_KEYS
+            if event.get(key) not in (None, "", [], {})
+        ]
         problems = event.get("problems")
         if isinstance(problems, list) and problems:
             details.append(f"problems={len(problems)}")

@@ -797,11 +797,20 @@
             summary.textContent = event.summary;
             main.append(summary);
           }
+          if (event.error) {
+            const error = document.createElement("div");
+            error.className = "checkpoint-error";
+            error.textContent = event.error;
+            main.append(error);
+          }
           const meta = document.createElement("div");
           meta.className = "checkpoint-meta";
-          meta.textContent = event.timestamp
-            ? new Date(event.timestamp).toLocaleTimeString()
-            : "";
+          const when = new Date(event.timestamp);
+          meta.textContent = !event.timestamp
+            ? ""
+            : isNaN(when)
+              ? event.timestamp
+              : when.toLocaleTimeString();
           entry.append(main, meta);
           runTimeline.append(entry);
         }
